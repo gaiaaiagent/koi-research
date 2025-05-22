@@ -1,6 +1,6 @@
 import type { IAgentRuntime, Memory, Provider } from '@elizaos/core';
 import { addHeader } from '@elizaos/core';
-import { KnowledgeService } from './service.js.ts';
+import { KnowledgeService } from './service.ts';
 
 /**
  * Represents a knowledge provider that retrieves knowledge from the knowledge base.
