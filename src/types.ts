@@ -1,5 +1,5 @@
-import { UUID } from '@elizaos/core';
-import z from 'zod';
+import { UUID } from "@elizaos/core";
+import z from "zod";
 
 // Schema for validating model configuration
 export const ModelConfigSchema = z.object({
@@ -7,8 +7,10 @@ export const ModelConfigSchema = z.object({
   // NOTE: If EMBEDDING_PROVIDER is not specified, the plugin automatically assumes
   // plugin-openai is being used and will use OPENAI_EMBEDDING_MODEL and
   // OPENAI_EMBEDDING_DIMENSIONS for configuration
-  EMBEDDING_PROVIDER: z.enum(['openai', 'google']),
-  TEXT_PROVIDER: z.enum(['openai', 'anthropic', 'openrouter', 'google']).optional(),
+  EMBEDDING_PROVIDER: z.enum(["openai", "google"]),
+  TEXT_PROVIDER: z
+    .enum(["openai", "anthropic", "openrouter", "google"])
+    .optional(),
 
   // API keys
   OPENAI_API_KEY: z.string().optional(),
@@ -30,12 +32,14 @@ export const ModelConfigSchema = z.object({
   MAX_INPUT_TOKENS: z
     .string()
     .or(z.number())
-    .transform((val) => (typeof val === 'string' ? parseInt(val, 10) : val)),
+    .transform((val) => (typeof val === "string" ? parseInt(val, 10) : val)),
   MAX_OUTPUT_TOKENS: z
     .string()
     .or(z.number())
     .optional()
-    .transform((val) => (val ? (typeof val === 'string' ? parseInt(val, 10) : val) : 4096)),
+    .transform((val) =>
+      val ? (typeof val === "string" ? parseInt(val, 10) : val) : 4096
+    ),
 
   // Embedding dimension
   // For OpenAI: Only applies to text-embedding-3-small and text-embedding-3-large models
@@ -44,7 +48,9 @@ export const ModelConfigSchema = z.object({
     .string()
     .or(z.number())
     .optional()
-    .transform((val) => (val ? (typeof val === 'string' ? parseInt(val, 10) : val) : 1536)),
+    .transform((val) =>
+      val ? (typeof val === "string" ? parseInt(val, 10) : val) : 1536
+    ),
 
   // Contextual Knowledge settings
   CTX_KNOWLEDGE_ENABLED: z.boolean().default(false),
@@ -70,7 +76,7 @@ export interface ProviderRateLimits {
  * Options for text generation overrides
  */
 export interface TextGenerationOptions {
-  provider?: 'anthropic' | 'openai' | 'openrouter' | 'google';
+  provider?: "anthropic" | "openai" | "openrouter" | "google";
   modelName?: string;
   maxTokens?: number;
   /**
@@ -89,7 +95,7 @@ export interface TextGenerationOptions {
    * This can reduce costs by up to 90% for reads after the initial cache write.
    */
   cacheOptions?: {
-    type: 'ephemeral';
+    type: "ephemeral";
   };
   /**
    * Whether to automatically detect and enable caching for contextual retrieval.
@@ -124,13 +130,13 @@ export interface AddKnowledgeOptions {
 }
 
 // Extend the core service types with knowledge service
-declare module '@elizaos/core' {
+declare module "@elizaos/core" {
   interface ServiceTypeRegistry {
-    KNOWLEDGE: 'knowledge';
+    KNOWLEDGE: "knowledge";
   }
 }
 
 // Export service type constant
 export const KnowledgeServiceType = {
-  KNOWLEDGE: 'knowledge' as const,
-} satisfies Partial<import('@elizaos/core').ServiceTypeRegistry>;
+  KNOWLEDGE: "knowledge" as const,
+} satisfies Partial<import("@elizaos/core").ServiceTypeRegistry>;

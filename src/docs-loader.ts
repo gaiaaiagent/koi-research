@@ -1,8 +1,8 @@
-import { logger, UUID } from '@elizaos/core';
-import * as fs from 'fs';
-import * as path from 'path';
-import { KnowledgeService } from './service.ts';
-import { AddKnowledgeOptions } from './types.ts';
+import { logger, UUID } from "@elizaos/core";
+import * as fs from "fs";
+import * as path from "path";
+import { KnowledgeService } from "./service.ts";
+import { AddKnowledgeOptions } from "./types.ts";
 
 /**
  * Get the knowledge path from environment or default to ./docs
@@ -15,21 +15,27 @@ export function getKnowledgePath(): string {
     const resolvedPath = path.resolve(envPath);
 
     if (!fs.existsSync(resolvedPath)) {
-      logger.warn(`Knowledge path from environment variable does not exist: ${resolvedPath}`);
-      logger.warn('Please create the directory or update KNOWLEDGE_PATH environment variable');
+      logger.warn(
+        `Knowledge path from environment variable does not exist: ${resolvedPath}`
+      );
+      logger.warn(
+        "Please create the directory or update KNOWLEDGE_PATH environment variable"
+      );
     }
 
     return resolvedPath;
   }
 
   // Default to docs folder in current working directory
-  const defaultPath = path.join(process.cwd(), 'docs');
+  const defaultPath = path.join(process.cwd(), "docs");
 
   if (!fs.existsSync(defaultPath)) {
     logger.info(`Default docs folder does not exist at: ${defaultPath}`);
-    logger.info('To use the knowledge plugin, either:');
+    logger.info("To use the knowledge plugin, either:");
     logger.info('1. Create a "docs" folder in your project root');
-    logger.info('2. Set KNOWLEDGE_PATH environment variable to your documents folder');
+    logger.info(
+      "2. Set KNOWLEDGE_PATH environment variable to your documents folder"
+    );
   }
 
   return defaultPath;
@@ -56,7 +62,7 @@ export async function loadDocsFromPath(
   const files = getAllFiles(docsPath);
 
   if (files.length === 0) {
-    logger.info('No files found in knowledge path');
+    logger.info("No files found in knowledge path");
     return { total: 0, successful: 0, failed: 0 };
   }
 
@@ -71,7 +77,7 @@ export async function loadDocsFromPath(
       const fileExt = path.extname(filePath).toLowerCase();
 
       // Skip hidden files and directories
-      if (fileName.startsWith('.')) {
+      if (fileName.startsWith(".")) {
         continue;
       }
 
@@ -89,12 +95,14 @@ export async function loadDocsFromPath(
 
       // For binary files, convert to base64
       const isBinary = [
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       ].includes(contentType);
 
-      const content = isBinary ? fileBuffer.toString('base64') : fileBuffer.toString('utf-8');
+      const content = isBinary
+        ? fileBuffer.toString("base64")
+        : fileBuffer.toString("utf-8");
 
       // Create knowledge options
       const knowledgeOptions: AddKnowledgeOptions = {
@@ -109,7 +117,9 @@ export async function loadDocsFromPath(
       logger.debug(`Processing document: ${fileName}`);
       const result = await service.addKnowledge(knowledgeOptions);
 
-      logger.info(`Successfully processed ${fileName}: ${result.fragmentCount} fragments created`);
+      logger.info(
+        `Successfully processed ${fileName}: ${result.fragmentCount} fragments created`
+      );
       successful++;
     } catch (error) {
       logger.error(`Failed to process file ${filePath}:`, error);
@@ -140,7 +150,11 @@ function getAllFiles(dirPath: string, files: string[] = []): string[] {
 
       if (entry.isDirectory()) {
         // Skip node_modules and other common directories
-        if (!['node_modules', '.git', '.vscode', 'dist', 'build'].includes(entry.name)) {
+        if (
+          !["node_modules", ".git", ".vscode", "dist", "build"].includes(
+            entry.name
+          )
+        ) {
           getAllFiles(fullPath, files);
         }
       } else if (entry.isFile()) {
@@ -159,15 +173,16 @@ function getAllFiles(dirPath: string, files: string[] = []): string[] {
  */
 function getContentType(extension: string): string | null {
   const contentTypes: Record<string, string> = {
-    '.txt': 'text/plain',
-    '.md': 'text/plain',
-    '.tson': 'text/plain',
-    '.xml': 'text/plain',
-    '.csv': 'text/plain',
-    '.html': 'text/html',
-    '.pdf': 'application/pdf',
-    '.doc': 'application/msword',
-    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ".txt": "text/plain",
+    ".md": "text/plain",
+    ".tson": "text/plain",
+    ".xml": "text/plain",
+    ".csv": "text/plain",
+    ".html": "text/html",
+    ".pdf": "application/pdf",
+    ".doc": "application/msword",
+    ".docx":
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   };
 
   return contentTypes[extension] || null;
