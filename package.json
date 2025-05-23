@@ -1,7 +1,7 @@
 {
   "name": "@elizaos/plugin-knowledge",
   "description": "Plugin for Knowledge",
-  "version": "1.0.0-beta.70",
+  "version": "1.0.0-beta.71",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -47,13 +47,10 @@
     "prettier": "3.5.3"
   },
   "scripts": {
-    "start": "elizaos start",
-    "test-with-cli": "cd ../cli && bun run build && cd ../plugin-knowledge && elizaos test",
-    "dev": "elizaos dev",
+    "dev": "tsup --watch",
     "build": "tsup",
     "lint": "prettier --write ./src",
     "test": "elizaos test",
-    "publish": "elizaos publish",
     "format": "prettier --write ./src",
     "format:check": "prettier --check ./src",
     "clean": "rm -rf dist .turbo node_modules .turbo-tsconfig.json tsconfig.tsbuildinfo"
