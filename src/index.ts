@@ -105,3 +105,5 @@ export const knowledgePlugin: Plugin = {
 };
 
 export default knowledgePlugin;
+
+export * from "./types.ts";
