@@ -114,7 +114,7 @@ export class KnowledgeService extends Service {
         (item): item is string => typeof item === 'string'
       );
       // Run in background, don't await here to prevent blocking startup
-      service.processCharacterKnowledge(stringKnowledge).catch((err) => {
+      await service.processCharacterKnowledge(stringKnowledge).catch((err) => {
         logger.error(
           `KnowledgeService: Error processing character knowledge during startup: ${err.message}`,
           err
@@ -425,12 +425,217 @@ export class KnowledgeService extends Service {
     );
 
     const processingPromises = items.map(async (item) => {
-      // ... existing code ...
+      await this.knowledgeProcessingSemaphore.acquire();
+      try {
+        // For character knowledge, the item itself (string) is the source.
+        // A unique ID is generated from this string content.
+        const knowledgeId = createUniqueUuid(this.runtime.agentId + item, item); // Use agentId in seed for uniqueness
+
+        if (await this.checkExistingKnowledge(knowledgeId)) {
+          logger.debug(
+            `KnowledgeService: Character knowledge item with ID ${knowledgeId} already exists. Skipping.`
+          );
+          return;
+        }
+
+        logger.debug(
+          `KnowledgeService: Processing character knowledge for ${this.runtime.character?.name} - ${item.slice(0, 100)}`
+        );
+
+        let metadata: MemoryMetadata = {
+          type: MemoryType.DOCUMENT, // Character knowledge often represents a doc/fact.
+          timestamp: Date.now(),
+          source: 'character', // Indicate the source
+        };
+
+        const pathMatch = item.match(/^Path: (.+?)(?:\n|\r\n)/);
+        if (pathMatch) {
+          const filePath = pathMatch[1].trim();
+          const extension = filePath.split('.').pop() || '';
+          const filename = filePath.split('/').pop() || '';
+          const title = filename.replace(`.${extension}`, '');
+          metadata = {
+            ...metadata,
+            path: filePath,
+            filename: filename,
+            fileExt: extension,
+            title: title,
+            fileType: `text/${extension || 'plain'}`, // Assume text if not specified
+            fileSize: item.length,
+          };
+        }
+
+        // Using _internalAddKnowledge for character knowledge
+        await this._internalAddKnowledge(
+          {
+            id: knowledgeId, // Use the content-derived ID
+            content: {
+              text: item,
+            },
+            metadata,
+          },
+          undefined,
+          {
+            // Scope to the agent itself for character knowledge
+            roomId: this.runtime.agentId,
+            entityId: this.runtime.agentId,
+            worldId: this.runtime.agentId,
+          }
+        );
+      } catch (error) {
+        await this.handleProcessingError(error, 'processing character knowledge');
+      } finally {
+        this.knowledgeProcessingSemaphore.release();
+      }
     });
 
+    await Promise.all(processingPromises);
     logger.info(
       `KnowledgeService: Finished processing character knowledge for agent ${this.runtime.agentId}.`
     );
+  }
+
+  async _internalAddKnowledge(
+    item: KnowledgeItem, // item.id here is expected to be the ID of the "document"
+    options = {
+      targetTokens: 1500, // TODO: Make these configurable, perhaps from plugin config
+      overlap: 200,
+      modelContextSize: 4096,
+    },
+    scope = {
+      // Default scope for internal additions (like character knowledge)
+      roomId: this.runtime.agentId,
+      entityId: this.runtime.agentId,
+      worldId: this.runtime.agentId,
+    }
+  ): Promise<void> {
+    const finalScope = {
+      roomId: scope?.roomId ?? this.runtime.agentId,
+      worldId: scope?.worldId ?? this.runtime.agentId,
+      entityId: scope?.entityId ?? this.runtime.agentId,
+    };
+
+    logger.debug(`KnowledgeService: _internalAddKnowledge called for item ID ${item.id}`);
+
+    // For _internalAddKnowledge, we assume item.content.text is always present
+    // and it's not a binary file needing Knowledge plugin's special handling for extraction.
+    // This path is for already-textual content like character knowledge or direct text additions.
+
+    const documentMemory: Memory = {
+      id: item.id, // This ID should be the unique ID for the document being added.
+      agentId: this.runtime.agentId,
+      roomId: finalScope.roomId,
+      worldId: finalScope.worldId,
+      entityId: finalScope.entityId,
+      content: item.content,
+      metadata: {
+        ...(item.metadata || {}), // Spread existing metadata
+        type: MemoryType.DOCUMENT, // Ensure it's marked as a document
+        documentId: item.id, // Ensure metadata.documentId is set to the item's ID
+        timestamp: item.metadata?.timestamp || Date.now(),
+      },
+      createdAt: Date.now(),
+    };
+
+    const existingDocument = await this.runtime.getMemoryById(item.id);
+    if (existingDocument) {
+      logger.debug(
+        `KnowledgeService: Document ${item.id} already exists in _internalAddKnowledge, updating...`
+      );
+      await this.runtime.updateMemory({
+        ...documentMemory,
+        id: item.id, // Ensure ID is passed for update
+      });
+    } else {
+      await this.runtime.createMemory(documentMemory, 'documents');
+    }
+
+    const fragments = await this.splitAndCreateFragments(
+      item, // item.id is the documentId
+      options.targetTokens,
+      options.overlap,
+      finalScope
+    );
+
+    let fragmentsProcessed = 0;
+    for (const fragment of fragments) {
+      try {
+        await this.processDocumentFragment(fragment); // fragment already has metadata.documentId from splitAndCreateFragments
+        fragmentsProcessed++;
+      } catch (error) {
+        logger.error(
+          `KnowledgeService: Error processing fragment ${fragment.id} for document ${item.id}:`,
+          error
+        );
+      }
+    }
+    logger.debug(
+      `KnowledgeService: Processed ${fragmentsProcessed}/${fragments.length} fragments for document ${item.id}.`
+    );
+  }
+
+  private async processDocumentFragment(fragment: Memory): Promise<void> {
+    try {
+      // Add embedding to the fragment
+      // Runtime's addEmbeddingToMemory will use runtime.useModel(ModelType.TEXT_EMBEDDING, ...)
+      await this.runtime.addEmbeddingToMemory(fragment);
+
+      // Store the fragment in the knowledge table
+      await this.runtime.createMemory(fragment, 'knowledge');
+    } catch (error) {
+      logger.error(
+        `KnowledgeService: Error processing fragment ${fragment.id}:`,
+        error instanceof Error ? error.message : String(error)
+      );
+      throw error;
+    }
+  }
+
+  private async splitAndCreateFragments(
+    document: KnowledgeItem, // document.id is the ID of the parent document
+    targetTokens: number,
+    overlap: number,
+    scope: { roomId: UUID; worldId: UUID; entityId: UUID }
+  ): Promise<Memory[]> {
+    if (!document.content.text) {
+      return [];
+    }
+
+    const text = document.content.text;
+    // TODO: Consider using DEFAULT_CHUNK_TOKEN_SIZE and DEFAULT_CHUNK_OVERLAP_TOKENS from ctx-embeddings
+    // For now, using passed in values or defaults from _internalAddKnowledge.
+    const chunks = await splitChunks(text, targetTokens, overlap);
+
+    return chunks.map((chunk, index) => {
+      // Create a unique ID for the fragment based on document ID, index, and timestamp
+      const fragmentIdContent = `${document.id}-fragment-${index}-${Date.now()}`;
+      const fragmentId = createUniqueUuid(
+        this.runtime.agentId + fragmentIdContent,
+        fragmentIdContent
+      );
+
+      return {
+        id: fragmentId,
+        entityId: scope.entityId,
+        agentId: this.runtime.agentId,
+        roomId: scope.roomId,
+        worldId: scope.worldId,
+        content: {
+          text: chunk,
+        },
+        metadata: {
+          ...(document.metadata || {}), // Spread metadata from parent document
+          type: MemoryType.FRAGMENT,
+          documentId: document.id, // Link fragment to parent document
+          position: index,
+          timestamp: Date.now(), // Fragment's own creation timestamp
+          // Ensure we don't overwrite essential fragment metadata with document's
+          // For example, source might be different or more specific for the fragment.
+          // Here, we primarily inherit and then set fragment-specifics.
+        },
+        createdAt: Date.now(),
+      };
+    });
   }
 
   // ADDED METHODS START
