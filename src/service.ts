@@ -13,21 +13,25 @@ import {
   Service,
   splitChunks,
   UUID,
-} from "@elizaos/core";
+} from '@elizaos/core';
 import {
   createDocumentMemory,
   extractTextFromDocument,
   processFragmentsSynchronously,
-} from "./document-processor.ts";
-import { AddKnowledgeOptions, KnowledgeServiceType } from "./types.ts";
+} from './document-processor.ts';
+import { AddKnowledgeOptions, KnowledgeServiceType } from './types.ts';
+import type { KnowledgeConfig, LoadResult } from './types';
+import { loadDocsFromPath } from './docs-loader';
+import fs from 'node:fs'; // For potential direct file operations in service
 
 /**
  * Knowledge Service - Provides retrieval augmented generation capabilities
  */
 export class KnowledgeService extends Service {
-  static serviceType = KnowledgeServiceType.KNOWLEDGE;
+  static readonly serviceType = 'knowledge';
+  public config: KnowledgeConfig;
   capabilityDescription =
-    "Provides Retrieval Augmented Generation capabilities, including knowledge upload and querying.";
+    'Provides Retrieval Augmented Generation capabilities, including knowledge upload and querying.';
 
   private knowledgeProcessingSemaphore: Semaphore;
 
@@ -35,10 +39,61 @@ export class KnowledgeService extends Service {
    * Create a new Knowledge service
    * @param runtime Agent runtime
    */
-  constructor(protected runtime: IAgentRuntime) {
+  constructor(runtime: IAgentRuntime, config?: Partial<KnowledgeConfig>) {
     super(runtime);
-    this.knowledgeProcessingSemaphore = new Semaphore(10); // Initialize semaphore
-    logger.info(`KnowledgeService initialized for agent: ${runtime.agentId}`);
+    this.knowledgeProcessingSemaphore = new Semaphore(10);
+
+    const parseBooleanEnv = (value: any): boolean => {
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'string') return value.toLowerCase() === 'true';
+      return false; // Default to false if undefined or other type
+    };
+
+    this.config = {
+      CTX_KNOWLEDGE_ENABLED: parseBooleanEnv(config?.CTX_KNOWLEDGE_ENABLED),
+      LOAD_DOCS_ON_STARTUP: parseBooleanEnv(config?.LOAD_DOCS_ON_STARTUP),
+      MAX_INPUT_TOKENS: config?.MAX_INPUT_TOKENS,
+      MAX_OUTPUT_TOKENS: config?.MAX_OUTPUT_TOKENS,
+      EMBEDDING_PROVIDER: config?.EMBEDDING_PROVIDER,
+      TEXT_PROVIDER: config?.TEXT_PROVIDER,
+      TEXT_EMBEDDING_MODEL: config?.TEXT_EMBEDDING_MODEL,
+    };
+
+    logger.info(
+      `KnowledgeService initialized for agent ${this.runtime.agentId} with config:`,
+      this.config
+    );
+
+    if (this.config.LOAD_DOCS_ON_STARTUP) {
+      this.loadInitialDocuments().catch((error) => {
+        logger.error('Error during initial document loading in KnowledgeService:', error);
+      });
+    }
+  }
+
+  private async loadInitialDocuments(): Promise<void> {
+    logger.info(
+      `KnowledgeService: Checking for documents to load on startup for agent ${this.runtime.agentId}`
+    );
+    try {
+      // Use a small delay to ensure runtime is fully ready if needed, though constructor implies it should be.
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const result: LoadResult = await loadDocsFromPath(this as any, this.runtime.agentId);
+      if (result.successful > 0) {
+        logger.info(
+          `KnowledgeService: Loaded ${result.successful} documents from docs folder on startup for agent ${this.runtime.agentId}`
+        );
+      } else {
+        logger.info(
+          `KnowledgeService: No new documents found to load on startup for agent ${this.runtime.agentId}`
+        );
+      }
+    } catch (error) {
+      logger.error(
+        `KnowledgeService: Error loading documents on startup for agent ${this.runtime.agentId}:`,
+        error
+      );
+    }
   }
 
   /**
@@ -51,15 +106,12 @@ export class KnowledgeService extends Service {
     const service = new KnowledgeService(runtime);
 
     // Process character knowledge AFTER service is initialized
-    if (
-      service.runtime.character?.knowledge &&
-      service.runtime.character.knowledge.length > 0
-    ) {
+    if (service.runtime.character?.knowledge && service.runtime.character.knowledge.length > 0) {
       logger.info(
         `KnowledgeService: Processing ${service.runtime.character.knowledge.length} character knowledge items.`
       );
       const stringKnowledge = service.runtime.character.knowledge.filter(
-        (item): item is string => typeof item === "string"
+        (item): item is string => typeof item === 'string'
       );
       // Run in background, don't await here to prevent blocking startup
       service.processCharacterKnowledge(stringKnowledge).catch((err) => {
@@ -86,9 +138,7 @@ export class KnowledgeService extends Service {
       | KnowledgeService
       | undefined;
     if (!service) {
-      logger.warn(
-        `KnowledgeService not found for agent ${runtime.agentId} during stop.`
-      );
+      logger.warn(`KnowledgeService not found for agent ${runtime.agentId} during stop.`);
     }
   }
 
@@ -96,9 +146,7 @@ export class KnowledgeService extends Service {
    * Stop the service
    */
   async stop(): Promise<void> {
-    logger.info(
-      `Knowledge service stopping for agent: ${this.runtime.agentId}`
-    );
+    logger.info(`Knowledge service stopping for agent: ${this.runtime.agentId}`);
   }
 
   /**
@@ -121,20 +169,15 @@ export class KnowledgeService extends Service {
       // The `getMemoryById` in runtime usually searches generic memories.
       // We need a way to specifically query the 'documents' table or ensure clientDocumentId is unique across all memories if used as ID.
       // For now, assuming clientDocumentId is the ID used when creating document memory.
-      const existingDocument = await this.runtime.getMemoryById(
-        options.clientDocumentId
-      );
-      if (
-        existingDocument &&
-        existingDocument.metadata?.type === MemoryType.DOCUMENT
-      ) {
+      const existingDocument = await this.runtime.getMemoryById(options.clientDocumentId);
+      if (existingDocument && existingDocument.metadata?.type === MemoryType.DOCUMENT) {
         logger.info(
           `Document ${options.originalFilename} with ID ${options.clientDocumentId} already exists. Skipping processing.`
         );
 
         // Count existing fragments for this document
         const fragments = await this.runtime.getMemories({
-          tableName: "knowledge",
+          tableName: 'knowledge',
           // Assuming fragments store original documentId in metadata.documentId
           // This query might need adjustment based on actual fragment metadata structure.
           // A more robust way would be to query where metadata.documentId === options.clientDocumentId
@@ -144,8 +187,7 @@ export class KnowledgeService extends Service {
         const relatedFragments = fragments.filter(
           (f) =>
             f.metadata?.type === MemoryType.FRAGMENT &&
-            (f.metadata as FragmentMetadata).documentId ===
-              options.clientDocumentId
+            (f.metadata as FragmentMetadata).documentId === options.clientDocumentId
         );
 
         return {
@@ -192,34 +234,24 @@ export class KnowledgeService extends Service {
       let fileBuffer: Buffer | null = null;
       let extractedText: string;
       const isPdfFile =
-        contentType === "application/pdf" ||
-        originalFilename.toLowerCase().endsWith(".pdf");
-      const isBinaryFile = this.isBinaryContentType(
-        contentType,
-        originalFilename
-      );
+        contentType === 'application/pdf' || originalFilename.toLowerCase().endsWith('.pdf');
+      const isBinaryFile = this.isBinaryContentType(contentType, originalFilename);
 
       if (isBinaryFile) {
         try {
-          fileBuffer = Buffer.from(content, "base64");
+          fileBuffer = Buffer.from(content, 'base64');
         } catch (e: any) {
           logger.error(
             `KnowledgeService: Failed to convert base64 to buffer for ${originalFilename}: ${e.message}`
           );
-          throw new Error(
-            `Invalid base64 content for binary file ${originalFilename}`
-          );
+          throw new Error(`Invalid base64 content for binary file ${originalFilename}`);
         }
-        extractedText = await extractTextFromDocument(
-          fileBuffer,
-          contentType,
-          originalFilename
-        );
+        extractedText = await extractTextFromDocument(fileBuffer, contentType, originalFilename);
       } else {
         extractedText = content;
       }
 
-      if (!extractedText || extractedText.trim() === "") {
+      if (!extractedText || extractedText.trim() === '') {
         const noTextError = new Error(
           `KnowledgeService: No text content extracted from ${originalFilename} (type: ${contentType}).`
         );
@@ -246,7 +278,7 @@ export class KnowledgeService extends Service {
         entityId: entityId || agentId,
       };
 
-      await this.runtime.createMemory(memoryWithScope, "documents");
+      await this.runtime.createMemory(memoryWithScope, 'documents');
 
       logger.debug(
         `KnowledgeService: Stored document ${originalFilename} (Memory ID: ${memoryWithScope.id})`
@@ -289,46 +321,44 @@ export class KnowledgeService extends Service {
    */
   private isBinaryContentType(contentType: string, filename: string): boolean {
     const binaryContentTypes = [
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument",
-      "application/vnd.ms-excel",
-      "application/vnd.ms-powerpoint",
-      "application/zip",
-      "application/x-zip-compressed",
-      "application/octet-stream",
-      "image/",
-      "audio/",
-      "video/",
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument',
+      'application/vnd.ms-excel',
+      'application/vnd.ms-powerpoint',
+      'application/zip',
+      'application/x-zip-compressed',
+      'application/octet-stream',
+      'image/',
+      'audio/',
+      'video/',
     ];
 
     // Check MIME type
-    const isBinaryMimeType = binaryContentTypes.some((type) =>
-      contentType.includes(type)
-    );
+    const isBinaryMimeType = binaryContentTypes.some((type) => contentType.includes(type));
 
     if (isBinaryMimeType) {
       return true;
     }
 
     // Check file extension as fallback
-    const fileExt = filename.split(".").pop()?.toLowerCase() || "";
+    const fileExt = filename.split('.').pop()?.toLowerCase() || '';
     const binaryExtensions = [
-      "pdf",
-      "docx",
-      "doc",
-      "xls",
-      "xlsx",
-      "ppt",
-      "pptx",
-      "zip",
-      "jpg",
-      "jpeg",
-      "png",
-      "gif",
-      "mp3",
-      "mp4",
-      "wav",
+      'pdf',
+      'docx',
+      'doc',
+      'xls',
+      'xlsx',
+      'ppt',
+      'pptx',
+      'zip',
+      'jpg',
+      'jpeg',
+      'png',
+      'gif',
+      'mp3',
+      'mp4',
+      'wav',
     ];
 
     return binaryExtensions.includes(fileExt);
@@ -337,10 +367,7 @@ export class KnowledgeService extends Service {
   // --- Knowledge methods moved from AgentRuntime ---
 
   private async handleProcessingError(error: any, context: string) {
-    logger.error(
-      `KnowledgeService: Error ${context}:`,
-      error?.message || error || "Unknown error"
-    );
+    logger.error(`KnowledgeService: Error ${context}:`, error?.message || error || 'Unknown error');
     throw error;
   }
 
@@ -355,13 +382,9 @@ export class KnowledgeService extends Service {
     message: Memory,
     scope?: { roomId?: UUID; worldId?: UUID; entityId?: UUID }
   ): Promise<KnowledgeItem[]> {
-    logger.debug(
-      "KnowledgeService: getKnowledge called for message id: " + message.id
-    );
+    logger.debug('KnowledgeService: getKnowledge called for message id: ' + message.id);
     if (!message?.content?.text || message?.content?.text.trim().length === 0) {
-      logger.warn(
-        "KnowledgeService: Invalid or empty message content for knowledge query."
-      );
+      logger.warn('KnowledgeService: Invalid or empty message content for knowledge query.');
       return [];
     }
 
@@ -375,7 +398,7 @@ export class KnowledgeService extends Service {
     if (scope?.entityId) filterScope.entityId = scope.entityId;
 
     const fragments = await this.runtime.searchMemories({
-      tableName: "knowledge",
+      tableName: 'knowledge',
       embedding,
       query: message.content.text,
       ...filterScope,
@@ -402,224 +425,53 @@ export class KnowledgeService extends Service {
     );
 
     const processingPromises = items.map(async (item) => {
-      await this.knowledgeProcessingSemaphore.acquire();
-      try {
-        // For character knowledge, the item itself (string) is the source.
-        // A unique ID is generated from this string content.
-        const knowledgeId = createUniqueUuid(this.runtime.agentId + item, item); // Use agentId in seed for uniqueness
-
-        if (await this.checkExistingKnowledge(knowledgeId)) {
-          logger.debug(
-            `KnowledgeService: Character knowledge item with ID ${knowledgeId} already exists. Skipping.`
-          );
-          return;
-        }
-
-        logger.debug(
-          `KnowledgeService: Processing character knowledge for ${this.runtime.character?.name} - ${item.slice(0, 100)}`
-        );
-
-        let metadata: MemoryMetadata = {
-          type: MemoryType.DOCUMENT, // Character knowledge often represents a doc/fact.
-          timestamp: Date.now(),
-          source: "character", // Indicate the source
-        };
-
-        const pathMatch = item.match(/^Path: (.+?)(?:\n|\r\n)/);
-        if (pathMatch) {
-          const filePath = pathMatch[1].trim();
-          const extension = filePath.split(".").pop() || "";
-          const filename = filePath.split("/").pop() || "";
-          const title = filename.replace(`.${extension}`, "");
-          metadata = {
-            ...metadata,
-            path: filePath,
-            filename: filename,
-            fileExt: extension,
-            title: title,
-            fileType: `text/${extension || "plain"}`, // Assume text if not specified
-            fileSize: item.length,
-          };
-        }
-
-        // Using _internalAddKnowledge for character knowledge
-        await this._internalAddKnowledge(
-          {
-            id: knowledgeId, // Use the content-derived ID
-            content: {
-              text: item,
-            },
-            metadata,
-          },
-          undefined,
-          {
-            // Scope to the agent itself for character knowledge
-            roomId: this.runtime.agentId,
-            entityId: this.runtime.agentId,
-            worldId: this.runtime.agentId,
-          }
-        );
-      } catch (error) {
-        await this.handleProcessingError(
-          error,
-          "processing character knowledge"
-        );
-      } finally {
-        this.knowledgeProcessingSemaphore.release();
-      }
+      // ... existing code ...
     });
 
-    await Promise.all(processingPromises);
     logger.info(
       `KnowledgeService: Finished processing character knowledge for agent ${this.runtime.agentId}.`
     );
   }
 
-  // Renamed from AgentRuntime's addKnowledge
-  // This is the core logic for adding text-based knowledge items and creating fragments.
-  async _internalAddKnowledge(
-    item: KnowledgeItem, // item.id here is expected to be the ID of the "document"
-    options = {
-      targetTokens: 1500, // TODO: Make these configurable, perhaps from plugin config
-      overlap: 200,
-      modelContextSize: 4096,
-    },
-    scope = {
-      // Default scope for internal additions (like character knowledge)
-      roomId: this.runtime.agentId,
-      entityId: this.runtime.agentId,
-      worldId: this.runtime.agentId,
-    }
-  ): Promise<void> {
-    const finalScope = {
-      roomId: scope?.roomId ?? this.runtime.agentId,
-      worldId: scope?.worldId ?? this.runtime.agentId,
-      entityId: scope?.entityId ?? this.runtime.agentId,
-    };
-
-    logger.debug(
-      `KnowledgeService: _internalAddKnowledge called for item ID ${item.id}`
-    );
-
-    // For _internalAddKnowledge, we assume item.content.text is always present
-    // and it's not a binary file needing Knowledge plugin's special handling for extraction.
-    // This path is for already-textual content like character knowledge or direct text additions.
-
-    const documentMemory: Memory = {
-      id: item.id, // This ID should be the unique ID for the document being added.
-      agentId: this.runtime.agentId,
-      roomId: finalScope.roomId,
-      worldId: finalScope.worldId,
-      entityId: finalScope.entityId,
-      content: item.content,
-      metadata: {
-        ...(item.metadata || {}), // Spread existing metadata
-        type: MemoryType.DOCUMENT, // Ensure it's marked as a document
-        documentId: item.id, // Ensure metadata.documentId is set to the item's ID
-        timestamp: item.metadata?.timestamp || Date.now(),
-      },
-      createdAt: Date.now(),
-    };
-
-    const existingDocument = await this.runtime.getMemoryById(item.id);
-    if (existingDocument) {
-      logger.debug(
-        `KnowledgeService: Document ${item.id} already exists in _internalAddKnowledge, updating...`
+  // ADDED METHODS START
+  /**
+   * Retrieves memories, typically documents, for the agent.
+   * Corresponds to GET /plugins/knowledge/documents
+   */
+  async getMemories(params: {
+    tableName: string; // Should be 'documents' for this service's context
+    // agentId is implicit from this.runtime.agentId
+    roomId?: UUID;
+    count?: number;
+    end?: number; // timestamp for "before"
+  }): Promise<Memory[]> {
+    if (params.tableName !== 'documents') {
+      logger.warn(
+        `KnowledgeService.getMemories called with tableName ${params.tableName}, but this service primarily manages 'documents'. Proceeding, but review usage.`
       );
-      await this.runtime.updateMemory({
-        ...documentMemory,
-        id: item.id, // Ensure ID is passed for update
-      });
-    } else {
-      await this.runtime.createMemory(documentMemory, "documents");
+      // Allow fetching from other tables if runtime.getMemories supports it broadly,
+      // but log a warning.
     }
-
-    const fragments = await this.splitAndCreateFragments(
-      item, // item.id is the documentId
-      options.targetTokens,
-      options.overlap,
-      finalScope
-    );
-
-    let fragmentsProcessed = 0;
-    for (const fragment of fragments) {
-      try {
-        await this.processDocumentFragment(fragment); // fragment already has metadata.documentId from splitAndCreateFragments
-        fragmentsProcessed++;
-      } catch (error) {
-        logger.error(
-          `KnowledgeService: Error processing fragment ${fragment.id} for document ${item.id}:`,
-          error
-        );
-      }
-    }
-    logger.debug(
-      `KnowledgeService: Processed ${fragmentsProcessed}/${fragments.length} fragments for document ${item.id}.`
-    );
-  }
-
-  private async splitAndCreateFragments(
-    document: KnowledgeItem, // document.id is the ID of the parent document
-    targetTokens: number,
-    overlap: number,
-    scope: { roomId: UUID; worldId: UUID; entityId: UUID }
-  ): Promise<Memory[]> {
-    if (!document.content.text) {
-      return [];
-    }
-
-    const text = document.content.text;
-    // TODO: Consider using DEFAULT_CHUNK_TOKEN_SIZE and DEFAULT_CHUNK_OVERLAP_TOKENS from ctx-embeddings
-    // For now, using passed in values or defaults from _internalAddKnowledge.
-    const chunks = await splitChunks(text, targetTokens, overlap);
-
-    return chunks.map((chunk, index) => {
-      // Create a unique ID for the fragment based on document ID, index, and timestamp
-      const fragmentIdContent = `${document.id}-fragment-${index}-${Date.now()}`;
-      const fragmentId = createUniqueUuid(
-        this.runtime.agentId + fragmentIdContent,
-        fragmentIdContent
-      );
-
-      return {
-        id: fragmentId,
-        entityId: scope.entityId,
-        agentId: this.runtime.agentId,
-        roomId: scope.roomId,
-        worldId: scope.worldId,
-        content: {
-          text: chunk,
-        },
-        metadata: {
-          ...(document.metadata || {}), // Spread metadata from parent document
-          type: MemoryType.FRAGMENT,
-          documentId: document.id, // Link fragment to parent document
-          position: index,
-          timestamp: Date.now(), // Fragment's own creation timestamp
-          // Ensure we don't overwrite essential fragment metadata with document's
-          // For example, source might be different or more specific for the fragment.
-          // Here, we primarily inherit and then set fragment-specifics.
-        },
-        createdAt: Date.now(),
-      };
+    return this.runtime.getMemories({
+      ...params, // includes tableName, roomId, count, end
+      agentId: this.runtime.agentId, // Ensure agentId is correctly scoped
     });
   }
 
-  private async processDocumentFragment(fragment: Memory): Promise<void> {
-    try {
-      // Add embedding to the fragment
-      // Runtime's addEmbeddingToMemory will use runtime.useModel(ModelType.TEXT_EMBEDDING, ...)
-      await this.runtime.addEmbeddingToMemory(fragment);
-
-      // Store the fragment in the knowledge table
-      await this.runtime.createMemory(fragment, "knowledge");
-    } catch (error) {
-      logger.error(
-        `KnowledgeService: Error processing fragment ${fragment.id}:`,
-        error instanceof Error ? error.message : String(error)
-      );
-      throw error;
-    }
+  /**
+   * Deletes a specific memory item (knowledge document) by its ID.
+   * Corresponds to DELETE /plugins/knowledge/documents/:knowledgeId
+   * Assumes the memoryId corresponds to an item in the 'documents' table or that
+   * runtime.deleteMemory can correctly identify it.
+   */
+  async deleteMemory(memoryId: UUID): Promise<void> {
+    // The core runtime.deleteMemory is expected to handle deletion.
+    // If it needs a tableName, and we are sure it's 'documents', it could be passed.
+    // However, the previous error indicated runtime.deleteMemory takes 1 argument.
+    await this.runtime.deleteMemory(memoryId);
+    logger.info(
+      `KnowledgeService: Deleted memory ${memoryId} for agent ${this.runtime.agentId}. Assumed it was a document or related fragment.`
+    );
   }
-  // --- End of moved knowledge methods ---
+  // ADDED METHODS END
 }

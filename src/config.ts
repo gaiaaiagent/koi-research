@@ -1,65 +1,74 @@
-import { ModelConfig, ModelConfigSchema, ProviderRateLimits } from "./types.ts";
-import z from "zod";
-import { logger } from "@elizaos/core";
+import { ModelConfig, ModelConfigSchema, ProviderRateLimits } from './types.ts';
+import z from 'zod';
+import { logger, IAgentRuntime } from '@elizaos/core';
 
 /**
- * Validates the model configuration from environment variables
+ * Validates the model configuration using runtime settings
+ * @param runtime The agent runtime to get settings from
  * @returns The validated configuration or throws an error
  */
-export function validateModelConfig(): ModelConfig {
+export function validateModelConfig(runtime?: IAgentRuntime): ModelConfig {
   try {
+    // Helper function to get setting from runtime or fallback to process.env
+    const getSetting = (key: string, defaultValue?: string) => {
+      if (runtime) {
+        return runtime.getSetting(key) || defaultValue;
+      }
+      return process.env[key] || defaultValue;
+    };
+
     // Determine if contextual Knowledge is enabled
-    const ctxKnowledgeEnabled = process.env.CTX_KNOWLEDGE_ENABLED === "true";
+    const ctxKnowledgeEnabled = getSetting('CTX_KNOWLEDGE_ENABLED') === 'true';
     logger.debug(`Configuration: CTX_KNOWLEDGE_ENABLED=${ctxKnowledgeEnabled}`);
 
     // If EMBEDDING_PROVIDER is not provided, assume we're using plugin-openai
-    const assumePluginOpenAI = !process.env.EMBEDDING_PROVIDER;
+    const embeddingProvider = getSetting('EMBEDDING_PROVIDER');
+    const assumePluginOpenAI = !embeddingProvider;
 
     if (assumePluginOpenAI) {
-      if (process.env.OPENAI_API_KEY && process.env.OPENAI_EMBEDDING_MODEL) {
-        logger.info(
-          "EMBEDDING_PROVIDER not specified, using configuration from plugin-openai"
-        );
+      const openaiApiKey = getSetting('OPENAI_API_KEY');
+      const openaiEmbeddingModel = getSetting('OPENAI_EMBEDDING_MODEL');
+
+      if (openaiApiKey && openaiEmbeddingModel) {
+        logger.info('EMBEDDING_PROVIDER not specified, using configuration from plugin-openai');
       } else {
         logger.warn(
-          "EMBEDDING_PROVIDER not specified, but plugin-openai configuration incomplete. Check OPENAI_API_KEY and OPENAI_EMBEDDING_MODEL."
+          'EMBEDDING_PROVIDER not specified, but plugin-openai configuration incomplete. Check OPENAI_API_KEY and OPENAI_EMBEDDING_MODEL.'
         );
       }
     }
 
     // Set embedding provider defaults based on plugin-openai if EMBEDDING_PROVIDER is not set
-    const embeddingProvider = process.env.EMBEDDING_PROVIDER || "openai";
+    const finalEmbeddingProvider = embeddingProvider || 'openai';
     const textEmbeddingModel =
-      process.env.TEXT_EMBEDDING_MODEL ||
-      process.env.OPENAI_EMBEDDING_MODEL ||
-      "text-embedding-3-small";
+      getSetting('TEXT_EMBEDDING_MODEL') ||
+      getSetting('OPENAI_EMBEDDING_MODEL') ||
+      'text-embedding-3-small';
     const embeddingDimension =
-      process.env.EMBEDDING_DIMENSION ||
-      process.env.OPENAI_EMBEDDING_DIMENSIONS ||
-      1536;
+      getSetting('EMBEDDING_DIMENSION') || getSetting('OPENAI_EMBEDDING_DIMENSIONS') || '1536';
 
-    // Use OpenAI API key from main config if available
-    const openaiApiKey = process.env.OPENAI_API_KEY;
+    // Use OpenAI API key from runtime settings
+    const openaiApiKey = getSetting('OPENAI_API_KEY');
 
     const config = ModelConfigSchema.parse({
-      EMBEDDING_PROVIDER: embeddingProvider,
-      TEXT_PROVIDER: process.env.TEXT_PROVIDER,
+      EMBEDDING_PROVIDER: finalEmbeddingProvider,
+      TEXT_PROVIDER: getSetting('TEXT_PROVIDER'),
 
       OPENAI_API_KEY: openaiApiKey,
-      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-      OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
-      GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+      ANTHROPIC_API_KEY: getSetting('ANTHROPIC_API_KEY'),
+      OPENROUTER_API_KEY: getSetting('OPENROUTER_API_KEY'),
+      GOOGLE_API_KEY: getSetting('GOOGLE_API_KEY'),
 
-      OPENAI_BASE_URL: process.env.OPENAI_BASE_URL,
-      ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL,
-      OPENROUTER_BASE_URL: process.env.OPENROUTER_BASE_URL,
-      GOOGLE_BASE_URL: process.env.GOOGLE_BASE_URL,
+      OPENAI_BASE_URL: getSetting('OPENAI_BASE_URL'),
+      ANTHROPIC_BASE_URL: getSetting('ANTHROPIC_BASE_URL'),
+      OPENROUTER_BASE_URL: getSetting('OPENROUTER_BASE_URL'),
+      GOOGLE_BASE_URL: getSetting('GOOGLE_BASE_URL'),
 
       TEXT_EMBEDDING_MODEL: textEmbeddingModel,
-      TEXT_MODEL: process.env.TEXT_MODEL,
+      TEXT_MODEL: getSetting('TEXT_MODEL'),
 
-      MAX_INPUT_TOKENS: process.env.MAX_INPUT_TOKENS || 4000,
-      MAX_OUTPUT_TOKENS: process.env.MAX_OUTPUT_TOKENS || 4096,
+      MAX_INPUT_TOKENS: getSetting('MAX_INPUT_TOKENS', '4000'),
+      MAX_OUTPUT_TOKENS: getSetting('MAX_OUTPUT_TOKENS', '4096'),
 
       EMBEDDING_DIMENSION: embeddingDimension,
 
@@ -71,8 +80,8 @@ export function validateModelConfig(): ModelConfig {
   } catch (error) {
     if (error instanceof z.ZodError) {
       const issues = error.issues
-        .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-        .join(", ");
+        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+        .join(', ');
       throw new Error(`Model configuration validation failed: ${issues}`);
     }
     throw error;
@@ -85,82 +94,57 @@ export function validateModelConfig(): ModelConfig {
  * @param assumePluginOpenAI Whether we're assuming plugin-openai is being used
  * @throws Error if a required configuration value is missing
  */
-function validateConfigRequirements(
-  config: ModelConfig,
-  assumePluginOpenAI: boolean
-): void {
+function validateConfigRequirements(config: ModelConfig, assumePluginOpenAI: boolean): void {
   // Skip validation for embedding provider if we're using plugin-openai's configuration
   if (!assumePluginOpenAI) {
     // Only validate embedding provider if not using plugin-openai
-    if (config.EMBEDDING_PROVIDER === "openai" && !config.OPENAI_API_KEY) {
-      throw new Error(
-        'OPENAI_API_KEY is required when EMBEDDING_PROVIDER is set to "openai"'
-      );
+    if (config.EMBEDDING_PROVIDER === 'openai' && !config.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY is required when EMBEDDING_PROVIDER is set to "openai"');
     }
-    if (config.EMBEDDING_PROVIDER === "google" && !config.GOOGLE_API_KEY) {
-      throw new Error(
-        'GOOGLE_API_KEY is required when EMBEDDING_PROVIDER is set to "google"'
-      );
+    if (config.EMBEDDING_PROVIDER === 'google' && !config.GOOGLE_API_KEY) {
+      throw new Error('GOOGLE_API_KEY is required when EMBEDDING_PROVIDER is set to "google"');
     }
   } else {
     // If we're assuming plugin-openai, make sure we have the required values
     if (!config.OPENAI_API_KEY) {
-      throw new Error(
-        "OPENAI_API_KEY is required when using plugin-openai configuration"
-      );
+      throw new Error('OPENAI_API_KEY is required when using plugin-openai configuration');
     }
     if (!config.TEXT_EMBEDDING_MODEL) {
-      throw new Error(
-        "OPENAI_EMBEDDING_MODEL is required when using plugin-openai configuration"
-      );
+      throw new Error('OPENAI_EMBEDDING_MODEL is required when using plugin-openai configuration');
     }
   }
 
   // If Contextual Knowledge is enabled, we need additional validations
   if (config.CTX_KNOWLEDGE_ENABLED) {
-    logger.info(
-      "Contextual Knowledge is enabled. Validating text generation settings..."
-    );
+    logger.info('Contextual Knowledge is enabled. Validating text generation settings...');
 
     // Text provider and model are required for CTX_RAG
     if (!config.TEXT_PROVIDER) {
-      throw new Error(
-        "TEXT_PROVIDER is required when CTX_KNOWLEDGE_ENABLED is true"
-      );
+      throw new Error('TEXT_PROVIDER is required when CTX_KNOWLEDGE_ENABLED is true');
     }
 
     if (!config.TEXT_MODEL) {
-      throw new Error(
-        "TEXT_MODEL is required when CTX_KNOWLEDGE_ENABLED is true"
-      );
+      throw new Error('TEXT_MODEL is required when CTX_KNOWLEDGE_ENABLED is true');
     }
 
     // Validate API keys based on the text provider
-    if (config.TEXT_PROVIDER === "openai" && !config.OPENAI_API_KEY) {
-      throw new Error(
-        'OPENAI_API_KEY is required when TEXT_PROVIDER is set to "openai"'
-      );
+    if (config.TEXT_PROVIDER === 'openai' && !config.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY is required when TEXT_PROVIDER is set to "openai"');
     }
-    if (config.TEXT_PROVIDER === "anthropic" && !config.ANTHROPIC_API_KEY) {
-      throw new Error(
-        'ANTHROPIC_API_KEY is required when TEXT_PROVIDER is set to "anthropic"'
-      );
+    if (config.TEXT_PROVIDER === 'anthropic' && !config.ANTHROPIC_API_KEY) {
+      throw new Error('ANTHROPIC_API_KEY is required when TEXT_PROVIDER is set to "anthropic"');
     }
-    if (config.TEXT_PROVIDER === "openrouter" && !config.OPENROUTER_API_KEY) {
-      throw new Error(
-        'OPENROUTER_API_KEY is required when TEXT_PROVIDER is set to "openrouter"'
-      );
+    if (config.TEXT_PROVIDER === 'openrouter' && !config.OPENROUTER_API_KEY) {
+      throw new Error('OPENROUTER_API_KEY is required when TEXT_PROVIDER is set to "openrouter"');
     }
-    if (config.TEXT_PROVIDER === "google" && !config.GOOGLE_API_KEY) {
-      throw new Error(
-        'GOOGLE_API_KEY is required when TEXT_PROVIDER is set to "google"'
-      );
+    if (config.TEXT_PROVIDER === 'google' && !config.GOOGLE_API_KEY) {
+      throw new Error('GOOGLE_API_KEY is required when TEXT_PROVIDER is set to "google"');
     }
 
     // If using OpenRouter with Claude or Gemini models, check for additional recommended configurations
-    if (config.TEXT_PROVIDER === "openrouter") {
-      const modelName = config.TEXT_MODEL?.toLowerCase() || "";
-      if (modelName.includes("claude") || modelName.includes("gemini")) {
+    if (config.TEXT_PROVIDER === 'openrouter') {
+      const modelName = config.TEXT_MODEL?.toLowerCase() || '';
+      if (modelName.includes('claude') || modelName.includes('gemini')) {
         logger.info(
           `Using ${modelName} with OpenRouter. This configuration supports document caching for improved performance.`
         );
@@ -170,12 +154,10 @@ function validateConfigRequirements(
     // Log appropriate message based on where embedding config came from
     if (assumePluginOpenAI) {
       logger.info(
-        "Contextual Knowledge is disabled. Using embedding configuration from plugin-openai."
+        'Contextual Knowledge is disabled. Using embedding configuration from plugin-openai.'
       );
     } else {
-      logger.info(
-        "Contextual Knowledge is disabled. Using basic embedding-only configuration."
-      );
+      logger.info('Contextual Knowledge is disabled. Using basic embedding-only configuration.');
     }
   }
 }
@@ -183,35 +165,44 @@ function validateConfigRequirements(
 /**
  * Returns rate limit information for the configured providers
  *
+ * @param runtime The agent runtime to get settings from
  * @returns Rate limit configuration for the current providers
  */
-export async function getProviderRateLimits(): Promise<ProviderRateLimits> {
-  const config = validateModelConfig();
+export async function getProviderRateLimits(runtime?: IAgentRuntime): Promise<ProviderRateLimits> {
+  const config = validateModelConfig(runtime);
 
-  // Get rate limit values from environment or use defaults
-  const maxConcurrentRequests = getEnvInt("MAX_CONCURRENT_REQUESTS", 30);
-  const requestsPerMinute = getEnvInt("REQUESTS_PER_MINUTE", 60);
-  const tokensPerMinute = getEnvInt("TOKENS_PER_MINUTE", 150000);
+  // Helper function to get setting from runtime or fallback to process.env
+  const getSetting = (key: string, defaultValue: string) => {
+    if (runtime) {
+      return runtime.getSetting(key) || defaultValue;
+    }
+    return process.env[key] || defaultValue;
+  };
+
+  // Get rate limit values from runtime settings or use defaults
+  const maxConcurrentRequests = parseInt(getSetting('MAX_CONCURRENT_REQUESTS', '30'), 10);
+  const requestsPerMinute = parseInt(getSetting('REQUESTS_PER_MINUTE', '60'), 10);
+  const tokensPerMinute = parseInt(getSetting('TOKENS_PER_MINUTE', '150000'), 10);
 
   // Provider-specific rate limits
   switch (config.EMBEDDING_PROVIDER) {
-    case "openai":
+    case 'openai':
       // OpenAI typically allows 150,000 tokens per minute for embeddings
       // and up to 3,000 RPM for Tier 4+ accounts
       return {
         maxConcurrentRequests,
         requestsPerMinute: Math.min(requestsPerMinute, 3000),
         tokensPerMinute: Math.min(tokensPerMinute, 150000),
-        provider: "openai",
+        provider: 'openai',
       };
 
-    case "google":
+    case 'google':
       // Google's default is 60 requests per minute
       return {
         maxConcurrentRequests,
         requestsPerMinute: Math.min(requestsPerMinute, 60),
         tokensPerMinute: Math.min(tokensPerMinute, 100000),
-        provider: "google",
+        provider: 'google',
       };
 
     default:
@@ -232,7 +223,5 @@ export async function getProviderRateLimits(): Promise<ProviderRateLimits> {
  * @returns The parsed integer value
  */
 function getEnvInt(envVar: string, defaultValue: number): number {
-  return process.env[envVar]
-    ? parseInt(process.env[envVar]!, 10)
-    : defaultValue;
+  return process.env[envVar] ? parseInt(process.env[envVar]!, 10) : defaultValue;
 }
