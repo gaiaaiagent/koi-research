@@ -267,7 +267,8 @@ export class KnowledgeService extends Service {
 
         // First, check if this looks like base64
         const base64Regex = /^[A-Za-z0-9+/]+=*$/;
-        const looksLikeBase64 = base64Regex.test(content.replace(/\s/g, ''));
+        const looksLikeBase64 =
+          content && content.length > 0 && base64Regex.test(content.replace(/\s/g, ''));
 
         if (looksLikeBase64) {
           try {

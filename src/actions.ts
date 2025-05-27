@@ -21,16 +21,7 @@ export const processKnowledgeAction: Action = {
   description:
     "Process and store knowledge from a file path or text content into the knowledge base",
 
-  similes: [
-    "add knowledge",
-    "upload document",
-    "store information",
-    "add to knowledge base",
-    "learn from document",
-    "ingest file",
-    "process document",
-    "remember this",
-  ],
+  similes: [],
 
   examples: [
     [

@@ -23,6 +23,7 @@ import {
 import knowledgePlugin from "./index.ts";
 import { knowledgeProvider } from "./provider.ts";
 import { KnowledgeService } from "./service.ts";
+import { isBinaryContentType } from "./utils.ts";
 
 // Define an interface for the mock logger functions
 interface MockLogFunction extends Function {
@@ -669,6 +670,8 @@ export class KnowledgeTestSuite implements TestSuite {
           worldId: runtime.agentId,
           content:
             "This is test knowledge that should be stored and retrievable.",
+          roomId: runtime.agentId,
+          entityId: runtime.agentId,
         };
 
         const result = await service.addKnowledge(testDocument);
@@ -709,6 +712,8 @@ export class KnowledgeTestSuite implements TestSuite {
           originalFilename: "duplicate-test.txt",
           worldId: runtime.agentId,
           content: "This document will be uploaded twice.",
+          roomId: runtime.agentId,
+          entityId: runtime.agentId,
         };
 
         // First upload
@@ -745,6 +750,8 @@ export class KnowledgeTestSuite implements TestSuite {
           worldId: runtime.agentId,
           content:
             "The capital of France is Paris. Paris is known for the Eiffel Tower.",
+          roomId: runtime.agentId,
+          entityId: runtime.agentId,
         };
 
         await service.addKnowledge(testDocument);
@@ -794,6 +801,8 @@ export class KnowledgeTestSuite implements TestSuite {
           originalFilename: "provider-test.txt",
           worldId: runtime.agentId,
           content: "Important fact 1. Important fact 2. Important fact 3.",
+          roomId: runtime.agentId,
+          entityId: runtime.agentId,
         };
 
         await service.addKnowledge(testDocument);
@@ -923,6 +932,8 @@ export class KnowledgeTestSuite implements TestSuite {
             originalFilename: "empty.txt",
             worldId: runtime.agentId,
             content: "", // Empty content should cause an error
+            roomId: runtime.agentId,
+            entityId: runtime.agentId,
           });
 
           // If we reach here without error, that's a problem
@@ -948,6 +959,8 @@ export class KnowledgeTestSuite implements TestSuite {
             originalFilename: "null-content.txt",
             worldId: runtime.agentId,
             content: null as any, // This should definitely cause an error
+            roomId: runtime.agentId,
+            entityId: runtime.agentId,
           });
         } catch (error: any) {
           // This is expected - the service should handle null content with an error
@@ -991,6 +1004,8 @@ export class KnowledgeTestSuite implements TestSuite {
             This allows quantum computers to process many calculations simultaneously.
             Major companies like IBM, Google, and Microsoft are developing quantum computers.
           `,
+          roomId: runtime.agentId,
+          entityId: runtime.agentId,
         };
 
         const addResult = await service.addKnowledge(document);
@@ -1067,6 +1082,8 @@ export class KnowledgeTestSuite implements TestSuite {
           originalFilename: "large-document.txt",
           worldId: runtime.agentId,
           content: largeContent,
+          roomId: runtime.agentId,
+          entityId: runtime.agentId,
         };
 
         const result = await service.addKnowledge(document);
@@ -1103,9 +1120,6 @@ export class KnowledgeTestSuite implements TestSuite {
       fn: async (runtime: IAgentRuntime) => {
         const service = await KnowledgeService.start(runtime);
 
-        // Use reflection to test private method
-        const isBinary = (service as any).isBinaryContentType.bind(service);
-
         // Test various content types
         const binaryTypes = [
           { type: "application/pdf", filename: "test.pdf", expected: true },
@@ -1125,7 +1139,7 @@ export class KnowledgeTestSuite implements TestSuite {
         ];
 
         for (const test of binaryTypes) {
-          const result = isBinary(test.type, test.filename);
+          const result = isBinaryContentType(test.type, test.filename);
           if (result !== test.expected) {
             throw new Error(
               `Binary detection failed for ${test.type}/${test.filename}. Expected ${test.expected}, got ${result}`
