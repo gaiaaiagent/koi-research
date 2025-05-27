@@ -1,23 +1,20 @@
-import { Buffer } from "node:buffer";
-import * as mammoth from "mammoth";
-import { logger } from "@elizaos/core";
-import { getDocument, PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
-import type {
-  TextItem,
-  TextMarkedContent,
-} from "pdfjs-dist/types/src/display/api";
+import { Buffer } from 'node:buffer';
+import * as mammoth from 'mammoth';
+import { logger } from '@elizaos/core';
+import { getDocument, PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import type { TextItem, TextMarkedContent } from 'pdfjs-dist/types/src/display/api';
 
 const PLAIN_TEXT_CONTENT_TYPES = [
-  "application/typescript",
-  "text/typescript",
-  "text/x-python",
-  "application/x-python-code",
-  "application/yaml",
-  "text/yaml",
-  "application/x-yaml",
-  "application/json",
-  "text/markdown",
-  "text/csv",
+  'application/typescript',
+  'text/typescript',
+  'text/x-python',
+  'application/x-python-code',
+  'application/yaml',
+  'text/yaml',
+  'application/x-yaml',
+  'application/json',
+  'text/markdown',
+  'text/csv',
 ];
 
 const MAX_FALLBACK_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -39,12 +36,9 @@ export async function extractTextFromFileBuffer(
   );
 
   if (
-    lowerContentType ===
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    lowerContentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   ) {
-    logger.debug(
-      `[TextUtil] Extracting text from DOCX ${originalFilename} via mammoth.`
-    );
+    logger.debug(`[TextUtil] Extracting text from DOCX ${originalFilename} via mammoth.`);
     try {
       const result = await mammoth.extractRawText({ buffer: fileBuffer });
       logger.debug(
@@ -57,25 +51,23 @@ export async function extractTextFromFileBuffer(
       throw new Error(errorMsg);
     }
   } else if (
-    lowerContentType === "application/msword" ||
-    originalFilename.toLowerCase().endsWith(".doc")
+    lowerContentType === 'application/msword' ||
+    originalFilename.toLowerCase().endsWith('.doc')
   ) {
     // For .doc files, we'll store the content as-is, and just add a message
     // The frontend will handle the display appropriately
-    logger.debug(
-      `[TextUtil] Handling Microsoft Word .doc file: ${originalFilename}`
-    );
+    logger.debug(`[TextUtil] Handling Microsoft Word .doc file: ${originalFilename}`);
 
     // We'll add a descriptive message as a placeholder
     return `[Microsoft Word Document: ${originalFilename}]\n\nThis document was indexed for search but cannot be displayed directly in the browser. The original document content is preserved for retrieval purposes.`;
   } else if (
-    lowerContentType.startsWith("text/") ||
+    lowerContentType.startsWith('text/') ||
     PLAIN_TEXT_CONTENT_TYPES.includes(lowerContentType)
   ) {
     logger.debug(
       `[TextUtil] Extracting text from plain text compatible file ${originalFilename} (type: ${contentType})`
     );
-    return fileBuffer.toString("utf-8");
+    return fileBuffer.toString('utf-8');
   } else {
     logger.warn(
       `[TextUtil] Unsupported content type: "${contentType}" for ${originalFilename}. Attempting fallback to plain text.`
@@ -88,10 +80,7 @@ export async function extractTextFromFileBuffer(
     }
 
     // Simple binary detection: check for null bytes in the first N bytes
-    const initialBytes = fileBuffer.subarray(
-      0,
-      Math.min(fileBuffer.length, BINARY_CHECK_BYTES)
-    );
+    const initialBytes = fileBuffer.subarray(0, Math.min(fileBuffer.length, BINARY_CHECK_BYTES));
     if (initialBytes.includes(0)) {
       // Check for NUL byte
       const binaryHeuristicMsg = `[TextUtil] File ${originalFilename} (type: ${contentType}) appears to be binary based on initial byte check. Cannot process as plain text.`;
@@ -100,8 +89,8 @@ export async function extractTextFromFileBuffer(
     }
 
     try {
-      const textContent = fileBuffer.toString("utf-8");
-      if (textContent.includes("\ufffd")) {
+      const textContent = fileBuffer.toString('utf-8');
+      if (textContent.includes('\ufffd')) {
         // Replacement character, indicating potential binary or wrong encoding
         const binaryErrorMsg = `[TextUtil] File ${originalFilename} (type: ${contentType}) seems to be binary or has encoding issues after fallback to plain text (detected \ufffd).`;
         logger.error(binaryErrorMsg);
@@ -114,10 +103,7 @@ export async function extractTextFromFileBuffer(
     } catch (fallbackError: any) {
       // If the initial toString failed or if we threw due to \ufffd
       const finalErrorMsg = `[TextUtil] Unsupported content type: ${contentType} for ${originalFilename}. Fallback to plain text also failed or indicated binary content.`;
-      logger.error(
-        finalErrorMsg,
-        fallbackError.message ? fallbackError.stack : undefined
-      );
+      logger.error(finalErrorMsg, fallbackError.message ? fallbackError.stack : undefined);
       throw new Error(finalErrorMsg);
     }
   }
@@ -138,13 +124,12 @@ export async function convertPdfToTextFromBuffer(
   pdfBuffer: Buffer,
   filename?: string
 ): Promise<string> {
-  const docName = filename || "unnamed-document";
+  const docName = filename || 'unnamed-document';
   logger.debug(`[PdfService] Starting conversion for ${docName}`);
 
   try {
     const uint8Array = new Uint8Array(pdfBuffer);
-    const pdf: PDFDocumentProxy = await getDocument({ data: uint8Array })
-      .promise;
+    const pdf: PDFDocumentProxy = await getDocument({ data: uint8Array }).promise;
     const numPages = pdf.numPages;
     const textPages: string[] = [];
 
@@ -172,24 +157,186 @@ export async function convertPdfToTextFromBuffer(
           items
             .sort((a, b) => a.transform[4] - b.transform[4])
             .map((item) => item.str)
-            .join(" ")
+            .join(' ')
         );
 
-      textPages.push(sortedLines.join("\n"));
+      textPages.push(sortedLines.join('\n'));
     }
 
-    const fullText = textPages.join("\n\n").replace(/\s+/g, " ").trim();
-    logger.debug(
-      `[PdfService] Conversion complete for ${docName}, length: ${fullText.length}`
-    );
+    const fullText = textPages.join('\n\n').replace(/\s+/g, ' ').trim();
+    logger.debug(`[PdfService] Conversion complete for ${docName}, length: ${fullText.length}`);
     return fullText;
   } catch (error: any) {
-    logger.error(
-      `[PdfService] Error converting PDF ${docName}:`,
-      error.message
-    );
+    logger.error(`[PdfService] Error converting PDF ${docName}:`, error.message);
     throw new Error(`Failed to convert PDF to text: ${error.message}`);
   }
+}
+
+/**
+ * Determines if a file should be treated as binary based on its content type and filename
+ * @param contentType MIME type of the file
+ * @param filename Original filename
+ * @returns True if the file should be treated as binary (base64 encoded)
+ */
+export function isBinaryContentType(contentType: string, filename: string): boolean {
+  // Text-based content types that should NOT be treated as binary
+  const textContentTypes = [
+    'text/',
+    'application/json',
+    'application/xml',
+    'application/javascript',
+    'application/typescript',
+    'application/x-yaml',
+    'application/x-sh',
+  ];
+
+  // Check if it's a text-based MIME type
+  const isTextMimeType = textContentTypes.some((type) => contentType.includes(type));
+  if (isTextMimeType) {
+    return false;
+  }
+
+  // Binary content types
+  const binaryContentTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument',
+    'application/vnd.ms-excel',
+    'application/vnd.ms-powerpoint',
+    'application/zip',
+    'application/x-zip-compressed',
+    'application/octet-stream',
+    'image/',
+    'audio/',
+    'video/',
+  ];
+
+  // Check MIME type
+  const isBinaryMimeType = binaryContentTypes.some((type) => contentType.includes(type));
+
+  if (isBinaryMimeType) {
+    return true;
+  }
+
+  // Check file extension as fallback
+  const fileExt = filename.split('.').pop()?.toLowerCase() || '';
+
+  // Text file extensions that should NOT be treated as binary
+  const textExtensions = [
+    'txt',
+    'md',
+    'markdown',
+    'json',
+    'xml',
+    'html',
+    'htm',
+    'css',
+    'js',
+    'ts',
+    'jsx',
+    'tsx',
+    'yaml',
+    'yml',
+    'toml',
+    'ini',
+    'cfg',
+    'conf',
+    'sh',
+    'bash',
+    'zsh',
+    'fish',
+    'py',
+    'rb',
+    'go',
+    'rs',
+    'java',
+    'c',
+    'cpp',
+    'h',
+    'hpp',
+    'cs',
+    'php',
+    'sql',
+    'r',
+    'swift',
+    'kt',
+    'scala',
+    'clj',
+    'ex',
+    'exs',
+    'vim',
+    'env',
+    'gitignore',
+    'dockerignore',
+    'editorconfig',
+    'log',
+    'csv',
+    'tsv',
+    'properties',
+    'gradle',
+    'sbt',
+    'makefile',
+    'dockerfile',
+    'vagrantfile',
+    'gemfile',
+    'rakefile',
+    'podfile',
+    'csproj',
+    'vbproj',
+    'fsproj',
+    'sln',
+    'pom',
+  ];
+
+  // If it's a known text extension, it's not binary
+  if (textExtensions.includes(fileExt)) {
+    return false;
+  }
+
+  // Binary file extensions
+  const binaryExtensions = [
+    'pdf',
+    'docx',
+    'doc',
+    'xls',
+    'xlsx',
+    'ppt',
+    'pptx',
+    'zip',
+    'rar',
+    '7z',
+    'tar',
+    'gz',
+    'bz2',
+    'xz',
+    'jpg',
+    'jpeg',
+    'png',
+    'gif',
+    'bmp',
+    'svg',
+    'ico',
+    'webp',
+    'mp3',
+    'mp4',
+    'avi',
+    'mov',
+    'wmv',
+    'flv',
+    'wav',
+    'flac',
+    'ogg',
+    'exe',
+    'dll',
+    'so',
+    'dylib',
+    'bin',
+    'dat',
+    'db',
+    'sqlite',
+  ];
+
+  return binaryExtensions.includes(fileExt);
 }
 
 /**
@@ -199,5 +346,5 @@ export async function convertPdfToTextFromBuffer(
  * @returns A boolean indicating if the input is a TextItem.
  */
 function isTextItem(item: TextItem | TextMarkedContent): item is TextItem {
-  return "str" in item;
+  return 'str' in item;
 }

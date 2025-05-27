@@ -28,8 +28,8 @@ const useToast = () => ({
 const Dialog = ({ open, onOpenChange, children }: { open: boolean; onOpenChange: (open: boolean) => void; children: React.ReactNode }) => {
     if (!open) return null;
     return (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center" onClick={() => onOpenChange(false)}>
-            <div className="bg-white rounded-lg shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => onOpenChange(false)}>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-full max-h-full flex flex-col" onClick={(e) => e.stopPropagation()}>
                 {children}
             </div>
         </div>
@@ -37,7 +37,7 @@ const Dialog = ({ open, onOpenChange, children }: { open: boolean; onOpenChange:
 };
 
 const DialogContent = ({ className, children }: { className?: string; children: React.ReactNode }) => (
-    <div className={cn("p-6", className)}>{children}</div>
+    <div className={cn("p-6 flex flex-col", className)}>{children}</div>
 );
 
 const DialogHeader = ({ className, children }: { className?: string; children: React.ReactNode }) => (
@@ -177,6 +177,7 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
     const [loadingMore, setLoadingMore] = useState(false);
     const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
     const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
+    const [pdfZoom, setPdfZoom] = useState(1.0);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
@@ -403,7 +404,7 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept=".txt,.md,.pdf,.doc,.docx,.json"
+                accept=".txt,.md,.markdown,.pdf,.doc,.docx,.json,.xml,.yaml,.yml,.csv,.tsv,.log,.ini,.cfg,.conf,.env,.gitignore,.dockerignore,.editorconfig,.js,.jsx,.ts,.tsx,.mjs,.cjs,.py,.pyw,.pyi,.java,.c,.cpp,.cc,.cxx,.h,.hpp,.cs,.php,.rb,.go,.rs,.swift,.kt,.kts,.scala,.clj,.cljs,.ex,.exs,.r,.R,.m,.mm,.sh,.bash,.zsh,.fish,.ps1,.bat,.cmd,.sql,.html,.htm,.css,.scss,.sass,.less,.vue,.svelte,.astro,.lua,.pl,.pm,.dart,.hs,.elm,.ml,.fs,.fsx,.vb,.pas,.d,.nim,.zig,.jl,.tcl,.awk,.sed"
                 onChange={handleFileChange}
                 className="hidden"
             />
@@ -433,22 +434,111 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
 
             {viewingContent && (
                 <Dialog open={!!viewingContent} onOpenChange={() => setViewingContent(null)}>
-                    <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
-                            <DialogTitle>
-                                {(viewingContent.metadata as MemoryMetadata)?.title || 'Document Content'}
-                            </DialogTitle>
-                            <DialogDescription>
-                                {(viewingContent.metadata as MemoryMetadata)?.filename || 'Knowledge document'}
-                            </DialogDescription>
+                    <DialogContent className="max-w-[95vw] w-full max-h-[95vh] h-full overflow-hidden flex flex-col p-0">
+                        <DialogHeader className="flex-shrink-0 p-6 pb-2">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <DialogTitle className="text-xl">
+                                        {(viewingContent.metadata as MemoryMetadata)?.title || 'Document Content'}
+                                    </DialogTitle>
+                                    <DialogDescription>
+                                        {(viewingContent.metadata as MemoryMetadata)?.filename || 'Knowledge document'}
+                                    </DialogDescription>
+                                </div>
+                                {(() => {
+                                    const metadata = viewingContent.metadata as MemoryMetadata;
+                                    const contentType = metadata?.contentType || '';
+                                    const fileExt = metadata?.fileExt?.toLowerCase() || '';
+                                    const isPdf = contentType === 'application/pdf' || fileExt === 'pdf';
+
+                                    if (isPdf) {
+                                        return (
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setPdfZoom(Math.max(0.5, pdfZoom - 0.25))}
+                                                    disabled={pdfZoom <= 0.5}
+                                                >
+                                                    <span className="text-lg">−</span>
+                                                </Button>
+                                                <span className="text-sm font-medium min-w-[60px] text-center">
+                                                    {Math.round(pdfZoom * 100)}%
+                                                </span>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setPdfZoom(Math.min(3, pdfZoom + 0.25))}
+                                                    disabled={pdfZoom >= 3}
+                                                >
+                                                    <span className="text-lg">+</span>
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setPdfZoom(1.0)}
+                                                >
+                                                    Reset
+                                                </Button>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })()}
+                            </div>
                         </DialogHeader>
-                        <div className="mt-4">
-                            <pre className="whitespace-pre-wrap text-sm bg-gray-50 p-4 rounded border max-h-96 overflow-y-auto">
-                                {viewingContent.content?.text || 'No content available'}
-                            </pre>
+                        <div className="flex-1 overflow-auto px-6 pb-2">
+                            {(() => {
+                                const metadata = viewingContent.metadata as MemoryMetadata;
+                                const contentType = metadata?.contentType || '';
+                                const fileExt = metadata?.fileExt?.toLowerCase() || '';
+                                const isPdf = contentType === 'application/pdf' || fileExt === 'pdf';
+
+                                if (isPdf && viewingContent.content?.text) {
+                                    // For PDFs, the content.text contains base64 data
+                                    // Create a data URL for the PDF
+                                    const pdfDataUrl = `data:application/pdf;base64,${viewingContent.content.text}`;
+
+                                    return (
+                                        <div className="w-full h-full rounded-lg overflow-auto bg-gray-100 dark:bg-gray-900">
+                                            <div
+                                                className="min-w-full flex items-center justify-center p-4"
+                                                style={{
+                                                    minHeight: '100%',
+                                                    transform: `scale(${pdfZoom})`,
+                                                    transformOrigin: 'top center',
+                                                    width: pdfZoom > 1 ? `${100 / pdfZoom}%` : '100%'
+                                                }}
+                                            >
+                                                <iframe
+                                                    src={pdfDataUrl}
+                                                    className="w-full border-0 shadow-lg"
+                                                    style={{
+                                                        height: '90vh',
+                                                        maxWidth: '1200px',
+                                                    }}
+                                                    title="PDF Document"
+                                                />
+                                            </div>
+                                        </div>
+                                    );
+                                } else {
+                                    // For all other documents, display as plain text
+                                    return (
+                                        <div className="h-full w-full bg-gray-50 dark:bg-gray-900 rounded-lg border p-6">
+                                            <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed text-gray-800 dark:text-gray-200 min-w-0 break-words">
+                                                {viewingContent.content?.text || 'No content available'}
+                                            </pre>
+                                        </div>
+                                    );
+                                }
+                            })()}
                         </div>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setViewingContent(null)}>
+                        <DialogFooter className="flex-shrink-0 p-6 pt-4">
+                            <Button variant="outline" onClick={() => {
+                                setViewingContent(null);
+                                setPdfZoom(1.0); // Reset zoom when closing
+                            }}>
                                 Close
                             </Button>
                         </DialogFooter>
@@ -457,4 +547,4 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
             )}
         </div>
     );
-} 
+}

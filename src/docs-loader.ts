@@ -1,8 +1,9 @@
-import { logger, UUID } from "@elizaos/core";
-import * as fs from "fs";
-import * as path from "path";
-import { KnowledgeService } from "./service.ts";
-import { AddKnowledgeOptions } from "./types.ts";
+import { logger, UUID, createUniqueUuid } from '@elizaos/core';
+import * as fs from 'fs';
+import * as path from 'path';
+import { KnowledgeService } from './service.ts';
+import { AddKnowledgeOptions } from './types.ts';
+import { isBinaryContentType } from './utils.ts';
 
 /**
  * Get the knowledge path from environment or default to ./docs
@@ -15,27 +16,21 @@ export function getKnowledgePath(): string {
     const resolvedPath = path.resolve(envPath);
 
     if (!fs.existsSync(resolvedPath)) {
-      logger.warn(
-        `Knowledge path from environment variable does not exist: ${resolvedPath}`
-      );
-      logger.warn(
-        "Please create the directory or update KNOWLEDGE_PATH environment variable"
-      );
+      logger.warn(`Knowledge path from environment variable does not exist: ${resolvedPath}`);
+      logger.warn('Please create the directory or update KNOWLEDGE_PATH environment variable');
     }
 
     return resolvedPath;
   }
 
   // Default to docs folder in current working directory
-  const defaultPath = path.join(process.cwd(), "docs");
+  const defaultPath = path.join(process.cwd(), 'docs');
 
   if (!fs.existsSync(defaultPath)) {
     logger.info(`Default docs folder does not exist at: ${defaultPath}`);
-    logger.info("To use the knowledge plugin, either:");
+    logger.info('To use the knowledge plugin, either:');
     logger.info('1. Create a "docs" folder in your project root');
-    logger.info(
-      "2. Set KNOWLEDGE_PATH environment variable to your documents folder"
-    );
+    logger.info('2. Set KNOWLEDGE_PATH environment variable to your documents folder');
   }
 
   return defaultPath;
@@ -62,7 +57,7 @@ export async function loadDocsFromPath(
   const files = getAllFiles(docsPath);
 
   if (files.length === 0) {
-    logger.info("No files found in knowledge path");
+    logger.info('No files found in knowledge path');
     return { total: 0, successful: 0, failed: 0 };
   }
 
@@ -77,7 +72,7 @@ export async function loadDocsFromPath(
       const fileExt = path.extname(filePath).toLowerCase();
 
       // Skip hidden files and directories
-      if (fileName.startsWith(".")) {
+      if (fileName.startsWith('.')) {
         continue;
       }
 
@@ -93,33 +88,29 @@ export async function loadDocsFromPath(
       // Read file
       const fileBuffer = fs.readFileSync(filePath);
 
-      // For binary files, convert to base64
-      const isBinary = [
-        "application/pdf",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      ].includes(contentType);
+      // Check if file is binary using the same logic as the service
+      const isBinary = isBinaryContentType(contentType, fileName);
 
-      const content = isBinary
-        ? fileBuffer.toString("base64")
-        : fileBuffer.toString("utf-8");
+      // For text files, read as UTF-8 string directly
+      // For binary files, convert to base64
+      const content = isBinary ? fileBuffer.toString('base64') : fileBuffer.toString('utf-8');
 
       // Create knowledge options
       const knowledgeOptions: AddKnowledgeOptions = {
-        clientDocumentId: `${agentId}-docs-${Date.now()}-${fileName}` as UUID,
+        clientDocumentId: createUniqueUuid(agentId, `docs-${fileName}-${Date.now()}`) as UUID,
         contentType,
         originalFilename: fileName,
         worldId: worldId || agentId,
         content,
+        roomId: agentId,
+        entityId: agentId,
       };
 
       // Process the document
       logger.debug(`Processing document: ${fileName}`);
       const result = await service.addKnowledge(knowledgeOptions);
 
-      logger.info(
-        `Successfully processed ${fileName}: ${result.fragmentCount} fragments created`
-      );
+      logger.info(`Successfully processed ${fileName}: ${result.fragmentCount} fragments created`);
       successful++;
     } catch (error) {
       logger.error(`Failed to process file ${filePath}:`, error);
@@ -150,11 +141,7 @@ function getAllFiles(dirPath: string, files: string[] = []): string[] {
 
       if (entry.isDirectory()) {
         // Skip node_modules and other common directories
-        if (
-          !["node_modules", ".git", ".vscode", "dist", "build"].includes(
-            entry.name
-          )
-        ) {
+        if (!['node_modules', '.git', '.vscode', 'dist', 'build'].includes(entry.name)) {
           getAllFiles(fullPath, files);
         }
       } else if (entry.isFile()) {
@@ -173,16 +160,118 @@ function getAllFiles(dirPath: string, files: string[] = []): string[] {
  */
 function getContentType(extension: string): string | null {
   const contentTypes: Record<string, string> = {
-    ".txt": "text/plain",
-    ".md": "text/plain",
-    ".tson": "text/plain",
-    ".xml": "text/plain",
-    ".csv": "text/plain",
-    ".html": "text/html",
-    ".pdf": "application/pdf",
-    ".doc": "application/msword",
-    ".docx":
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    // Text documents
+    '.txt': 'text/plain',
+    '.md': 'text/markdown',
+    '.markdown': 'text/markdown',
+    '.tson': 'text/plain',
+    '.xml': 'application/xml',
+    '.csv': 'text/csv',
+    '.tsv': 'text/tab-separated-values',
+    '.log': 'text/plain',
+
+    // Web files
+    '.html': 'text/html',
+    '.htm': 'text/html',
+    '.css': 'text/css',
+    '.scss': 'text/x-scss',
+    '.sass': 'text/x-sass',
+    '.less': 'text/x-less',
+
+    // JavaScript/TypeScript
+    '.js': 'text/javascript',
+    '.jsx': 'text/javascript',
+    '.ts': 'text/typescript',
+    '.tsx': 'text/typescript',
+    '.mjs': 'text/javascript',
+    '.cjs': 'text/javascript',
+    '.vue': 'text/x-vue',
+    '.svelte': 'text/x-svelte',
+    '.astro': 'text/x-astro',
+
+    // Python
+    '.py': 'text/x-python',
+    '.pyw': 'text/x-python',
+    '.pyi': 'text/x-python',
+
+    // Java/Kotlin/Scala
+    '.java': 'text/x-java',
+    '.kt': 'text/x-kotlin',
+    '.kts': 'text/x-kotlin',
+    '.scala': 'text/x-scala',
+
+    // C/C++/C#
+    '.c': 'text/x-c',
+    '.cpp': 'text/x-c++',
+    '.cc': 'text/x-c++',
+    '.cxx': 'text/x-c++',
+    '.h': 'text/x-c',
+    '.hpp': 'text/x-c++',
+    '.cs': 'text/x-csharp',
+
+    // Other languages
+    '.php': 'text/x-php',
+    '.rb': 'text/x-ruby',
+    '.go': 'text/x-go',
+    '.rs': 'text/x-rust',
+    '.swift': 'text/x-swift',
+    '.r': 'text/x-r',
+    '.R': 'text/x-r',
+    '.m': 'text/x-objectivec',
+    '.mm': 'text/x-objectivec',
+    '.clj': 'text/x-clojure',
+    '.cljs': 'text/x-clojure',
+    '.ex': 'text/x-elixir',
+    '.exs': 'text/x-elixir',
+    '.lua': 'text/x-lua',
+    '.pl': 'text/x-perl',
+    '.pm': 'text/x-perl',
+    '.dart': 'text/x-dart',
+    '.hs': 'text/x-haskell',
+    '.elm': 'text/x-elm',
+    '.ml': 'text/x-ocaml',
+    '.fs': 'text/x-fsharp',
+    '.fsx': 'text/x-fsharp',
+    '.vb': 'text/x-vb',
+    '.pas': 'text/x-pascal',
+    '.d': 'text/x-d',
+    '.nim': 'text/x-nim',
+    '.zig': 'text/x-zig',
+    '.jl': 'text/x-julia',
+    '.tcl': 'text/x-tcl',
+    '.awk': 'text/x-awk',
+    '.sed': 'text/x-sed',
+
+    // Shell scripts
+    '.sh': 'text/x-sh',
+    '.bash': 'text/x-sh',
+    '.zsh': 'text/x-sh',
+    '.fish': 'text/x-fish',
+    '.ps1': 'text/x-powershell',
+    '.bat': 'text/x-batch',
+    '.cmd': 'text/x-batch',
+
+    // Config files
+    '.json': 'application/json',
+    '.yaml': 'text/x-yaml',
+    '.yml': 'text/x-yaml',
+    '.toml': 'text/x-toml',
+    '.ini': 'text/x-ini',
+    '.cfg': 'text/x-ini',
+    '.conf': 'text/x-ini',
+    '.env': 'text/plain',
+    '.gitignore': 'text/plain',
+    '.dockerignore': 'text/plain',
+    '.editorconfig': 'text/plain',
+    '.properties': 'text/x-properties',
+
+    // Database
+    '.sql': 'text/x-sql',
+
+    // Binary documents
+    '.pdf': 'application/pdf',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   };
 
   return contentTypes[extension] || null;

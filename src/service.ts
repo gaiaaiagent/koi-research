@@ -19,10 +19,10 @@ import {
   extractTextFromDocument,
   processFragmentsSynchronously,
 } from './document-processor.ts';
-import { AddKnowledgeOptions, KnowledgeServiceType } from './types.ts';
+import { AddKnowledgeOptions } from './types.ts';
 import type { KnowledgeConfig, LoadResult } from './types';
 import { loadDocsFromPath } from './docs-loader';
-import fs from 'node:fs'; // For potential direct file operations in service
+import { isBinaryContentType } from './utils.ts';
 
 /**
  * Knowledge Service - Provides retrieval augmented generation capabilities
@@ -233,11 +233,24 @@ export class KnowledgeService extends Service {
 
       let fileBuffer: Buffer | null = null;
       let extractedText: string;
+      let documentContentToStore: string;
       const isPdfFile =
         contentType === 'application/pdf' || originalFilename.toLowerCase().endsWith('.pdf');
-      const isBinaryFile = this.isBinaryContentType(contentType, originalFilename);
 
-      if (isBinaryFile) {
+      if (isPdfFile) {
+        // For PDFs: extract text for fragments but store original base64 in main document
+        try {
+          fileBuffer = Buffer.from(content, 'base64');
+        } catch (e: any) {
+          logger.error(
+            `KnowledgeService: Failed to convert base64 to buffer for ${originalFilename}: ${e.message}`
+          );
+          throw new Error(`Invalid base64 content for PDF file ${originalFilename}`);
+        }
+        extractedText = await extractTextFromDocument(fileBuffer, contentType, originalFilename);
+        documentContentToStore = content; // Store base64 for PDFs
+      } else if (isBinaryContentType(contentType, originalFilename)) {
+        // For other binary files: extract text and store as plain text
         try {
           fileBuffer = Buffer.from(content, 'base64');
         } catch (e: any) {
@@ -247,8 +260,49 @@ export class KnowledgeService extends Service {
           throw new Error(`Invalid base64 content for binary file ${originalFilename}`);
         }
         extractedText = await extractTextFromDocument(fileBuffer, contentType, originalFilename);
+        documentContentToStore = extractedText; // Store extracted text for non-PDF binary files
       } else {
-        extractedText = content;
+        // For text files (including markdown): content is already plain text or needs decoding from base64
+        // Routes always send base64, but docs-loader sends plain text
+
+        // First, check if this looks like base64
+        const base64Regex = /^[A-Za-z0-9+/]+=*$/;
+        const looksLikeBase64 = base64Regex.test(content.replace(/\s/g, ''));
+
+        if (looksLikeBase64) {
+          try {
+            // Try to decode from base64
+            const decodedBuffer = Buffer.from(content, 'base64');
+            // Check if it's valid UTF-8
+            const decodedText = decodedBuffer.toString('utf8');
+
+            // Verify the decoded text doesn't contain too many invalid characters
+            const invalidCharCount = (decodedText.match(/\ufffd/g) || []).length;
+            const textLength = decodedText.length;
+
+            if (invalidCharCount > 0 && invalidCharCount / textLength > 0.1) {
+              // More than 10% invalid characters, probably not a text file
+              throw new Error('Decoded content contains too many invalid characters');
+            }
+
+            logger.debug(`Successfully decoded base64 content for text file: ${originalFilename}`);
+            extractedText = decodedText;
+            documentContentToStore = decodedText;
+          } catch (e) {
+            logger.error(
+              `Failed to decode base64 for ${originalFilename}: ${e instanceof Error ? e.message : String(e)}`
+            );
+            // If it looked like base64 but failed to decode properly, this is an error
+            throw new Error(
+              `File ${originalFilename} appears to be corrupted or incorrectly encoded`
+            );
+          }
+        } else {
+          // Content doesn't look like base64, treat as plain text
+          logger.debug(`Treating content as plain text for file: ${originalFilename}`);
+          extractedText = content;
+          documentContentToStore = content;
+        }
       }
 
       if (!extractedText || extractedText.trim() === '') {
@@ -261,7 +315,7 @@ export class KnowledgeService extends Service {
 
       // Create document memory using the clientDocumentId as the memory ID
       const documentMemory = createDocumentMemory({
-        text: isPdfFile ? content : extractedText, // Store base64 for PDF, text for others
+        text: documentContentToStore, // Store base64 only for PDFs, plain text for everything else
         agentId,
         clientDocumentId, // This becomes the memory.id
         originalFilename,
@@ -311,57 +365,6 @@ export class KnowledgeService extends Service {
       );
       throw error;
     }
-  }
-
-  /**
-   * Determines if a file should be treated as binary based on its content type and filename
-   * @param contentType MIME type of the file
-   * @param filename Original filename
-   * @returns True if the file should be treated as binary (base64 encoded)
-   */
-  private isBinaryContentType(contentType: string, filename: string): boolean {
-    const binaryContentTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument',
-      'application/vnd.ms-excel',
-      'application/vnd.ms-powerpoint',
-      'application/zip',
-      'application/x-zip-compressed',
-      'application/octet-stream',
-      'image/',
-      'audio/',
-      'video/',
-    ];
-
-    // Check MIME type
-    const isBinaryMimeType = binaryContentTypes.some((type) => contentType.includes(type));
-
-    if (isBinaryMimeType) {
-      return true;
-    }
-
-    // Check file extension as fallback
-    const fileExt = filename.split('.').pop()?.toLowerCase() || '';
-    const binaryExtensions = [
-      'pdf',
-      'docx',
-      'doc',
-      'xls',
-      'xlsx',
-      'ppt',
-      'pptx',
-      'zip',
-      'jpg',
-      'jpeg',
-      'png',
-      'gif',
-      'mp3',
-      'mp4',
-      'wav',
-    ];
-
-    return binaryExtensions.includes(fileExt);
   }
 
   // --- Knowledge methods moved from AgentRuntime ---
