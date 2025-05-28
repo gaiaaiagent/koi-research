@@ -29,7 +29,7 @@ const Dialog = ({ open, onOpenChange, children }: { open: boolean; onOpenChange:
     if (!open) return null;
     return (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => onOpenChange(false)}>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-full max-h-full flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg shadow-xl max-w-full max-h-full flex flex-col" onClick={(e) => e.stopPropagation()}>
                 {children}
             </div>
         </div>
@@ -37,7 +37,7 @@ const Dialog = ({ open, onOpenChange, children }: { open: boolean; onOpenChange:
 };
 
 const DialogContent = ({ className, children }: { className?: string; children: React.ReactNode }) => (
-    <div className={cn("p-6 flex flex-col", className)}>{children}</div>
+    <div className={cn("p-6 flex flex-col border-gray-200 dark:border-gray-700", className)}>{children}</div>
 );
 
 const DialogHeader = ({ className, children }: { className?: string; children: React.ReactNode }) => (
@@ -87,7 +87,6 @@ interface UploadResultItem {
     filename?: string;
 }
 
-// Updated placeholder apiClient to use fetch for actual plugin endpoints
 const apiClient = {
     getKnowledgeDocuments: async (agentId: UUID, options?: { limit?: number; before?: number; includeEmbedding?: boolean }) => {
         const params = new URLSearchParams();
@@ -100,9 +99,22 @@ const apiClient = {
             const errorText = await response.text();
             throw new Error(`Failed to fetch knowledge documents: ${response.status} ${errorText}`);
         }
-        const result = await response.json();
-        return result; // Assuming API returns { success: true, data: { memories: [] } } or similar
+        return await response.json();
     },
+
+    getKnowledgeChunks: async (agentId: UUID, options?: { limit?: number; before?: number }) => {
+        const params = new URLSearchParams();
+        if (options?.limit) params.append('limit', options.limit.toString());
+        if (options?.before) params.append('before', options.before.toString());
+
+        const response = await fetch(`/api/agents/${agentId}/plugins/knowledge/knowledges?${params.toString()}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Failed to fetch knowledge chunks: ${response.status} ${errorText}`);
+        }
+        return await response.json();
+    },
+
     deleteKnowledgeDocument: async (agentId: UUID, knowledgeId: UUID) => {
         const response = await fetch(`/api/agents/${agentId}/plugins/knowledge/documents/${knowledgeId}`, {
             method: 'DELETE',
@@ -111,35 +123,30 @@ const apiClient = {
             const errorText = await response.text();
             throw new Error(`Failed to delete knowledge document: ${response.status} ${errorText}`);
         }
-        // DELETE often returns 204 No Content, or a success message
         if (response.status === 204) return;
         return await response.json();
     },
+
     uploadKnowledge: async (agentId: string, files: File[]) => {
         const formData = new FormData();
         files.forEach(file => formData.append('files', file));
 
-        const response = await fetch(`/api/agents/${agentId}/plugins/knowledge/upload`, {
+        const response = await fetch(`/api/agents/${agentId}/plugins/knowledge/documents`, {
             method: 'POST',
             body: formData,
-            // Note: Content-Type is set automatically by browser for FormData
         });
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`Failed to upload knowledge: ${response.status} ${errorText}`);
         }
-        return await response.json(); // Assuming API returns an object { success: true, data: [...] }
+        return await response.json();
     }
 };
 
-// TODO: Update this hook to use a new apiClient method targeting GET /api/agents/${agentId}/plugins/knowledge/documents
-// The apiClient itself will need to be updated/extended to support these new plugin-specific routes.
 const useKnowledgeDocuments = (agentId: UUID, enabled: boolean = true, includeEmbedding: boolean = false) => {
     return useQuery<Memory[], Error>({
         queryKey: ['agents', agentId, 'knowledge', 'documents', { includeEmbedding }],
         queryFn: async () => {
-            // This apiClient call WILL FAIL until apiClient is updated to target the plugin.
-            // It currently points to the old /api/agents/:agentId/memories?tableName=documents endpoint.
             const response = await apiClient.getKnowledgeDocuments(agentId, { includeEmbedding });
             return response.data.memories;
         },
@@ -147,8 +154,18 @@ const useKnowledgeDocuments = (agentId: UUID, enabled: boolean = true, includeEm
     });
 };
 
-// TODO: Update this hook to use a new apiClient method targeting DELETE /api/agents/${agentId}/plugins/knowledge/documents/${knowledgeId}
-// The apiClient itself will need to be updated/extended.
+const useKnowledgeChunks = (agentId: UUID, enabled: boolean = true) => {
+    return useQuery<Memory[], Error>({
+        queryKey: ['agents', agentId, 'knowledge', 'chunks'],
+        queryFn: async () => {
+            const response = await apiClient.getKnowledgeChunks(agentId);
+            return response.data.chunks;
+        },
+        enabled,
+    });
+};
+
+// Hook for deleting knowledge documents
 const useDeleteKnowledgeDocument = (agentId: UUID) => {
     const queryClient = useQueryClient();
     return useMutation<
@@ -157,9 +174,6 @@ const useDeleteKnowledgeDocument = (agentId: UUID) => {
         { knowledgeId: UUID }
     >({
         mutationFn: async ({ knowledgeId }) => {
-            // This apiClient call WILL FAIL until apiClient is updated.
-            // It currently points to the old /api/agents/:agentId/memories/:memoryId endpoint.
-            // The type for arguments might also be different for the new plugin endpoint.
             await apiClient.deleteKnowledgeDocument(agentId, knowledgeId);
         },
         onSuccess: () => {
@@ -178,16 +192,32 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
     const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
     const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
     const [pdfZoom, setPdfZoom] = useState(1.0);
+    const [showUrlDialog, setShowUrlDialog] = useState(false);
+    const [urlInput, setUrlInput] = useState('');
+    const [isUrlUploading, setIsUrlUploading] = useState(false);
+    const [urlError, setUrlError] = useState<string | null>(null);
+    const [urls, setUrls] = useState<string[]>([]);
+    
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
     const queryClient = useQueryClient();
 
     const {
-        data: memories = [],
-        isLoading,
-        error,
-    } = useKnowledgeDocuments(agentId, true, viewMode === 'graph');
+        data: documents = [],
+        isLoading: documentsLoading,
+        error: documentsError,
+    } = useKnowledgeDocuments(agentId, viewMode === 'list', false);
+
+    const {
+        data: knowledgeChunks = [],
+        isLoading: chunksLoading,
+        error: chunksError,
+    } = useKnowledgeChunks(agentId, viewMode === 'graph');
+
+    const isLoading = viewMode === 'list' ? documentsLoading : chunksLoading;
+    const error = viewMode === 'list' ? documentsError : chunksError;
+    const memories = viewMode === 'list' ? documents : knowledgeChunks;
 
     const { mutate: deleteKnowledgeDoc } = useDeleteKnowledgeDocument(agentId);
 
@@ -257,6 +287,100 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
 
     const handleUploadClick = () => {
         if (fileInputRef.current) fileInputRef.current.click();
+    };
+
+    const handleUrlUploadClick = () => {
+        setShowUrlDialog(true);
+        setUrlInput('');
+        setUrls([]);
+        setUrlError(null);
+    };
+
+    const addUrlToList = () => {
+        try {
+            const url = new URL(urlInput);
+            if (!url.protocol.startsWith('http')) {
+                setUrlError('URL must start with http:// or https://');
+                return;
+            }
+            
+            if (urls.includes(urlInput)) {
+                setUrlError('This URL is already in the list');
+                return;
+            }
+            
+            setUrls([...urls, urlInput]);
+            setUrlInput('');
+            setUrlError(null);
+        } catch (e) {
+            setUrlError('URL invalide');
+        }
+    };
+
+    const removeUrl = (urlToRemove: string) => {
+        setUrls(urls.filter(url => url !== urlToRemove));
+    };
+
+    const handleUrlSubmit = async () => {
+        // Check if there's a URL in the input field that hasn't been added to the list
+        if (urlInput.trim()) {
+            try {
+                const url = new URL(urlInput);
+                if (url.protocol.startsWith('http') && !urls.includes(urlInput)) {
+                    setUrls([...urls, urlInput]);
+                }
+            } catch (e) {
+                // If the input is not a valid URL, just ignore it
+            }
+        }
+        
+        // If no URLs to process, show error
+        if (urls.length === 0) {
+            setUrlError('Please add at least one valid URL');
+            return;
+        }
+
+        setIsUrlUploading(true);
+        setUrlError(null);
+
+        try {
+            const result = await fetch(`/api/agents/${agentId}/plugins/knowledge/documents`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ fileUrls: urls }),
+            });
+
+            if (!result.ok) {
+                const error = await result.text();
+                throw new Error(error);
+            }
+
+            const data = await result.json();
+            
+            if (data.success) {
+                toast({
+                    title: 'URLs imported',
+                    description: `Successfully imported ${urls.length} document(s)`,
+                });
+                setShowUrlDialog(false);
+                queryClient.invalidateQueries({
+                    queryKey: ['agents', agentId, 'knowledge', 'documents'],
+                });
+            } else {
+                setUrlError(data.error?.message || 'Error importing documents from URLs');
+            }
+        } catch (error: any) {
+            setUrlError(error.message || 'Error importing documents from URLs');
+            toast({
+                title: 'Error',
+                description: 'Failed to import documents from URLs',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsUrlUploading(false);
+        }
     };
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -393,13 +517,117 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                     <Button variant="outline" size="sm" onClick={() => setViewMode(viewMode === 'list' ? 'graph' : 'list')}>
                         {viewMode === 'list' ? 'Graph' : 'List'}
                     </Button>
-                    <Button onClick={handleUploadClick} disabled={isUploading}>
-                        {isUploading ? <LoaderIcon className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
-                        Upload
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={handleUrlUploadClick}>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                            </svg>
+                            URL
+                        </Button>
+                        <Button onClick={handleUploadClick} disabled={isUploading}>
+                            {isUploading ? <LoaderIcon className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                            Upload
+                        </Button>
+                    </div>
                 </div>
             </div>
 
+            {/* Dialog for URL upload */}
+            {showUrlDialog && (
+                <Dialog open={showUrlDialog} onOpenChange={setShowUrlDialog}>
+                    <DialogContent className="max-w-md w-full">
+                        <DialogHeader>
+                            <DialogTitle className="text-xl font-bold text-gray-900 dark:text-white">Import from URL</DialogTitle>
+                            <DialogDescription className="text-gray-700 dark:text-gray-300">
+                                Enter one or more URLs of PDF, text, or other files to import into the knowledge base.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="mt-6 space-y-4">
+                            <div className="flex gap-2">
+                                <Input
+                                    placeholder="https://example.com/document.pdf"
+                                    value={urlInput}
+                                    onChange={(e) => setUrlInput(e.target.value)}
+                                    disabled={isUrlUploading}
+                                    className="flex-1 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && urlInput.trim()) {
+                                            e.preventDefault();
+                                            addUrlToList();
+                                        }
+                                    }}
+                                />
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={addUrlToList} 
+                                    disabled={isUrlUploading || !urlInput.trim()}
+                                    className="bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200 hover:border-blue-300 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 dark:border-blue-800"
+                                >
+                                    Add
+                                </Button>
+                            </div>
+                            
+                            {urlError && (
+                                <div className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 p-2 rounded-md">{urlError}</div>
+                            )}
+                            
+                            {urls.length > 0 && (
+                                <div className="border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 p-3 mt-2">
+                                    <h4 className="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">URLs to import ({urls.length})</h4>
+                                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                                        {urls.map((url, index) => (
+                                            <div key={index} className="flex items-center justify-between text-sm bg-gray-50 dark:bg-gray-700 p-2 rounded border border-gray-200 dark:border-gray-600">
+                                                <span className="truncate flex-1 text-gray-800 dark:text-gray-200">{url}</span>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    className="h-6 w-6 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400" 
+                                                    onClick={() => removeUrl(url)}
+                                                    disabled={isUrlUploading}
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <DialogFooter className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <Button 
+                                variant="outline" 
+                                onClick={() => setShowUrlDialog(false)} 
+                                disabled={isUrlUploading}
+                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300"
+                            >
+                                Cancel
+                            </Button>
+                            <Button 
+                                onClick={handleUrlSubmit} 
+                                disabled={isUrlUploading || (urls.length === 0 && !urlInput.trim())}
+                                className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-700 dark:hover:bg-blue-600"
+                            >
+                                {isUrlUploading ? (
+                                    <>
+                                        <LoaderIcon className="h-4 w-4 animate-spin mr-2" />
+                                        Importing...
+                                    </>
+                                ) : (
+                                    'Import'
+                                )}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
+
+            {/* Existing input for file upload */}
             <input
                 ref={fileInputRef}
                 type="file"

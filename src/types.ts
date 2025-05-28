@@ -119,6 +119,11 @@ export interface AddKnowledgeOptions {
    * - Plain text for text files
    */
   content: string;
+  /** 
+   * Optional metadata to associate with the knowledge
+   * Used for storing additional information like source URL
+   */
+  metadata?: Record<string, unknown>;
 }
 
 // Extend the core service types with knowledge service

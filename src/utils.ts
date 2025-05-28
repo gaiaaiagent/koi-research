@@ -348,3 +348,50 @@ export function isBinaryContentType(contentType: string, filename: string): bool
 function isTextItem(item: TextItem | TextMarkedContent): item is TextItem {
   return 'str' in item;
 }
+
+/**
+ * Fetches content from a URL and converts it to base64 format
+ * @param url The URL to fetch content from
+ * @returns An object containing the base64 content and content type
+ */
+export async function fetchUrlContent(url: string): Promise<{ content: string; contentType: string }> {
+  logger.debug(`[URL FETCHER] Fetching content from URL: ${url}`);
+  
+  try {
+    // Fetch the URL with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+    const response = await fetch(url, { 
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Eliza-Knowledge-Plugin/1.0'
+      }
+    });
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
+    }
+    
+    // Get content type from response headers
+    const contentType = response.headers.get('content-type') || 'application/octet-stream';
+    logger.debug(`[URL FETCHER] Content type from server: ${contentType} for URL: ${url}`);
+    
+    // Get content as ArrayBuffer
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    
+    // Convert to base64
+    const base64Content = buffer.toString('base64');
+    
+    logger.debug(`[URL FETCHER] Successfully fetched content from URL: ${url} (${buffer.length} bytes)`);
+    return {
+      content: base64Content,
+      contentType
+    };
+  } catch (error: any) {
+    logger.error(`[URL FETCHER] Error fetching content from URL ${url}: ${error.message}`);
+    throw new Error(`Failed to fetch content from URL: ${error.message}`);
+  }
+}
