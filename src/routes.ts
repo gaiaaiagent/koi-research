@@ -330,7 +330,7 @@ async function deleteKnowledgeDocumentHandler(req: any, res: any, runtime: IAgen
     );
   }
 
-  // Récupérer l'ID directement depuis les paramètres de route
+  // Get the ID directly from the route parameters
   const knowledgeId = req.params.knowledgeId;
   
   if (!knowledgeId || knowledgeId.length < 36) {
@@ -339,7 +339,7 @@ async function deleteKnowledgeDocumentHandler(req: any, res: any, runtime: IAgen
   }
 
   try {
-    // Utiliser la conversion de type avec template string pour s'assurer que le typage est correct
+    // Use type conversion with template string to ensure the typing is correct
     const typedKnowledgeId = knowledgeId as `${string}-${string}-${string}-${string}-${string}`;
     logger.debug(`[KNOWLEDGE DELETE HANDLER] Attempting to delete document with ID: ${typedKnowledgeId}`);
     
@@ -368,7 +368,7 @@ async function getKnowledgeByIdHandler(req: any, res: any, runtime: IAgentRuntim
     );
   }
 
-  // Récupérer l'ID directement depuis les paramètres de route
+  // Get the ID directly from the route parameters
   const knowledgeId = req.params.knowledgeId;
 
   if (!knowledgeId || knowledgeId.length < 36) {
@@ -386,7 +386,7 @@ async function getKnowledgeByIdHandler(req: any, res: any, runtime: IAgentRuntim
       count: 1000,
     });
     
-    // Utiliser la conversion de type avec template string pour s'assurer que le typage est correct
+    // Use type conversion with template string to ensure the typing is correct
     const typedKnowledgeId = knowledgeId as `${string}-${string}-${string}-${string}-${string}`;
     
     // Find the document with the corresponding ID
