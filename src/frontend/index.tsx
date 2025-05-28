@@ -1,19 +1,54 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createRoot } from 'react-dom/client';
 import './index.css';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { KnowledgeTab } from './ui/knowledge-tab.tsx'; // Assuming knowledge-tab.tsx is in ./ui/
 // import type { AgentPanel } from '@elizaos/core'; // Commented out if not available
 
 const queryClient = new QueryClient();
 
+// Simple function to extract agent ID from the URL path format: /chat/[agentId]
+function extractAgentIdFromUrl(): string | null {
+  try {
+    const pathSegments = window.location.pathname.split('/');
+    const chatIndex = pathSegments.findIndex(segment => segment === 'chat');
+    
+    if (chatIndex >= 0 && chatIndex < pathSegments.length - 1) {
+      return pathSegments[chatIndex + 1];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error extracting agent ID from URL:', error);
+    return null;
+  }
+}
+
 function App() {
-  // For now, we render KnowledgeTab directly. 
-  // If agentId is needed, it would have to be passed down or fetched.
-  // A placeholder or dummy agentId could be used for initial rendering if required by KnowledgeTab.
+  const [agentId, setAgentId] = useState<string | null>(null);
+  const fallbackAgentId = "b850bc30-45f8-0041-a00a-83df46d8555d"; // Fallback default agent ID
+  
+  useEffect(() => {
+    // Get agent ID from URL
+    const urlAgentId = extractAgentIdFromUrl();
+    
+    if (urlAgentId) {
+      console.log(`Using agent ID from URL: ${urlAgentId}`);
+      setAgentId(urlAgentId);
+    } else {
+      console.log(`No agent ID found in URL, using fallback: ${fallbackAgentId}`);
+      setAgentId(fallbackAgentId);
+    }
+  }, []);
+  
+  // Show loading state while determining agent ID
+  if (!agentId) {
+    return <div className="p-4">Loading knowledge panel...</div>;
+  }
+  
   return (
     <QueryClientProvider client={queryClient}>
-      <KnowledgeTab agentId="b850bc30-45f8-0041-a00a-83df46d8555d" />
+      <KnowledgeTab agentId={agentId} />
     </QueryClientProvider>
   );
 }
