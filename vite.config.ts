@@ -9,6 +9,7 @@ export default defineConfig({
   build: {
     emptyOutDir: false,
     outDir: 'dist',
+    manifest: true,
   },
   resolve: {
     alias: {
