@@ -167,7 +167,6 @@ const useKnowledgeChunks = (agentId: UUID, enabled: boolean = true, documentIdFi
         queryKey: ['agents', agentId, 'knowledge', 'chunks', { documentIdFilter }],
         queryFn: async () => {
             const response = await apiClient.getKnowledgeChunks(agentId, { documentId: documentIdFilter });
-            // Correction: The API /knowledges returns fragments (chunks) in response.data.chunks
             return response.data.chunks || [];
         },
         enabled,
@@ -182,7 +181,6 @@ const useKnowledgeChunks = (agentId: UUID, enabled: boolean = true, documentIdFi
         queryKey: ['agents', agentId, 'knowledge', 'documents-for-graph'],
         queryFn: async () => {
             const response = await apiClient.getKnowledgeDocuments(agentId, { includeEmbedding: false });
-            // Correction: The API /documents returns documents in response.data.memories
             return response.data.memories || [];
         },
         enabled,
