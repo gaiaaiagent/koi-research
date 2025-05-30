@@ -561,6 +561,7 @@ async function getKnowledgeChunksHandler(req: any, res: any, runtime: IAgentRunt
   try {
     const limit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : 100;
     const before = req.query.before ? Number.parseInt(req.query.before as string, 10) : Date.now();
+    const documentId = req.query.documentId as string | undefined;
     
     // Get knowledge chunks/fragments for graph view
     const chunks = await service.getMemories({
@@ -569,7 +570,17 @@ async function getKnowledgeChunksHandler(req: any, res: any, runtime: IAgentRunt
       end: before,
     });
 
-    sendSuccess(res, { chunks });
+    // Filter chunks by documentId if provided
+    const filteredChunks = documentId 
+      ? chunks.filter(chunk => 
+          chunk.metadata && 
+          typeof chunk.metadata === 'object' && 
+          'documentId' in chunk.metadata && 
+          chunk.metadata.documentId === documentId
+        )
+      : chunks;
+
+    sendSuccess(res, { chunks: filteredChunks });
   } catch (error: any) {
     logger.error('[KNOWLEDGE CHUNKS GET HANDLER] Error retrieving chunks:', error);
     sendError(res, 500, 'RETRIEVAL_ERROR', 'Failed to retrieve knowledge chunks', error.message);
