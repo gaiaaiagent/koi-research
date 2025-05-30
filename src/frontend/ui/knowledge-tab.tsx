@@ -560,8 +560,8 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
         const isDocument = metadata?.type === 'document';
         
         return (
-            <div className="border-t border-border bg-card text-card-foreground">
-                <div className="p-4 flex justify-between items-start">
+            <div className="border-t border-border bg-card text-card-foreground h-full flex flex-col">
+                <div className="p-4 flex justify-between items-start flex-shrink-0">
                     <div className="space-y-1">
                         <h3 className="text-sm font-medium flex items-center gap-2">
                             {isFragment ? (
@@ -611,16 +611,15 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                     </Button>
                 </div>
                 
-                <div className="px-4 pb-4">
-                    <div className="bg-background rounded border border-border p-3 text-sm overflow-auto max-h-72">
-                        <pre className="whitespace-pre-wrap font-mono text-xs">
-                            {memory.content?.text?.substring(0, 800) || 'No content available'}
-                            {memory.content?.text && memory.content.text.length > 800 && '...'}
+                <div className="px-4 pb-4 flex-1 flex flex-col">
+                    <div className="bg-background rounded border border-border p-3 text-sm overflow-auto flex-1">
+                        <pre className="whitespace-pre-wrap font-mono text-xs h-full">
+                            {memory.content?.text || 'No content available'}
                         </pre>
                     </div>
                     
                     {memory.embedding && (
-                        <div className="mt-2 flex items-center text-xs text-muted-foreground">
+                        <div className="mt-2 flex items-center text-xs text-muted-foreground flex-shrink-0">
                             <span className="bg-accent/20 text-accent-foreground px-1.5 py-0.5 rounded text-[10px] font-medium mr-1.5">EMBEDDING</span>
                             <span>Vector with {memory.embedding.length} dimensions</span>
                         </div>
@@ -765,7 +764,7 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                     <EmptyState />
                 ) : viewMode === 'graph' ? (
                     <div className="flex flex-col h-full">
-                        <div className="flex-1 p-4 overflow-hidden">
+                        <div className={`p-4 overflow-hidden ${selectedMemory ? 'h-1/3' : 'flex-1'} transition-all duration-300`}>
                             <MemoryGraph
                                 memories={memories}
                                 onNodeClick={(memory) => {
@@ -795,7 +794,9 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                         
                         {/* Display details of selected node */}
                         {selectedMemory && (
-                            <MemoryDetails memory={selectedMemory} />
+                            <div className="h-2/3 overflow-hidden flex-1 transition-all duration-300">
+                                <MemoryDetails memory={selectedMemory} />
+                            </div>
                         )}
                     </div>
                 ) : (
