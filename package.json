@@ -1,7 +1,7 @@
 {
   "name": "@elizaos/plugin-knowledge",
   "description": "Plugin for Knowledge",
-  "version": "1.0.0-beta.77",
+  "version": "1.0.0-beta.78",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -12,7 +12,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/elizaos-plugins/plugin-knowledge.git"
+    "url": "git+https://github.com/elizaos-plugins/plugin-knowledge.git"
   },
   "exports": {
     "./package.json": "./package.json",
