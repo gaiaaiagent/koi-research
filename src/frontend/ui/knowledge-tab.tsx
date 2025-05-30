@@ -776,7 +776,7 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                                     if (memory.metadata && 
                                         typeof memory.metadata === 'object' && 
                                         ('type' in memory.metadata) && 
-                                        (memory.metadata.type === 'DOCUMENT' || memory.metadata.type === 'document') &&
+                                        ((memory.metadata.type || '').toLowerCase() === 'document') &&
                                         !('documentId' in memory.metadata)) {
                                         handleDocumentFilter(memory.id as UUID);
                                     }

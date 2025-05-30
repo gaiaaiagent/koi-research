@@ -56,14 +56,14 @@ const processGraphData = (memories: Memory[]) => {
             name: metadata.title || memory.id.substring(0, 8),
             memory: memory,
             val: 3, // Reduced base node size
-            type: metadata.type === 'document' ? 'document' : 'fragment'
+            type: (metadata.type || '').toLowerCase() === 'document' ? 'document' : 'fragment'
         };
         
         // Adjust node size based on type
-        if (metadata.type === 'document') {
+        if ((metadata.type || '').toLowerCase() === 'document') {
             memoryNode.val = 5; // Documents smaller than before
             documents.push(memoryNode);
-        } else if (metadata.type === 'fragment' || (metadata.documentId && metadata.type !== 'document')) {
+        } else if ((metadata.type || '').toLowerCase() === 'fragment' || (metadata.documentId && (metadata.type || '').toLowerCase() !== 'document')) {
             memoryNode.val = 3; // Fragments smaller
             fragments.push(memoryNode);
         } else {
