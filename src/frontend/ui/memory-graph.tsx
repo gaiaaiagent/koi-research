@@ -42,7 +42,6 @@ const processGraphData = (memories: Memory[]) => {
     memories.forEach(memory => {
         const metadata = memory.metadata as MemoryMetadata;
         
-        // Ignorer les mémoires sans ID
         if (!memory.id || !metadata || typeof metadata !== 'object') {
             return;
         }
