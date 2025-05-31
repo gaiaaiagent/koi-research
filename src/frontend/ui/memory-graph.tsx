@@ -33,12 +33,8 @@ interface MemoryGraphProps {
     selectedMemoryId?: UUID;
 }
 
-const MAX_NODES_INITIAL = 150; // Increased to allow more fragments
-
 // Function to process graph data
 const processGraphData = (memories: Memory[]) => {
-    console.log(`Processing memories for graph: ${memories.length}`);
-    
     // Identify documents and fragments
     const documents: MemoryNode[] = [];
     const fragments: MemoryNode[] = [];
@@ -90,12 +86,7 @@ const processGraphData = (memories: Memory[]) => {
         }
     });
     
-    console.log(`Documents found: ${documents.length}`);
-    console.log(`Fragments found: ${fragments.length}`);
-    console.log(`Document-fragment relationships:`, links);
-    
     const nodes = [...documents, ...fragments];
-    console.log(`Displaying: ${nodes.length} nodes (${documents.length} docs, ${fragments.length} fragments) and ${links.length} links`);
     
     return { nodes, links };
 };
