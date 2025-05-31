@@ -167,6 +167,9 @@ export function MemoryGraph({ memories, onNodeClick, selectedMemoryId }: MemoryG
                 linkForce.distance(50); // Distance between nodes
             }
             
+            // Ensure the graph is centered and scaled to fit the container
+            graph.zoomToFit(400); // Optional duration of 400ms for smooth transition
+            
             setInitialized(true);
         }
     }, []);
