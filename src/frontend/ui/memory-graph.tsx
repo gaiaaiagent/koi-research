@@ -18,7 +18,7 @@ interface MemoryNode extends NodeObject {
     name: string;
     val?: number; // Node size
     memory: Memory;
-    type: 'document' | 'fragment'; // Type pour distinguer documents et fragments
+    type: 'document' | 'fragment'; // Type to distinguish documents and fragments
 }
 
 interface MemoryLink extends LinkObject {
