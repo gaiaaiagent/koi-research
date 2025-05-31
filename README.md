@@ -109,6 +109,31 @@ OPENROUTER_BASE_URL=https://your-openrouter-proxy.com/api/v1
 GOOGLE_BASE_URL=https://your-google-proxy.com
 ```
 
+### Knowledge Document Path
+
+By default, the plugin looks for knowledge documents in a `docs` folder in your project root. You can customize this location using the `KNOWLEDGE_PATH` environment variable:
+
+```env
+# Custom path to your knowledge documents
+KNOWLEDGE_PATH=/path/to/your/documents
+
+# Examples:
+# KNOWLEDGE_PATH=./my-docs           # Relative path from project root
+# KNOWLEDGE_PATH=/home/user/docs     # Absolute path
+# KNOWLEDGE_PATH=../shared/knowledge # Relative path to parent directory
+```
+
+**How it works:**
+- If `KNOWLEDGE_PATH` is set, the plugin will use that directory for loading knowledge documents
+- If `KNOWLEDGE_PATH` is not set, the plugin defaults to `./docs` (a `docs` folder in your project root)
+- Both relative and absolute paths are supported
+- If the specified path doesn't exist, the plugin will log a warning but continue to function
+
+**Supported document formats:**
+- PDF files (`.pdf`)
+- Text files (`.txt`, `.md`)
+- And other formats supported by the document processor
+
 ### Token Limits
 
 ```env
