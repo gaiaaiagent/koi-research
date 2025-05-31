@@ -352,7 +352,7 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
             setUrlInput('');
             setUrlError(null);
         } catch (e) {
-            setUrlError('URL invalide');
+            setUrlError('Invalid URL');
         }
     };
 
