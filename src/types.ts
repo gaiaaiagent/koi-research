@@ -1,6 +1,5 @@
 import { UUID } from '@elizaos/core';
 import z from 'zod';
-import type { UUID as UUIDType } from '@elizaos/core';
 
 // Schema for validating model configuration
 export const ModelConfigSchema = z.object({
