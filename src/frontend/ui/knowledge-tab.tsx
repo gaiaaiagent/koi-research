@@ -3,6 +3,9 @@ import type { UUID, Memory } from '@elizaos/core';
 import { Book, Clock, File, FileText, LoaderIcon, Trash2, Upload } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ExtendedMemoryMetadata } from '../../types';
+
+type MemoryMetadata = ExtendedMemoryMetadata;
 
 // Use local UI components instead of importing from client
 import { Badge } from './badge';
@@ -57,31 +60,6 @@ const DialogFooter = ({ className, children }: { className?: string; children: R
 );
 
 const ITEMS_PER_PAGE = 10;
-
-interface MemoryContent {
-    text?: string;
-    metadata?: {
-        fileType?: string;
-        title?: string;
-        filename?: string;
-        path?: string;
-        description?: string;
-    };
-}
-
-interface MemoryMetadata {
-    type?: string;
-    title?: string;
-    filename?: string;
-    path?: string;
-    description?: string;
-    fileExt?: string;
-    timestamp?: number;
-    contentType?: string;
-    documentId?: string;
-    position?: number;
-    source?: string;
-}
 
 interface UploadResultItem {
     status: string;

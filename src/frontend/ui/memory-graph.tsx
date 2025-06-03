@@ -2,16 +2,9 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Memory, UUID } from '@elizaos/core';
 // @ts-ignore
 import ForceGraph2D, { ForceGraphMethods, LinkObject, NodeObject } from 'react-force-graph-2d';
+import { ExtendedMemoryMetadata } from '../../types';
 
-// Interface to represent memory metadata
-interface MemoryMetadata {
-    type?: string;
-    documentId?: string;
-    title?: string;
-    position?: number;
-    source?: string;
-    [key: string]: any;
-}
+type MemoryMetadata = ExtendedMemoryMetadata;
 
 interface MemoryNode extends NodeObject {
     id: UUID;
