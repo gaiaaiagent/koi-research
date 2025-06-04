@@ -1,6 +1,5 @@
 import { UUID } from '@elizaos/core';
 import z from 'zod';
-import type { UUID as UUIDType } from '@elizaos/core';
 
 // Schema for validating model configuration
 export const ModelConfigSchema = z.object({
@@ -167,4 +166,25 @@ export interface LoadResult {
   successful: number;
   failed: number;
   errors?: Array<{ filename: string; error: string }>;
+}
+
+/**
+ * Extends the base MemoryMetadata from @elizaos/core with additional fields
+ */
+export interface ExtendedMemoryMetadata extends Record<string, any> {
+  type?: string;
+  title?: string;
+  filename?: string;
+  path?: string;
+  description?: string;
+  fileExt?: string;
+  timestamp?: number;
+  contentType?: string;
+  documentId?: string;
+  source?: string;
+  fileType?: string;
+  fileSize?: number;
+  position?: number; // For fragments
+  originalFilename?: string;
+  url?: string; // For web content
 }
