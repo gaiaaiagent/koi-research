@@ -193,9 +193,194 @@ The document processing flow follows these steps regardless of database type:
 - Rate limiting to respect provider limitations
 - Support for multiple LLM providers
 
+## API Routes
+
+The Knowledge plugin provides a comprehensive REST API for managing knowledge documents. All routes are prefixed with `/api/agents/{agentId}/plugins/knowledge`.
+
+### Knowledge Panel UI
+
+#### GET `/display`
+Access the web-based knowledge management interface.
+
+- **URL**: `/api/agents/{agentId}/plugins/knowledge/display`
+- **Method**: GET
+- **Public**: Yes
+- **Description**: Serves the HTML frontend for managing knowledge documents
+- **Response**: HTML page with embedded configuration
+
+### Document Management
+
+#### POST `/documents` - Upload Knowledge
+Upload files or URLs to create knowledge documents.
+
+**File Upload:**
+```bash
+curl -X POST \
+  "/api/agents/{agentId}/plugins/knowledge/documents" \
+  -H "Content-Type: multipart/form-data" \
+  -F "files=@document.pdf" \
+  -F "documentId=optional-custom-id" \
+  -F "worldId=optional-world-id"
+```
+
+**URL Upload:**
+```bash
+curl -X POST \
+  "/api/agents/{agentId}/plugins/knowledge/documents" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fileUrls": ["https://example.com/document.pdf"],
+    "worldId": "optional-world-id"
+  }'
+```
+
+**Request Parameters:**
+- `files`: File(s) to upload (multipart)
+- `fileUrl` or `fileUrls`: URL(s) to fetch content from (JSON)
+- `documentId` or `documentIds`: Optional custom document IDs
+- `worldId`: Optional world ID for scoping
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "document-uuid",
+      "filename": "document.pdf",
+      "status": "success",
+      "fragmentCount": 15,
+      "createdAt": 1703123456789
+    }
+  ]
+}
+```
+
+**Supported File Types:**
+- **Documents**: PDF, DOC, DOCX
+- **Text**: TXT, MD, HTML, JSON, XML, YAML
+- **Code**: JS, TS, PY, JAVA, C, CPP, CS, PHP, RB, GO, RS, and more
+- **Config**: INI, CFG, CONF, ENV
+- **Data**: CSV, TSV, LOG
+
+#### GET `/documents` - List Documents
+Retrieve all knowledge documents.
+
+```bash
+curl "/api/agents/{agentId}/plugins/knowledge/documents?limit=20&before=1703123456789&includeEmbedding=false"
+```
+
+**Query Parameters:**
+- `limit`: Number of documents to return (default: 20)
+- `before`: Timestamp for pagination (default: current time)
+- `includeEmbedding`: Include embedding data (default: false)
+- `fileUrls`: Filter by specific URLs (comma-separated)
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "memories": [
+      {
+        "id": "document-uuid",
+        "content": { "text": "..." },
+        "metadata": {
+          "type": "document",
+          "title": "Document Title",
+          "filename": "document.pdf",
+          "fileType": "application/pdf",
+          "fileSize": 1024,
+          "timestamp": 1703123456789,
+          "source": "upload"
+        },
+        "createdAt": 1703123456789
+      }
+    ],
+    "urlFiltered": false,
+    "totalFound": 1,
+    "totalRequested": 0
+  }
+}
+```
+
+#### GET `/documents/:knowledgeId` - Get Specific Document
+Retrieve a specific knowledge document by ID.
+
+```bash
+curl "/api/agents/{agentId}/plugins/knowledge/documents/{documentId}"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "document": {
+      "id": "document-uuid",
+      "content": { "text": "..." },
+      "metadata": { "..." },
+      "createdAt": 1703123456789
+    }
+  }
+}
+```
+
+#### DELETE `/documents/:knowledgeId` - Delete Document
+Delete a knowledge document and all its fragments.
+
+```bash
+curl -X DELETE "/api/agents/{agentId}/plugins/knowledge/documents/{documentId}"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": null
+}
+```
+
+### Knowledge Fragments
+
+#### GET `/knowledges` - List Knowledge Chunks
+Retrieve knowledge fragments/chunks for detailed analysis or graph view.
+
+```bash
+curl "/api/agents/{agentId}/plugins/knowledge/knowledges?limit=100&documentId=optional-filter"
+```
+
+**Query Parameters:**
+- `limit`: Number of chunks to return (default: 100)
+- `before`: Timestamp for pagination (default: current time)
+- `documentId`: Filter chunks by parent document ID
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "chunks": [
+      {
+        "id": "fragment-uuid",
+        "content": { "text": "chunk content..." },
+        "metadata": {
+          "type": "fragment",
+          "documentId": "parent-document-uuid",
+          "position": 0,
+          "timestamp": 1703123456789
+        },
+        "embedding": [0.1, 0.2, ...], // If included
+        "createdAt": 1703123456789
+      }
+    ]
+  }
+}
+```
+
 ## Usage
 
-### Basic Usage
+### Programmatic Usage
 
 ```typescript
 import { KnowledgeService } from '@elizaos/plugin-knowledge';
