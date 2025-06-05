@@ -118,15 +118,6 @@ function validateConfigRequirements(config: ModelConfig, assumePluginOpenAI: boo
   if (config.CTX_KNOWLEDGE_ENABLED) {
     logger.info('Contextual Knowledge is enabled. Validating text generation settings...');
 
-    // Text provider and model are required for CTX_RAG
-    if (!config.TEXT_PROVIDER) {
-      throw new Error('TEXT_PROVIDER is required when CTX_KNOWLEDGE_ENABLED is true');
-    }
-
-    if (!config.TEXT_MODEL) {
-      throw new Error('TEXT_MODEL is required when CTX_KNOWLEDGE_ENABLED is true');
-    }
-
     // Validate API keys based on the text provider
     if (config.TEXT_PROVIDER === 'openai' && !config.OPENAI_API_KEY) {
       throw new Error('OPENAI_API_KEY is required when TEXT_PROVIDER is set to "openai"');

@@ -6,10 +6,10 @@ import {
   UUID,
   logger,
   splitChunks,
-} from "@elizaos/core";
-import { Buffer } from "node:buffer";
-import { v4 as uuidv4 } from "uuid";
-import { getProviderRateLimits, validateModelConfig } from "./config.ts";
+} from '@elizaos/core';
+import { Buffer } from 'node:buffer';
+import { v4 as uuidv4 } from 'uuid';
+import { getProviderRateLimits, validateModelConfig } from './config.ts';
 import {
   DEFAULT_CHARS_PER_TOKEN,
   DEFAULT_CHUNK_OVERLAP_TOKENS,
@@ -19,16 +19,12 @@ import {
   getChunkWithContext,
   getContextualizationPrompt,
   getPromptForMimeType,
-} from "./ctx-embeddings.ts";
-import {
-  convertPdfToTextFromBuffer,
-  extractTextFromFileBuffer,
-} from "./utils.ts";
+} from './ctx-embeddings.ts';
+import { convertPdfToTextFromBuffer, extractTextFromFileBuffer } from './utils.ts';
 
 // Read contextual Knowledge settings from environment variables
 const ctxKnowledgeEnabled =
-  process.env.CTX_KNOWLEDGE_ENABLED === "true" ||
-  process.env.CTX_KNOWLEDGE_ENABLED === "True";
+  process.env.CTX_KNOWLEDGE_ENABLED === 'true' || process.env.CTX_KNOWLEDGE_ENABLED === 'True';
 
 // Log settings at startup
 if (ctxKnowledgeEnabled) {
@@ -71,10 +67,8 @@ export async function processFragmentsSynchronously({
   entityId?: UUID;
   worldId?: UUID;
 }): Promise<number> {
-  if (!fullDocumentText || fullDocumentText.trim() === "") {
-    logger.warn(
-      `No text content available to chunk for document ${documentId}.`
-    );
+  if (!fullDocumentText || fullDocumentText.trim() === '') {
+    logger.warn(`No text content available to chunk for document ${documentId}.`);
     return 0;
   }
 
@@ -82,22 +76,15 @@ export async function processFragmentsSynchronously({
   const chunks = await splitDocumentIntoChunks(fullDocumentText);
 
   if (chunks.length === 0) {
-    logger.warn(
-      `No chunks generated from text for ${documentId}. No fragments to save.`
-    );
+    logger.warn(`No chunks generated from text for ${documentId}. No fragments to save.`);
     return 0;
   }
 
-  logger.info(
-    `Split content into ${chunks.length} chunks for document ${documentId}`
-  );
+  logger.info(`Split content into ${chunks.length} chunks for document ${documentId}`);
 
   // Get provider limits for rate limiting
   const providerLimits = await getProviderRateLimits();
-  const CONCURRENCY_LIMIT = Math.min(
-    30,
-    providerLimits.maxConcurrentRequests || 30
-  );
+  const CONCURRENCY_LIMIT = Math.min(30, providerLimits.maxConcurrentRequests || 30);
   const rateLimiter = createRateLimiter(providerLimits.requestsPerMinute || 60);
 
   // Process and save fragments
@@ -122,9 +109,7 @@ export async function processFragmentsSynchronously({
     );
   }
 
-  logger.info(
-    `Finished saving ${savedCount} fragments for document ${documentId}.`
-  );
+  logger.info(`Finished saving ${savedCount} fragments for document ${documentId}.`);
   return savedCount;
 }
 
@@ -146,28 +131,24 @@ export async function extractTextFromDocument(
 ): Promise<string> {
   // Validate buffer
   if (!fileBuffer || fileBuffer.length === 0) {
-    throw new Error(
-      `Empty file buffer provided for ${originalFilename}. Cannot extract text.`
-    );
+    throw new Error(`Empty file buffer provided for ${originalFilename}. Cannot extract text.`);
   }
 
   try {
-    if (contentType === "application/pdf") {
+    if (contentType === 'application/pdf') {
       logger.debug(`Extracting text from PDF: ${originalFilename}`);
       return await convertPdfToTextFromBuffer(fileBuffer, originalFilename);
     } else {
-      logger.debug(
-        `Extracting text from non-PDF: ${originalFilename} (Type: ${contentType})`
-      );
+      logger.debug(`Extracting text from non-PDF: ${originalFilename} (Type: ${contentType})`);
 
       // For plain text files, try UTF-8 decoding first
       if (
-        contentType.includes("text/") ||
-        contentType.includes("application/json") ||
-        contentType.includes("application/xml")
+        contentType.includes('text/') ||
+        contentType.includes('application/json') ||
+        contentType.includes('application/xml')
       ) {
         try {
-          return fileBuffer.toString("utf8");
+          return fileBuffer.toString('utf8');
         } catch (textError) {
           logger.warn(
             `Failed to decode ${originalFilename} as UTF-8, falling back to binary extraction`
@@ -176,19 +157,11 @@ export async function extractTextFromDocument(
       }
 
       // For other files, use general extraction
-      return await extractTextFromFileBuffer(
-        fileBuffer,
-        contentType,
-        originalFilename
-      );
+      return await extractTextFromFileBuffer(fileBuffer, contentType, originalFilename);
     }
   } catch (error: any) {
-    logger.error(
-      `Error extracting text from ${originalFilename}: ${error.message}`
-    );
-    throw new Error(
-      `Failed to extract text from ${originalFilename}: ${error.message}`
-    );
+    logger.error(`Error extracting text from ${originalFilename}: ${error.message}`);
+    throw new Error(`Failed to extract text from ${originalFilename}: ${error.message}`);
   }
 }
 
@@ -218,8 +191,8 @@ export function createDocumentMemory({
   documentId?: UUID;
   customMetadata?: Record<string, unknown>;
 }): Memory {
-  const fileExt = originalFilename.split(".").pop()?.toLowerCase() || "";
-  const title = originalFilename.replace(`.${fileExt}`, "");
+  const fileExt = originalFilename.split('.').pop()?.toLowerCase() || '';
+  const title = originalFilename.replace(`.${fileExt}`, '');
 
   // Use the provided documentId or generate a new one
   const docId = documentId || (uuidv4() as UUID);
@@ -239,7 +212,7 @@ export function createDocumentMemory({
       title,
       fileExt,
       fileSize,
-      source: "rag-service-main-upload",
+      source: 'rag-service-main-upload',
       timestamp: Date.now(),
       // Merge custom metadata if provided
       ...(customMetadata || {}),
@@ -256,20 +229,14 @@ export function createDocumentMemory({
  * @param documentText The full document text to split
  * @returns Array of text chunks
  */
-async function splitDocumentIntoChunks(
-  documentText: string
-): Promise<string[]> {
+async function splitDocumentIntoChunks(documentText: string): Promise<string[]> {
   // Use the standardized constants
   const tokenChunkSize = DEFAULT_CHUNK_TOKEN_SIZE;
   const tokenChunkOverlap = DEFAULT_CHUNK_OVERLAP_TOKENS;
 
   // Calculate character-based chunking sizes from token sizes for compatibility with splitChunks
-  const targetCharChunkSize = Math.round(
-    tokenChunkSize * DEFAULT_CHARS_PER_TOKEN
-  );
-  const targetCharChunkOverlap = Math.round(
-    tokenChunkOverlap * DEFAULT_CHARS_PER_TOKEN
-  );
+  const targetCharChunkSize = Math.round(tokenChunkSize * DEFAULT_CHARS_PER_TOKEN);
+  const targetCharChunkOverlap = Math.round(tokenChunkOverlap * DEFAULT_CHARS_PER_TOKEN);
 
   logger.debug(
     `Using core splitChunks with settings: tokenChunkSize=${tokenChunkSize}, tokenChunkOverlap=${tokenChunkOverlap}, ` +
@@ -321,10 +288,7 @@ async function processAndSaveFragments({
   // Process chunks in batches to respect concurrency limits
   for (let i = 0; i < chunks.length; i += concurrencyLimit) {
     const batchChunks = chunks.slice(i, i + concurrencyLimit);
-    const batchOriginalIndices = Array.from(
-      { length: batchChunks.length },
-      (_, k) => i + k
-    );
+    const batchOriginalIndices = Array.from({ length: batchChunks.length }, (_, k) => i + k);
 
     logger.debug(
       `Processing batch of ${batchChunks.length} chunks for document ${documentId}. ` +
@@ -354,9 +318,7 @@ async function processAndSaveFragments({
       if (!result.success) {
         failedCount++;
         failedChunks.push(originalChunkIndex);
-        logger.warn(
-          `Failed to process chunk ${originalChunkIndex} for document ${documentId}`
-        );
+        logger.warn(`Failed to process chunk ${originalChunkIndex} for document ${documentId}`);
         continue;
       }
 
@@ -386,11 +348,11 @@ async function processAndSaveFragments({
             documentId,
             position: originalChunkIndex,
             timestamp: Date.now(),
-            source: "rag-service-fragment-sync",
+            source: 'rag-service-fragment-sync',
           },
         };
 
-        await runtime.createMemory(fragmentMemory, "knowledge");
+        await runtime.createMemory(fragmentMemory, 'knowledge');
         logger.debug(
           `Saved fragment ${originalChunkIndex + 1} for document ${documentId} (Fragment ID: ${fragmentMemory.id})`
         );
@@ -491,9 +453,7 @@ async function getContextualizedChunks(
   chunks: string[],
   contentType: string | undefined,
   batchOriginalIndices: number[]
-): Promise<
-  Array<{ contextualizedText: string; index: number; success: boolean }>
-> {
+): Promise<Array<{ contextualizedText: string; index: number; success: boolean }>> {
   if (ctxKnowledgeEnabled && fullDocumentText) {
     logger.debug(`Generating contexts for ${chunks.length} chunks`);
     return await generateContextsInBatch(
@@ -522,9 +482,7 @@ async function generateContextsInBatch(
   chunks: string[],
   contentType?: string,
   batchIndices?: number[]
-): Promise<
-  Array<{ contextualizedText: string; success: boolean; index: number }>
-> {
+): Promise<Array<{ contextualizedText: string; success: boolean; index: number }>> {
   if (!chunks || chunks.length === 0) {
     return [];
   }
@@ -534,15 +492,16 @@ async function generateContextsInBatch(
 
   // Get active provider from validateModelConfig
   const config = validateModelConfig();
-  const isUsingOpenRouter = config.TEXT_PROVIDER === "openrouter";
+  const isUsingOpenRouter = config.TEXT_PROVIDER === 'openrouter';
   const isUsingCacheCapableModel =
     isUsingOpenRouter &&
-    (config.TEXT_MODEL?.toLowerCase().includes("claude") ||
-      config.TEXT_MODEL?.toLowerCase().includes("gemini"));
+    (config.TEXT_MODEL?.toLowerCase().includes('claude') ||
+      config.TEXT_MODEL?.toLowerCase().includes('gemini'));
 
-  logger.info(
-    `Using provider: ${config.TEXT_PROVIDER}, model: ${config.TEXT_MODEL}, caching capability: ${isUsingCacheCapableModel}`
-  );
+  // For now custom TEXT_PROVIDER is not supported.
+  // logger.info(
+  //   `Using provider: ${config.TEXT_PROVIDER}, model: ${config.TEXT_MODEL}, caching capability: ${isUsingCacheCapableModel}`
+  // );
 
   // Prepare prompts or system messages in parallel
   const promptConfigs = prepareContextPrompts(
@@ -595,10 +554,7 @@ async function generateContextsInBatch(
         );
 
         const generatedContext = llmResponse.text;
-        const contextualizedText = getChunkWithContext(
-          item.chunkText,
-          generatedContext
-        );
+        const contextualizedText = getChunkWithContext(item.chunkText, generatedContext);
 
         logger.debug(
           `Context added for chunk ${item.originalIndex}. New length: ${contextualizedText.length}`
@@ -647,7 +603,7 @@ function prepareContextPrompts(
           : getCachingContextualizationPrompt(chunkText);
 
         // If there was an error in prompt generation
-        if (cachingPromptInfo.prompt.startsWith("Error:")) {
+        if (cachingPromptInfo.prompt.startsWith('Error:')) {
           logger.warn(
             `Skipping contextualization for chunk ${originalIndex} due to: ${cachingPromptInfo.prompt}`
           );
@@ -674,10 +630,8 @@ function prepareContextPrompts(
           ? getPromptForMimeType(contentType, fullDocumentText, chunkText)
           : getContextualizationPrompt(fullDocumentText, chunkText);
 
-        if (prompt.startsWith("Error:")) {
-          logger.warn(
-            `Skipping contextualization for chunk ${originalIndex} due to: ${prompt}`
-          );
+        if (prompt.startsWith('Error:')) {
+          logger.warn(`Skipping contextualization for chunk ${originalIndex} due to: ${prompt}`);
           return {
             prompt: null,
             originalIndex,
@@ -741,13 +695,11 @@ async function generateEmbeddingWithValidation(
 
     // Validate embedding
     if (!embedding || embedding.length === 0) {
-      logger.warn(
-        `Zero vector detected. Embedding result: ${JSON.stringify(embeddingResult)}`
-      );
+      logger.warn(`Zero vector detected. Embedding result: ${JSON.stringify(embeddingResult)}`);
       return {
         embedding: null,
         success: false,
-        error: new Error("Zero vector detected"),
+        error: new Error('Zero vector detected'),
       };
     }
 
@@ -770,19 +722,15 @@ async function withRateLimitRetry<T>(
   } catch (error: any) {
     if (error.status === 429) {
       // Handle rate limiting with exponential backoff
-      const delay = retryDelay || error.headers?.["retry-after"] || 5;
-      logger.warn(
-        `Rate limit hit for ${errorContext}. Retrying after ${delay}s`
-      );
+      const delay = retryDelay || error.headers?.['retry-after'] || 5;
+      logger.warn(`Rate limit hit for ${errorContext}. Retrying after ${delay}s`);
       await new Promise((resolve) => setTimeout(resolve, delay * 1000));
 
       // Try one more time
       try {
         return await operation();
       } catch (retryError: any) {
-        logger.error(
-          `Failed after retry for ${errorContext}: ${retryError.message}`
-        );
+        logger.error(`Failed after retry for ${errorContext}: ${retryError.message}`);
         throw retryError;
       }
     }
@@ -811,9 +759,7 @@ function createRateLimiter(requestsPerMinute: number) {
       const timeToWait = Math.max(0, oldestRequest + intervalMs - now);
 
       if (timeToWait > 0) {
-        logger.debug(
-          `Rate limiting applied, waiting ${timeToWait}ms before next request`
-        );
+        logger.debug(`Rate limiting applied, waiting ${timeToWait}ms before next request`);
         await new Promise((resolve) => setTimeout(resolve, timeToWait));
       }
     }
