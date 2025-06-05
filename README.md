@@ -4,6 +4,8 @@ This plugin provides Retrieval Augmented Generation (Knowledge) capabilities for
 
 ## Quick Setup
 
+> **⚠️ Note**: `TEXT_PROVIDER` and `TEXT_MODEL` configuration are temporarily disabled. The plugin currently uses `runtime.useModel(TEXT_LARGE)` for text generation. Full provider configuration support will be added soon.
+
 ### Basic Setup (With plugin-openai)
 
 If you already have plugin-openai configured, you don't need any additional environment variables! The Knowledge plugin will automatically use your OpenAI configuration.
@@ -22,11 +24,13 @@ If you already have plugin-openai configured, you don't need any additional envi
 
 If you want enhanced Knowledge capabilities with contextual embeddings, add:
 
+> **Note**: The TEXT_PROVIDER and TEXT_MODEL settings below are temporarily disabled. The plugin will use `runtime.useModel(TEXT_LARGE)` for now.
+
 ```env
 # Enable contextual Knowledge
 CTX_KNOWLEDGE_ENABLED=true
 
-# Required text generation settings
+# Required text generation settings (TEMPORARILY DISABLED)
 TEXT_PROVIDER=openrouter  # Choose your provider: openai, anthropic, openrouter, or google
 TEXT_MODEL=anthropic/claude-3.5-sonnet  # Model for your chosen provider
 
