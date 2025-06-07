@@ -1,7 +1,7 @@
 {
   "name": "@elizaos/plugin-knowledge",
   "description": "Plugin for Knowledge",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -74,5 +74,133 @@
   "resolutions": {
     "zod": "3.25.23"
   },
-  "gitHead": "b165ad83e5f7a21bc1edbd83374ca087e3cd6b33"
+  "gitHead": "b165ad83e5f7a21bc1edbd83374ca087e3cd6b33",
+  "agentConfig": {
+    "pluginType": "elizaos:plugin:1.0.0",
+    "pluginParameters": {
+      "OPENAI_API_KEY": {
+        "type": "string",
+        "description": "API key for authenticating requests to OpenAI services used by the Knowledge plugin.",
+        "required": false
+      },
+      "OPENAI_EMBEDDING_MODEL": {
+        "type": "string",
+        "description": "Specifies the OpenAI embedding model to use when generating vector embeddings.",
+        "required": false
+      },
+      "CTX_KNOWLEDGE_ENABLED": {
+        "type": "boolean",
+        "description": "Enables contextual knowledge functionality with enriched embeddings.",
+        "required": false
+      },
+      "TEXT_PROVIDER": {
+        "type": "string",
+        "description": "LLM provider for text generation (e.g., openai, anthropic, openrouter, google).",
+        "required": false
+      },
+      "TEXT_MODEL": {
+        "type": "string",
+        "description": "Name of the text generation model to use with the selected provider.",
+        "required": false
+      },
+      "OPENROUTER_API_KEY": {
+        "type": "string",
+        "description": "API key for authenticating with the OpenRouter service when TEXT_PROVIDER=openrouter.",
+        "required": false
+      },
+      "ANTHROPIC_API_KEY": {
+        "type": "string",
+        "description": "API key for Anthropic models when TEXT_PROVIDER=anthropic.",
+        "required": false
+      },
+      "GOOGLE_API_KEY": {
+        "type": "string",
+        "description": "API key for Google AI models when TEXT_PROVIDER=google or EMBEDDING_PROVIDER=google.",
+        "required": false
+      },
+      "EMBEDDING_PROVIDER": {
+        "type": "string",
+        "description": "Provider to use for generating embeddings (e.g., openai, google).",
+        "required": false
+      },
+      "TEXT_EMBEDDING_MODEL": {
+        "type": "string",
+        "description": "Embedding model name to use with the selected EMBEDDING_PROVIDER.",
+        "required": false
+      },
+      "EMBEDDING_DIMENSION": {
+        "type": "number",
+        "description": "Custom dimension size for generated embeddings.",
+        "required": false
+      },
+      "MAX_CONCURRENT_REQUESTS": {
+        "type": "number",
+        "description": "Maximum number of concurrent API requests allowed for rate limiting.",
+        "required": false,
+        "default": 30
+      },
+      "REQUESTS_PER_MINUTE": {
+        "type": "number",
+        "description": "Maximum number of API requests permitted per minute.",
+        "required": false,
+        "default": 60
+      },
+      "TOKENS_PER_MINUTE": {
+        "type": "number",
+        "description": "Maximum number of tokens that can be processed per minute.",
+        "required": false,
+        "default": 150000
+      },
+      "OPENAI_BASE_URL": {
+        "type": "string",
+        "description": "Custom base URL for routing OpenAI API requests (useful for proxies).",
+        "required": false
+      },
+      "ANTHROPIC_BASE_URL": {
+        "type": "string",
+        "description": "Custom base URL for Anthropic API requests.",
+        "required": false
+      },
+      "OPENROUTER_BASE_URL": {
+        "type": "string",
+        "description": "Custom base URL for OpenRouter API requests.",
+        "required": false
+      },
+      "GOOGLE_BASE_URL": {
+        "type": "string",
+        "description": "Custom base URL for Google AI API requests.",
+        "required": false
+      },
+      "KNOWLEDGE_PATH": {
+        "type": "string",
+        "description": "Filesystem path where the plugin should look for knowledge documents.",
+        "required": false,
+        "default": "./docs"
+      },
+      "MAX_INPUT_TOKENS": {
+        "type": "number",
+        "description": "Maximum number of input tokens allowed per request.",
+        "required": false,
+        "default": 4000
+      },
+      "MAX_OUTPUT_TOKENS": {
+        "type": "number",
+        "description": "Maximum number of output tokens that the model can generate.",
+        "required": false,
+        "default": 4096
+      },
+      "OPENAI_EMBEDDING_DIMENSIONS": {
+        "type": "number",
+        "description": "Alternative environment variable for embedding dimension when using OpenAI.",
+        "required": false,
+        "default": 1536
+      },
+      "LOAD_DOCS_ON_STARTUP": {
+        "type": "boolean",
+        "description": "Determines whether documents should be automatically loaded from the docs folder when the plugin starts. Any value other than the string 'false' enables loading.",
+        "required": false,
+        "default": true
+      }
+    }
+  }
 }
