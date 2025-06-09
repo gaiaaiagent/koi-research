@@ -16,10 +16,6 @@ vi.mock("@elizaos/core", async () => {
       info: vi.fn(),
       debug: vi.fn(),
     },
-    createUniqueUuid: vi.fn(
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      (seed: string, name: string) => `mocked-uuid-${name}` as UUID
-    ),
   };
 });
 
@@ -75,6 +71,9 @@ describe("processKnowledgeAction", () => {
         roomId: generateMockUuid(3),
       };
 
+      // Mock Date.now() for this test to generate predictable clientDocumentId's
+      const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(1749491066994);
+
       (fs.existsSync as Mock).mockReturnValue(true);
       (fs.readFileSync as Mock).mockReturnValue(
         Buffer.from("file content")
@@ -88,7 +87,7 @@ describe("processKnowledgeAction", () => {
       expect(fs.existsSync).toHaveBeenCalledWith("/path/to/document.pdf");
       expect(fs.readFileSync).toHaveBeenCalledWith("/path/to/document.pdf");
       expect(mockKnowledgeService.addKnowledge).toHaveBeenCalledWith({
-        clientDocumentId: "mocked-uuid-document.pdf" as UUID,
+        clientDocumentId: "3050c984-5382-0cec-87ba-e5e31593e291",
         contentType: "application/pdf",
         originalFilename: "document.pdf",
         worldId: "test-agent" as UUID,
@@ -99,6 +98,9 @@ describe("processKnowledgeAction", () => {
       expect(mockCallback).toHaveBeenCalledWith({
         text: `I've successfully processed the document "document.pdf". It has been split into 5 searchable fragments and added to my knowledge base.`,
       });
+
+      // Restore Date.now() after the test
+      dateNowSpy.mockRestore();
     });
 
     it("should return a message if the file path is provided but file does not exist", async () => {
@@ -124,6 +126,9 @@ describe("processKnowledgeAction", () => {
     });
 
     it("should process direct text content when no file path is provided", async () => {
+      // Mock Date.now() for this test to generate predictable clientDocumentId's
+      const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(1749491066994);
+
       const message: Memory = {
         id: generateMockUuid(7),
         content: {
@@ -139,7 +144,7 @@ describe("processKnowledgeAction", () => {
 
       expect(fs.existsSync).not.toHaveBeenCalled();
       expect(mockKnowledgeService.addKnowledge).toHaveBeenCalledWith({
-        clientDocumentId: "mocked-uuid-user-knowledge" as UUID,
+        clientDocumentId: "923470c7-bc8f-02be-a04a-1f45c3a983be" as UUID,
         contentType: "text/plain",
         originalFilename: "user-knowledge.txt",
         worldId: "test-agent" as UUID,
@@ -150,6 +155,9 @@ describe("processKnowledgeAction", () => {
       expect(mockCallback).toHaveBeenCalledWith({
         text: "I've added that information to my knowledge base. It has been stored and indexed for future reference.",
       });
+
+      // Restore Date.now() after the test
+      dateNowSpy.mockRestore();
     });
 
     it("should return a message if no file path and no text content is provided", async () => {
