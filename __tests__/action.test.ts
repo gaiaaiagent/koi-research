@@ -203,6 +203,137 @@ describe("processKnowledgeAction", () => {
         text: "I encountered an error while processing the knowledge: Service error",
       });
     });
+
+    it("should generate unique clientDocumentId's for different documents and content", async () => {
+      // Mock Date.now() for this test to generate predictable clientDocumentId's
+      const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(1749491066994);
+      
+      // Test with two different files
+      const fileMessage1: Memory = {
+        id: generateMockUuid(28),
+        content: {
+          text: "Process the document at /path/to/doc1.pdf",
+        },
+        entityId: generateMockUuid(29),
+        roomId: generateMockUuid(30),
+      };
+
+      const fileMessage2: Memory = {
+        id: generateMockUuid(31),
+        content: {
+          text: "Process the document at /path/to/doc2.pdf",
+        },
+        entityId: generateMockUuid(32),
+        roomId: generateMockUuid(33),
+      };
+
+      // Test with direct text content
+      const textMessage: Memory = {
+        id: generateMockUuid(34),
+        content: {
+          text: "Add this to your knowledge: Some unique content here.",
+        },
+        entityId: generateMockUuid(35),
+        roomId: generateMockUuid(36),
+      };
+
+      // Setup mocks for file operations
+      (fs.existsSync as Mock).mockReturnValue(true);
+      (fs.readFileSync as Mock).mockReturnValue(Buffer.from("file content"));
+      (path.basename as Mock)
+        .mockReturnValueOnce("doc1.pdf")
+        .mockReturnValueOnce("doc2.pdf");
+      (path.extname as Mock)
+        .mockReturnValueOnce(".pdf")
+        .mockReturnValueOnce(".pdf");
+
+      // Process all three messages
+      await processKnowledgeAction.handler?.(mockRuntime, fileMessage1, mockState, {}, mockCallback);
+      await processKnowledgeAction.handler?.(mockRuntime, fileMessage2, mockState, {}, mockCallback);
+      await processKnowledgeAction.handler?.(mockRuntime, textMessage, mockState, {}, mockCallback);
+
+      // Get all calls to addKnowledge
+      const addKnowledgeCalls = (mockKnowledgeService.addKnowledge as Mock).mock.calls;
+
+      // Extract clientDocumentId's from the knowledgeOptions objects
+      const clientDocumentIds = addKnowledgeCalls.map(call => call[0].clientDocumentId);
+
+      // Verify we have 3 unique IDs
+      expect(clientDocumentIds.length).toBe(3);
+      expect(new Set(clientDocumentIds).size).toBe(3);
+
+      // Verify the IDs match the expected patterns
+      const [file1Id, file2Id, textId] = clientDocumentIds;
+      
+      // File IDs should contain the filename
+      expect(file1Id).toBe("d08e1b65-20ca-069a-b0c9-dd7b436a4d03");
+      expect(file2Id).toBe("bf2aa191-bc3d-075f-a9d3-5e279794986f");
+      
+      // Text ID should contain the text pattern
+      expect(textId).toBe("923470c7-bc8f-02be-a04a-1f45c3a983be");
+
+      // Verify all IDs are different
+      expect(file1Id).not.toBe(file2Id);
+      expect(file1Id).not.toBe(textId);
+      expect(file2Id).not.toBe(textId);
+
+      // Restore Date.now() after the test
+      dateNowSpy.mockRestore();
+    });
+
+    it("should generate unique clientDocumentId's for same content but different time", async () => {
+      // Mock Date.now() for this test to generate predictable clientDocumentId's
+      const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(1749491066994);
+      
+      // Test with two different files
+      const textMessage1: Memory = {
+        id: generateMockUuid(28),
+        content: {
+          text: "Add this to your knowledge: Some unique content here.",
+        },
+        entityId: generateMockUuid(29),
+        roomId: generateMockUuid(30),
+      };
+
+      const textMessage2: Memory = {
+        id: generateMockUuid(31),
+        content: {
+          text: "Add this to your knowledge: Some unique content here.",
+        },
+        entityId: generateMockUuid(32),
+        roomId: generateMockUuid(33),
+      };
+
+
+      // Process all three messages
+      await processKnowledgeAction.handler?.(mockRuntime, textMessage1, mockState, {}, mockCallback);
+
+      // Change Date.now() mock to generate a different timestamp
+      dateNowSpy.mockRestore();
+      const dateNowSpy2 = vi.spyOn(Date, 'now').mockReturnValue(1749491066995);
+
+      await processKnowledgeAction.handler?.(mockRuntime, textMessage2, mockState, {}, mockCallback);
+
+      // Get all calls to addKnowledge
+      const addKnowledgeCalls = (mockKnowledgeService.addKnowledge as Mock).mock.calls;
+
+      // Extract clientDocumentId's from the knowledgeOptions objects
+      const clientDocumentIds = addKnowledgeCalls.map(call => call[0].clientDocumentId);
+
+      // Verify we have 2 unique IDs
+      expect(clientDocumentIds.length).toBe(2);
+      expect(new Set(clientDocumentIds).size).toBe(2);
+
+      // Verify the IDs match the expected patterns
+      const [textId1, textId2] = clientDocumentIds;
+      
+      // Text ID should contain the text pattern
+      expect(textId1).toBe("923470c7-bc8f-02be-a04a-1f45c3a983be");
+      expect(textId2).toBe("209fdf12-aed1-01fb-800c-5bcfaacb988e");
+
+      // Restore Date.now() after the test
+      dateNowSpy2.mockRestore();
+    });
   });
 
   describe("validate", () => {
