@@ -331,9 +331,17 @@ export class KnowledgeService extends Service {
       const memoryWithScope = {
         ...documentMemory,
         id: clientDocumentId, // Ensure the ID of the memory is the clientDocumentId
+        agentId: agentId,
         roomId: roomId || agentId,
         entityId: entityId || agentId,
       };
+
+      logger.debug(
+        `KnowledgeService: Creating memory with agentId=${agentId}, entityId=${entityId}, roomId=${roomId}, this.runtime.agentId=${this.runtime.agentId}`
+      );
+      logger.debug(
+        `KnowledgeService: memoryWithScope agentId=${memoryWithScope.agentId}, entityId=${memoryWithScope.entityId}`
+      );
 
       await this.runtime.createMemory(memoryWithScope, 'documents');
 
@@ -650,22 +658,13 @@ export class KnowledgeService extends Service {
    * Corresponds to GET /plugins/knowledge/documents
    */
   async getMemories(params: {
-    tableName: string; // Should be 'documents' for this service's context
-    // agentId is implicit from this.runtime.agentId
+    tableName: string; // Should be 'documents' or 'knowledge' for this service
     roomId?: UUID;
     count?: number;
     end?: number; // timestamp for "before"
   }): Promise<Memory[]> {
-    if (params.tableName !== 'documents') {
-      logger.warn(
-        `KnowledgeService.getMemories called with tableName ${params.tableName}, but this service primarily manages 'documents'. Proceeding, but review usage.`
-      );
-      // Allow fetching from other tables if runtime.getMemories supports it broadly,
-      // but log a warning.
-    }
     return this.runtime.getMemories({
       ...params, // includes tableName, roomId, count, end
-      agentId: this.runtime.agentId, // Ensure agentId is correctly scoped
     });
   }
 

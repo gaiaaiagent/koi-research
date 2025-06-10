@@ -3,7 +3,41 @@ import { MemoryType, createUniqueUuid, logger } from '@elizaos/core';
 import { KnowledgeService } from './service';
 import fs from 'node:fs'; // For file operations in upload
 import path from 'node:path'; // For path operations
+import multer from 'multer'; // For handling multipart uploads
 import { fetchUrlContent, normalizeS3Url } from './utils'; // Import utils functions
+
+// Create multer configuration function that uses runtime settings
+const createUploadMiddleware = (runtime: IAgentRuntime) => {
+  const uploadDir = runtime.getSetting('KNOWLEDGE_UPLOAD_DIR') || '/tmp/uploads/';
+  const maxFileSize = parseInt(runtime.getSetting('KNOWLEDGE_MAX_FILE_SIZE') || '52428800'); // 50MB default
+  const maxFiles = parseInt(runtime.getSetting('KNOWLEDGE_MAX_FILES') || '10');
+  const allowedMimeTypes = runtime.getSetting('KNOWLEDGE_ALLOWED_MIME_TYPES')?.split(',') || [
+    'text/plain',
+    'text/markdown',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/html',
+    'application/json',
+    'application/xml',
+    'text/csv'
+  ];
+
+  return multer({
+    dest: uploadDir,
+    limits: {
+      fileSize: maxFileSize,
+      files: maxFiles,
+    },
+    fileFilter: (req, file, cb) => {
+      if (allowedMimeTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error(`File type ${file.mimetype} not allowed. Allowed types: ${allowedMimeTypes.join(', ')}`));
+      }
+    }
+  });
+};
 
 // Add this type declaration to fix Express.Multer.File error
 interface MulterFile {
@@ -48,23 +82,25 @@ const cleanupFiles = (files: MulterFile[]) => {
   }
 };
 
+// Main upload handler (without multer, multer is applied by wrapper)
 async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime) {
+
   const service = runtime.getService<KnowledgeService>(KnowledgeService.serviceType);
   if (!service) {
     return sendError(res, 500, 'SERVICE_NOT_FOUND', 'KnowledgeService not found');
   }
 
-  // Check if the request is a multipart request or a JSON request
-  const isMultipartRequest = req.files && Object.keys(req.files).length > 0;
-  const isJsonRequest = !isMultipartRequest && req.body && (req.body.fileUrl || req.body.fileUrls);
+  // Check if the request has uploaded files or URLs
+  const hasUploadedFiles = req.files && req.files.length > 0;
+  const isJsonRequest = !hasUploadedFiles && req.body && (req.body.fileUrl || req.body.fileUrls);
 
-  if (!isMultipartRequest && !isJsonRequest) {
+  if (!hasUploadedFiles && !isJsonRequest) {
     return sendError(res, 400, 'INVALID_REQUEST', 'Request must contain either files or URLs');
   }
 
   try {
     // Process multipart requests (file uploads)
-    if (isMultipartRequest) {
+    if (hasUploadedFiles) {
       const files = req.files as MulterFile[];
       if (!files || files.length === 0) {
         return sendError(res, 400, 'NO_FILES', 'No files uploaded');
@@ -73,7 +109,9 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
       const processingPromises = files.map(async (file, index) => {
         let knowledgeId: UUID;
         const originalFilename = file.originalname;
-        const worldId = (req.body.worldId as UUID) || runtime.agentId;
+        // Get agentId from request body or query parameter
+        const agentId = (req.body.agentId as UUID) || (req.query.agentId as UUID) || runtime.agentId;
+        const worldId = (req.body.worldId as UUID) || agentId;
         const filePath = file.path;
 
         knowledgeId =
@@ -113,8 +151,8 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
             originalFilename: originalFilename, // Directly from multer file object
             content: base64Content, // The base64 string of the file
             worldId,
-            roomId: runtime.agentId, // Or a more specific room ID if available
-            entityId: runtime.agentId,
+            roomId: agentId, // Use the correct agent ID
+            entityId: agentId, // Use the correct agent ID
           };
 
           await service.addKnowledge(addKnowledgeOpts);
@@ -157,6 +195,9 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
       if (fileUrls.length === 0) {
         return sendError(res, 400, 'MISSING_URL', 'File URL is required');
       }
+
+      // Get agentId from request body or query parameter
+      const agentId = (req.body.agentId as UUID) || (req.query.agentId as UUID) || runtime.agentId;
 
       // Process each URL as a distinct file
       const processingPromises = fileUrls.map(async (fileUrl: string) => {
@@ -210,9 +251,9 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
             contentType: contentType,
             originalFilename: originalFilename,
             content: content, // Use the base64 encoded content from the URL
-            worldId: runtime.agentId,
-            roomId: runtime.agentId,
-            entityId: runtime.agentId,
+            worldId: agentId,
+            roomId: agentId,
+            entityId: agentId,
             // Store the normalized URL in metadata
             metadata: {
               url: normalizedUrl
@@ -246,7 +287,7 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
     }
   } catch (error: any) {
     logger.error('[KNOWLEDGE HANDLER] Error processing knowledge:', error);
-    if (isMultipartRequest) {
+    if (hasUploadedFiles) {
       cleanupFiles(req.files as MulterFile[]);
     }
     sendError(res, 500, 'PROCESSING_ERROR', 'Failed to process knowledge', error.message);
@@ -268,6 +309,7 @@ async function getKnowledgeDocumentsHandler(req: any, res: any, runtime: IAgentR
     const limit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : 20;
     const before = req.query.before ? Number.parseInt(req.query.before as string, 10) : Date.now();
     const includeEmbedding = req.query.includeEmbedding === 'true';
+    const agentId = req.query.agentId as UUID | undefined;
     
     // Retrieve fileUrls if they are provided in the request
     const fileUrls = req.query.fileUrls ? 
@@ -384,6 +426,8 @@ async function getKnowledgeByIdHandler(req: any, res: any, runtime: IAgentRuntim
 
   try {
     logger.debug(`[KNOWLEDGE GET BY ID HANDLER] Retrieving document with ID: ${knowledgeId}`);
+    const agentId = req.query.agentId as UUID | undefined;
+    
     // Use the service methods instead of calling runtime directly
     // We can't use getMemoryById directly because it's not exposed by the service
     // So we'll use getMemories with a filter
@@ -433,7 +477,7 @@ async function knowledgePanelHandler(req: any, res: any, runtime: IAgentRuntime)
           <script>
             window.ELIZA_CONFIG = {
               agentId: '${agentId}',
-              apiBase: '/api/agents/${agentId}/plugins/knowledge'
+              apiBase: '/api'
             };
           </script>`
       );
@@ -481,7 +525,7 @@ async function knowledgePanelHandler(req: any, res: any, runtime: IAgentRuntime)
     <script>
       window.ELIZA_CONFIG = {
         agentId: '${agentId}',
-        apiBase: '/api/agents/${agentId}/plugins/knowledge'
+        apiBase: '/api'
       };
     </script>
     <link rel="stylesheet" href="./assets/${cssFile}">
@@ -568,10 +612,11 @@ async function getKnowledgeChunksHandler(req: any, res: any, runtime: IAgentRunt
     const limit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : 100;
     const before = req.query.before ? Number.parseInt(req.query.before as string, 10) : Date.now();
     const documentId = req.query.documentId as string | undefined;
+    const agentId = req.query.agentId as UUID | undefined;
     
     // Get knowledge chunks/fragments for graph view
     const chunks = await service.getMemories({
-      tableName: 'knowledge', // or whatever table stores the chunks
+      tableName: 'knowledge',
       count: limit,
       end: before,
     });
@@ -593,6 +638,22 @@ async function getKnowledgeChunksHandler(req: any, res: any, runtime: IAgentRunt
   }
 }
 
+// Wrapper handler that applies multer middleware before calling the upload handler
+async function uploadKnowledgeWithMulter(req: any, res: any, runtime: IAgentRuntime) {
+  const upload = createUploadMiddleware(runtime);
+  const uploadArray = upload.array('files', parseInt(runtime.getSetting('KNOWLEDGE_MAX_FILES') || '10'));
+  
+  // Apply multer middleware manually
+  uploadArray(req, res, (err: any) => {
+    if (err) {
+      logger.error('[KNOWLEDGE UPLOAD] Multer error:', err);
+      return sendError(res, 400, 'UPLOAD_ERROR', err.message);
+    }
+    // If multer succeeded, call the actual handler
+    uploadKnowledgeHandler(req, res, runtime);
+  });
+}
+
 export const knowledgeRoutes: Route[] = [
   {
     type: 'GET',
@@ -609,8 +670,7 @@ export const knowledgeRoutes: Route[] = [
   {
     type: 'POST',
     path: '/documents',
-    handler: uploadKnowledgeHandler,
-    isMultipart: true,
+    handler: uploadKnowledgeWithMulter,
   },
   {
     type: 'GET',
