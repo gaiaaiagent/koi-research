@@ -67,6 +67,61 @@ interface UploadResultItem {
     filename?: string;
 }
 
+// Helper function to get correct MIME type based on file extension
+const getCorrectMimeType = (file: File): string => {
+    const filename = file.name.toLowerCase();
+    const ext = filename.split('.').pop() || '';
+
+    // Map common text file extensions to text/plain
+    const textExtensions = [
+        'ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs',
+        'py', 'pyw', 'pyi', 'java', 'c', 'cpp', 'cc', 'cxx', 'h', 'hpp',
+        'cs', 'php', 'rb', 'go', 'rs', 'swift', 'kt', 'kts', 'scala',
+        'clj', 'cljs', 'ex', 'exs', 'r', 'R', 'm', 'mm', 'sh', 'bash',
+        'zsh', 'fish', 'ps1', 'bat', 'cmd', 'sql', 'lua', 'pl', 'pm',
+        'dart', 'hs', 'elm', 'ml', 'fs', 'fsx', 'vb', 'pas', 'd', 'nim',
+        'zig', 'jl', 'tcl', 'awk', 'sed', 'vue', 'svelte', 'astro',
+        'gitignore', 'dockerignore', 'editorconfig', 'env', 'cfg', 'conf',
+        'ini', 'log', 'txt'
+    ];
+
+    const markdownExtensions = ['md', 'markdown'];
+    const jsonExtensions = ['json'];
+    const xmlExtensions = ['xml'];
+    const htmlExtensions = ['html', 'htm'];
+    const cssExtensions = ['css', 'scss', 'sass', 'less'];
+    const csvExtensions = ['csv', 'tsv'];
+    const yamlExtensions = ['yaml', 'yml'];
+
+    // Check extensions and return appropriate MIME type
+    if (textExtensions.includes(ext)) {
+        return 'text/plain';
+    } else if (markdownExtensions.includes(ext)) {
+        return 'text/markdown';
+    } else if (jsonExtensions.includes(ext)) {
+        return 'application/json';
+    } else if (xmlExtensions.includes(ext)) {
+        return 'application/xml';
+    } else if (htmlExtensions.includes(ext)) {
+        return 'text/html';
+    } else if (cssExtensions.includes(ext)) {
+        return 'text/css';
+    } else if (csvExtensions.includes(ext)) {
+        return 'text/csv';
+    } else if (yamlExtensions.includes(ext)) {
+        return 'text/yaml';
+    } else if (ext === 'pdf') {
+        return 'application/pdf';
+    } else if (ext === 'doc') {
+        return 'application/msword';
+    } else if (ext === 'docx') {
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    }
+
+    // Return the original MIME type if not recognized
+    return file.type || 'application/octet-stream';
+};
+
 const apiClient = {
     getKnowledgeDocuments: async (agentId: UUID, options?: { limit?: number; before?: number; includeEmbedding?: boolean }) => {
         const params = new URLSearchParams();
@@ -101,7 +156,7 @@ const apiClient = {
     deleteKnowledgeDocument: async (agentId: UUID, knowledgeId: UUID) => {
         const params = new URLSearchParams();
         params.append('agentId', agentId);
-        
+
         const response = await fetch(`/api/documents/${knowledgeId}?${params.toString()}`, {
             method: 'DELETE',
         });
@@ -115,7 +170,13 @@ const apiClient = {
 
     uploadKnowledge: async (agentId: string, files: File[]) => {
         const formData = new FormData();
-        files.forEach(file => formData.append('files', file));
+        for (const file of files) {
+            // Create a new Blob with the correct MIME type
+            const correctedMimeType = getCorrectMimeType(file);
+            const blob = new Blob([file], { type: correctedMimeType });
+            // Append as a file with the original name
+            formData.append('files', blob, file.name);
+        }
         formData.append('agentId', agentId);
 
         const response = await fetch(`/api/documents`, {
@@ -414,18 +475,24 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
             const fileArray = Array.from(files);
             // Use direct fetch instead of apiClient until it's updated
             const formData = new FormData();
-            fileArray.forEach(file => formData.append('files', file));
+            for (const file of fileArray) {
+                // Create a new Blob with the correct MIME type
+                const correctedMimeType = getCorrectMimeType(file);
+                const blob = new Blob([file], { type: correctedMimeType });
+                // Append as a file with the original name
+                formData.append('files', blob, file.name);
+            }
             formData.append('agentId', agentId);
-            
+
             const response = await fetch('/api/documents', {
                 method: 'POST',
                 body: formData,
             });
-            
+
             if (!response.ok) {
                 throw new Error(`Upload failed: ${response.statusText}`);
             }
-            
+
             const result = await response.json();
 
             // The actual array of upload outcomes is in result.data
@@ -916,7 +983,7 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                                     // For PDFs, the content.text contains base64 data
                                     // Validate base64 content before creating data URL
                                     const base64Content = viewingContent.content.text.trim();
-                                    
+
                                     if (!base64Content) {
                                         // Show error message if no content available
                                         return (
@@ -931,7 +998,7 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                                             </div>
                                         );
                                     }
-                                    
+
                                     // Create a data URL for the PDF
                                     const pdfDataUrl = `data:application/pdf;base64,${base64Content}`;
 

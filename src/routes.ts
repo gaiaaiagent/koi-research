@@ -20,7 +20,7 @@ const createUploadMiddleware = (runtime: IAgentRuntime) => {
     'text/html',
     'application/json',
     'application/xml',
-    'text/csv'
+    'text/csv',
   ];
 
   return multer({
@@ -33,9 +33,13 @@ const createUploadMiddleware = (runtime: IAgentRuntime) => {
       if (allowedMimeTypes.includes(file.mimetype)) {
         cb(null, true);
       } else {
-        cb(new Error(`File type ${file.mimetype} not allowed. Allowed types: ${allowedMimeTypes.join(', ')}`));
+        cb(
+          new Error(
+            `File type ${file.mimetype} not allowed. Allowed types: ${allowedMimeTypes.join(', ')}`
+          )
+        );
       }
-    }
+    },
   });
 };
 
@@ -84,7 +88,6 @@ const cleanupFiles = (files: MulterFile[]) => {
 
 // Main upload handler (without multer, multer is applied by wrapper)
 async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime) {
-
   const service = runtime.getService<KnowledgeService>(KnowledgeService.serviceType);
   if (!service) {
     return sendError(res, 500, 'SERVICE_NOT_FOUND', 'KnowledgeService not found');
@@ -110,7 +113,8 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
         let knowledgeId: UUID;
         const originalFilename = file.originalname;
         // Get agentId from request body or query parameter
-        const agentId = (req.body.agentId as UUID) || (req.query.agentId as UUID) || runtime.agentId;
+        const agentId =
+          (req.body.agentId as UUID) || (req.query.agentId as UUID) || runtime.agentId;
         const worldId = (req.body.worldId as UUID) || agentId;
         const filePath = file.path;
 
@@ -182,14 +186,14 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
 
       const results = await Promise.all(processingPromises);
       sendSuccess(res, results);
-    } 
+    }
     // Process JSON requests (URL uploads)
     else if (isJsonRequest) {
       // Accept either an array of URLs or a single URL
-      const fileUrls = Array.isArray(req.body.fileUrls) 
-        ? req.body.fileUrls 
-        : req.body.fileUrl 
-          ? [req.body.fileUrl] 
+      const fileUrls = Array.isArray(req.body.fileUrls)
+        ? req.body.fileUrls
+        : req.body.fileUrl
+          ? [req.body.fileUrl]
           : [];
 
       if (fileUrls.length === 0) {
@@ -204,25 +208,25 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
         try {
           // Normalize the URL for storage (remove query parameters)
           const normalizedUrl = normalizeS3Url(fileUrl);
-          
+
           // Create a unique ID based on the normalized URL
           const knowledgeId = createUniqueUuid(runtime, normalizedUrl) as UUID;
-          
+
           // Extract filename from URL for better display
           const urlObject = new URL(fileUrl);
           const pathSegments = urlObject.pathname.split('/');
           // Decode URL-encoded characters and handle empty filename
           const encodedFilename = pathSegments[pathSegments.length - 1] || 'document.pdf';
           const originalFilename = decodeURIComponent(encodedFilename);
-          
+
           logger.info(`[KNOWLEDGE URL HANDLER] Fetching content from URL: ${fileUrl}`);
-          
+
           // Fetch the content from the URL
           const { content, contentType: fetchedContentType } = await fetchUrlContent(fileUrl);
-          
+
           // Determine content type, using the one from the server response or inferring from extension
           let contentType = fetchedContentType;
-          
+
           // If content type is generic, try to infer from file extension
           if (contentType === 'application/octet-stream') {
             const fileExtension = originalFilename.split('.').pop()?.toLowerCase();
@@ -244,7 +248,7 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
               }
             }
           }
-          
+
           // Construct AddKnowledgeOptions with the fetched content
           const addKnowledgeOpts: import('./types.ts').AddKnowledgeOptions = {
             clientDocumentId: knowledgeId,
@@ -256,13 +260,15 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
             entityId: agentId,
             // Store the normalized URL in metadata
             metadata: {
-              url: normalizedUrl
-            }
+              url: normalizedUrl,
+            },
           };
 
-          logger.debug(`[KNOWLEDGE URL HANDLER] Processing knowledge from URL: ${fileUrl} (type: ${contentType})`);
+          logger.debug(
+            `[KNOWLEDGE URL HANDLER] Processing knowledge from URL: ${fileUrl} (type: ${contentType})`
+          );
           const result = await service.addKnowledge(addKnowledgeOpts);
-          
+
           return {
             id: result.clientDocumentId,
             fileUrl: fileUrl,
@@ -270,14 +276,14 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
             message: 'Knowledge created successfully',
             createdAt: Date.now(),
             fragmentCount: result.fragmentCount,
-            status: 'success'
+            status: 'success',
           };
         } catch (urlError: any) {
           logger.error(`[KNOWLEDGE URL HANDLER] Error processing URL ${fileUrl}: ${urlError}`);
           return {
             fileUrl: fileUrl,
             status: 'error_processing',
-            error: urlError.message
+            error: urlError.message,
           };
         }
       });
@@ -310,12 +316,12 @@ async function getKnowledgeDocumentsHandler(req: any, res: any, runtime: IAgentR
     const before = req.query.before ? Number.parseInt(req.query.before as string, 10) : Date.now();
     const includeEmbedding = req.query.includeEmbedding === 'true';
     const agentId = req.query.agentId as UUID | undefined;
-    
+
     // Retrieve fileUrls if they are provided in the request
-    const fileUrls = req.query.fileUrls ? 
-      (typeof req.query.fileUrls === 'string' && req.query.fileUrls.includes(',') 
-        ? req.query.fileUrls.split(',') 
-        : [req.query.fileUrls]) 
+    const fileUrls = req.query.fileUrls
+      ? typeof req.query.fileUrls === 'string' && req.query.fileUrls.includes(',')
+        ? req.query.fileUrls.split(',')
+        : [req.query.fileUrls]
       : null;
 
     const memories = await service.getMemories({
@@ -329,19 +335,25 @@ async function getKnowledgeDocumentsHandler(req: any, res: any, runtime: IAgentR
     if (fileUrls && fileUrls.length > 0) {
       // Normalize the URLs for comparison
       const normalizedRequestUrls = fileUrls.map((url: string) => normalizeS3Url(url));
-      
+
       // Create IDs based on normalized URLs for comparison
-      const urlBasedIds = normalizedRequestUrls.map((url: string) => createUniqueUuid(runtime, url));
-      
-      filteredMemories = memories.filter(memory => 
-        urlBasedIds.includes(memory.id) || // If the ID corresponds directly
-        // Or if the URL is stored in the metadata (check if it exists)
-        (memory.metadata && 'url' in memory.metadata && 
-         typeof memory.metadata.url === 'string' && 
-         normalizedRequestUrls.includes(normalizeS3Url(memory.metadata.url)))
+      const urlBasedIds = normalizedRequestUrls.map((url: string) =>
+        createUniqueUuid(runtime, url)
       );
-      
-      logger.debug(`[KNOWLEDGE GET HANDLER] Filtered documents by URLs: ${fileUrls.length} URLs, found ${filteredMemories.length} matching documents`);
+
+      filteredMemories = memories.filter(
+        (memory) =>
+          urlBasedIds.includes(memory.id) || // If the ID corresponds directly
+          // Or if the URL is stored in the metadata (check if it exists)
+          (memory.metadata &&
+            'url' in memory.metadata &&
+            typeof memory.metadata.url === 'string' &&
+            normalizedRequestUrls.includes(normalizeS3Url(memory.metadata.url)))
+      );
+
+      logger.debug(
+        `[KNOWLEDGE GET HANDLER] Filtered documents by URLs: ${fileUrls.length} URLs, found ${filteredMemories.length} matching documents`
+      );
     }
 
     const cleanMemories = includeEmbedding
@@ -350,11 +362,11 @@ async function getKnowledgeDocumentsHandler(req: any, res: any, runtime: IAgentR
           ...memory,
           embedding: undefined,
         }));
-    sendSuccess(res, { 
+    sendSuccess(res, {
       memories: cleanMemories,
       urlFiltered: fileUrls ? true : false,
       totalFound: cleanMemories.length,
-      totalRequested: fileUrls ? fileUrls.length : 0
+      totalRequested: fileUrls ? fileUrls.length : 0,
     });
   } catch (error: any) {
     logger.error('[KNOWLEDGE GET HANDLER] Error retrieving documents:', error);
@@ -380,7 +392,7 @@ async function deleteKnowledgeDocumentHandler(req: any, res: any, runtime: IAgen
 
   // Get the ID directly from the route parameters
   const knowledgeId = req.params.knowledgeId;
-  
+
   if (!knowledgeId || knowledgeId.length < 36) {
     logger.error(`[KNOWLEDGE DELETE HANDLER] Invalid knowledge ID format: ${knowledgeId}`);
     return sendError(res, 400, 'INVALID_ID', 'Invalid Knowledge ID format');
@@ -389,10 +401,14 @@ async function deleteKnowledgeDocumentHandler(req: any, res: any, runtime: IAgen
   try {
     // Use type conversion with template string to ensure the typing is correct
     const typedKnowledgeId = knowledgeId as `${string}-${string}-${string}-${string}-${string}`;
-    logger.debug(`[KNOWLEDGE DELETE HANDLER] Attempting to delete document with ID: ${typedKnowledgeId}`);
-    
+    logger.debug(
+      `[KNOWLEDGE DELETE HANDLER] Attempting to delete document with ID: ${typedKnowledgeId}`
+    );
+
     await service.deleteMemory(typedKnowledgeId);
-    logger.info(`[KNOWLEDGE DELETE HANDLER] Successfully deleted document with ID: ${typedKnowledgeId}`);
+    logger.info(
+      `[KNOWLEDGE DELETE HANDLER] Successfully deleted document with ID: ${typedKnowledgeId}`
+    );
     sendSuccess(res, null, 204);
   } catch (error: any) {
     logger.error(`[KNOWLEDGE DELETE HANDLER] Error deleting document ${knowledgeId}:`, error);
@@ -427,7 +443,7 @@ async function getKnowledgeByIdHandler(req: any, res: any, runtime: IAgentRuntim
   try {
     logger.debug(`[KNOWLEDGE GET BY ID HANDLER] Retrieving document with ID: ${knowledgeId}`);
     const agentId = req.query.agentId as UUID | undefined;
-    
+
     // Use the service methods instead of calling runtime directly
     // We can't use getMemoryById directly because it's not exposed by the service
     // So we'll use getMemories with a filter
@@ -435,23 +451,23 @@ async function getKnowledgeByIdHandler(req: any, res: any, runtime: IAgentRuntim
       tableName: 'documents',
       count: 1000,
     });
-    
+
     // Use type conversion with template string to ensure the typing is correct
     const typedKnowledgeId = knowledgeId as `${string}-${string}-${string}-${string}-${string}`;
-    
+
     // Find the document with the corresponding ID
-    const document = memories.find(memory => memory.id === typedKnowledgeId);
-    
+    const document = memories.find((memory) => memory.id === typedKnowledgeId);
+
     if (!document) {
       return sendError(res, 404, 'NOT_FOUND', `Knowledge with ID ${typedKnowledgeId} not found`);
     }
-    
+
     // Filter the embedding if necessary
     const cleanDocument = {
       ...document,
       embedding: undefined,
     };
-    
+
     sendSuccess(res, { document: cleanDocument });
   } catch (error: any) {
     logger.error(`[KNOWLEDGE GET BY ID HANDLER] Error retrieving document ${knowledgeId}:`, error);
@@ -462,7 +478,7 @@ async function getKnowledgeByIdHandler(req: any, res: any, runtime: IAgentRuntim
 // Handler for the panel itself - serves the actual HTML frontend
 async function knowledgePanelHandler(req: any, res: any, runtime: IAgentRuntime) {
   const agentId = runtime.agentId; // Get from runtime context
-  
+
   try {
     const currentDir = path.dirname(new URL(import.meta.url).pathname);
     // Serve the main index.html from Vite's build output
@@ -488,13 +504,13 @@ async function knowledgePanelHandler(req: any, res: any, runtime: IAgentRuntime)
       // Use manifest.json to get the correct asset filenames if it exists
       let cssFile = 'index.css';
       let jsFile = 'index.js';
-      
+
       const manifestPath = path.join(currentDir, '../dist/manifest.json');
       if (fs.existsSync(manifestPath)) {
         try {
           const manifestContent = await fs.promises.readFile(manifestPath, 'utf8');
           const manifest = JSON.parse(manifestContent);
-          
+
           // Look for the entry points in the manifest
           // Different Vite versions might structure the manifest differently
           for (const [key, value] of Object.entries(manifest)) {
@@ -512,9 +528,9 @@ async function knowledgePanelHandler(req: any, res: any, runtime: IAgentRuntime)
           // Continue with default filenames if manifest can't be read
         }
       }
-      
+
       logger.debug(`[KNOWLEDGE PANEL] Using fallback with CSS: ${cssFile}, JS: ${jsFile}`);
-      
+
       const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -613,7 +629,7 @@ async function getKnowledgeChunksHandler(req: any, res: any, runtime: IAgentRunt
     const before = req.query.before ? Number.parseInt(req.query.before as string, 10) : Date.now();
     const documentId = req.query.documentId as string | undefined;
     const agentId = req.query.agentId as UUID | undefined;
-    
+
     // Get knowledge chunks/fragments for graph view
     const chunks = await service.getMemories({
       tableName: 'knowledge',
@@ -622,12 +638,13 @@ async function getKnowledgeChunksHandler(req: any, res: any, runtime: IAgentRunt
     });
 
     // Filter chunks by documentId if provided
-    const filteredChunks = documentId 
-      ? chunks.filter(chunk => 
-          chunk.metadata && 
-          typeof chunk.metadata === 'object' && 
-          'documentId' in chunk.metadata && 
-          chunk.metadata.documentId === documentId
+    const filteredChunks = documentId
+      ? chunks.filter(
+          (chunk) =>
+            chunk.metadata &&
+            typeof chunk.metadata === 'object' &&
+            'documentId' in chunk.metadata &&
+            chunk.metadata.documentId === documentId
         )
       : chunks;
 
@@ -641,8 +658,11 @@ async function getKnowledgeChunksHandler(req: any, res: any, runtime: IAgentRunt
 // Wrapper handler that applies multer middleware before calling the upload handler
 async function uploadKnowledgeWithMulter(req: any, res: any, runtime: IAgentRuntime) {
   const upload = createUploadMiddleware(runtime);
-  const uploadArray = upload.array('files', parseInt(runtime.getSetting('KNOWLEDGE_MAX_FILES') || '10'));
-  
+  const uploadArray = upload.array(
+    'files',
+    parseInt(runtime.getSetting('KNOWLEDGE_MAX_FILES') || '10')
+  );
+
   // Apply multer middleware manually
   uploadArray(req, res, (err: any) => {
     if (err) {
@@ -693,6 +713,3 @@ export const knowledgeRoutes: Route[] = [
     handler: getKnowledgeChunksHandler,
   },
 ];
-
-
-
