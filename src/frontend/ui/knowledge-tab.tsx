@@ -70,11 +70,12 @@ interface UploadResultItem {
 const apiClient = {
     getKnowledgeDocuments: async (agentId: UUID, options?: { limit?: number; before?: number; includeEmbedding?: boolean }) => {
         const params = new URLSearchParams();
+        params.append('agentId', agentId);
         if (options?.limit) params.append('limit', options.limit.toString());
         if (options?.before) params.append('before', options.before.toString());
         if (options?.includeEmbedding) params.append('includeEmbedding', 'true');
 
-        const response = await fetch(`/api/agents/${agentId}/plugins/knowledge/documents?${params.toString()}`);
+        const response = await fetch(`/api/documents?${params.toString()}`);
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`Failed to fetch knowledge documents: ${response.status} ${errorText}`);
@@ -84,11 +85,12 @@ const apiClient = {
 
     getKnowledgeChunks: async (agentId: UUID, options?: { limit?: number; before?: number; documentId?: UUID }) => {
         const params = new URLSearchParams();
+        params.append('agentId', agentId);
         if (options?.limit) params.append('limit', options.limit.toString());
         if (options?.before) params.append('before', options.before.toString());
         if (options?.documentId) params.append('documentId', options.documentId);
 
-        const response = await fetch(`/api/agents/${agentId}/plugins/knowledge/knowledges?${params.toString()}`);
+        const response = await fetch(`/api/knowledges?${params.toString()}`);
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`Failed to fetch knowledge chunks: ${response.status} ${errorText}`);
@@ -97,7 +99,10 @@ const apiClient = {
     },
 
     deleteKnowledgeDocument: async (agentId: UUID, knowledgeId: UUID) => {
-        const response = await fetch(`/api/agents/${agentId}/plugins/knowledge/documents/${knowledgeId}`, {
+        const params = new URLSearchParams();
+        params.append('agentId', agentId);
+        
+        const response = await fetch(`/api/documents/${knowledgeId}?${params.toString()}`, {
             method: 'DELETE',
         });
         if (!response.ok) {
@@ -111,8 +116,9 @@ const apiClient = {
     uploadKnowledge: async (agentId: string, files: File[]) => {
         const formData = new FormData();
         files.forEach(file => formData.append('files', file));
+        formData.append('agentId', agentId);
 
-        const response = await fetch(`/api/agents/${agentId}/plugins/knowledge/documents`, {
+        const response = await fetch(`/api/documents`, {
             method: 'POST',
             body: formData,
         });
@@ -361,12 +367,12 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
         setUrlError(null);
 
         try {
-            const result = await fetch(`/api/agents/${agentId}/plugins/knowledge/documents`, {
+            const result = await fetch(`/api/documents`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ fileUrls: urls }),
+                body: JSON.stringify({ fileUrls: urls, agentId }),
             });
 
             if (!result.ok) {
@@ -406,7 +412,21 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
         setIsUploading(true);
         try {
             const fileArray = Array.from(files);
-            const result = await apiClient.uploadKnowledge(agentId, fileArray);
+            // Use direct fetch instead of apiClient until it's updated
+            const formData = new FormData();
+            fileArray.forEach(file => formData.append('files', file));
+            formData.append('agentId', agentId);
+            
+            const response = await fetch('/api/documents', {
+                method: 'POST',
+                body: formData,
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Upload failed: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
 
             // The actual array of upload outcomes is in result.data
             const uploadOutcomes: UploadResultItem[] = result.data || [];
@@ -894,8 +914,26 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
 
                                 if (isPdf && viewingContent.content?.text) {
                                     // For PDFs, the content.text contains base64 data
+                                    // Validate base64 content before creating data URL
+                                    const base64Content = viewingContent.content.text.trim();
+                                    
+                                    if (!base64Content) {
+                                        // Show error message if no content available
+                                        return (
+                                            <div className="h-full w-full bg-background rounded-lg border border-border p-6 flex items-center justify-center">
+                                                <div className="text-center text-muted-foreground">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 18.5c-.77.833.192 2.5 1.732 2.5z" />
+                                                    </svg>
+                                                    <p className="text-lg font-medium">PDF Content Unavailable</p>
+                                                    <p className="text-sm">The PDF content could not be loaded.</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    
                                     // Create a data URL for the PDF
-                                    const pdfDataUrl = `data:application/pdf;base64,${viewingContent.content.text}`;
+                                    const pdfDataUrl = `data:application/pdf;base64,${base64Content}`;
 
                                     return (
                                         <div className="w-full h-full rounded-lg overflow-auto bg-card border border-border">
@@ -917,7 +955,23 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                                                         backgroundColor: 'var(--background)',
                                                     }}
                                                     title="PDF Document"
+                                                    onError={() => {
+                                                        console.error('Failed to load PDF in iframe');
+                                                    }}
                                                 />
+                                            </div>
+                                        </div>
+                                    );
+                                } else if (isPdf && !viewingContent.content?.text) {
+                                    // Show error message for PDFs without content
+                                    return (
+                                        <div className="h-full w-full bg-background rounded-lg border border-border p-6 flex items-center justify-center">
+                                            <div className="text-center text-muted-foreground">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                                <p className="text-lg font-medium">PDF Not Available</p>
+                                                <p className="text-sm">This PDF document has no content to display.</p>
                                             </div>
                                         </div>
                                     );
