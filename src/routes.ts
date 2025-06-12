@@ -479,10 +479,14 @@ async function getKnowledgeByIdHandler(req: any, res: any, runtime: IAgentRuntim
 async function knowledgePanelHandler(req: any, res: any, runtime: IAgentRuntime) {
   const agentId = runtime.agentId; // Get from runtime context
 
+  logger.debug(`[KNOWLEDGE PANEL] Serving panel for agent ${agentId}, request path: ${req.path}`);
+
   try {
     const currentDir = path.dirname(new URL(import.meta.url).pathname);
     // Serve the main index.html from Vite's build output
     const frontendPath = path.join(currentDir, '../dist/index.html');
+
+    logger.debug(`[KNOWLEDGE PANEL] Looking for frontend at: ${frontendPath}`);
 
     if (fs.existsSync(frontendPath)) {
       const html = await fs.promises.readFile(frontendPath, 'utf8');
