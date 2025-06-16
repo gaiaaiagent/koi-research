@@ -13,6 +13,7 @@ import {
   Service,
   splitChunks,
   UUID,
+  Metadata,
 } from '@elizaos/core';
 import {
   createDocumentMemory,
@@ -29,7 +30,8 @@ import { isBinaryContentType, looksLikeBase64 } from './utils.ts';
  */
 export class KnowledgeService extends Service {
   static readonly serviceType = 'knowledge';
-  public config: KnowledgeConfig;
+  public override config: Metadata;
+  private knowledgeConfig: KnowledgeConfig;
   capabilityDescription =
     'Provides Retrieval Augmented Generation capabilities, including knowledge upload and querying.';
 
@@ -49,7 +51,7 @@ export class KnowledgeService extends Service {
       return false; // Default to false if undefined or other type
     };
 
-    this.config = {
+    this.knowledgeConfig = {
       CTX_KNOWLEDGE_ENABLED: parseBooleanEnv(config?.CTX_KNOWLEDGE_ENABLED),
       LOAD_DOCS_ON_STARTUP: parseBooleanEnv(config?.LOAD_DOCS_ON_STARTUP),
       MAX_INPUT_TOKENS: config?.MAX_INPUT_TOKENS,
@@ -59,12 +61,15 @@ export class KnowledgeService extends Service {
       TEXT_EMBEDDING_MODEL: config?.TEXT_EMBEDDING_MODEL,
     };
 
+    // Store config as Metadata for base class compatibility
+    this.config = { ...this.knowledgeConfig } as Metadata;
+
     logger.info(
       `KnowledgeService initialized for agent ${this.runtime.agentId} with config:`,
-      this.config
+      this.knowledgeConfig
     );
 
-    if (this.config.LOAD_DOCS_ON_STARTUP) {
+    if (this.knowledgeConfig.LOAD_DOCS_ON_STARTUP) {
       this.loadInitialDocuments().catch((error) => {
         logger.error('Error during initial document loading in KnowledgeService:', error);
       });
@@ -134,11 +139,13 @@ export class KnowledgeService extends Service {
    */
   static async stop(runtime: IAgentRuntime): Promise<void> {
     logger.info(`Stopping Knowledge service for agent: ${runtime.agentId}`);
-    const service = runtime.getService(KnowledgeService.serviceType) as
-      | KnowledgeService
-      | undefined;
+    const service = runtime.getService(KnowledgeService.serviceType);
     if (!service) {
       logger.warn(`KnowledgeService not found for agent ${runtime.agentId} during stop.`);
+    }
+    // If we need to perform specific cleanup on the KnowledgeService instance
+    if (service instanceof KnowledgeService) {
+      await service.stop();
     }
   }
 
@@ -327,9 +334,17 @@ export class KnowledgeService extends Service {
       const memoryWithScope = {
         ...documentMemory,
         id: clientDocumentId, // Ensure the ID of the memory is the clientDocumentId
+        agentId: agentId,
         roomId: roomId || agentId,
         entityId: entityId || agentId,
       };
+
+      logger.debug(
+        `KnowledgeService: Creating memory with agentId=${agentId}, entityId=${entityId}, roomId=${roomId}, this.runtime.agentId=${this.runtime.agentId}`
+      );
+      logger.debug(
+        `KnowledgeService: memoryWithScope agentId=${memoryWithScope.agentId}, entityId=${memoryWithScope.entityId}`
+      );
 
       await this.runtime.createMemory(memoryWithScope, 'documents');
 
@@ -646,22 +661,13 @@ export class KnowledgeService extends Service {
    * Corresponds to GET /plugins/knowledge/documents
    */
   async getMemories(params: {
-    tableName: string; // Should be 'documents' for this service's context
-    // agentId is implicit from this.runtime.agentId
+    tableName: string; // Should be 'documents' or 'knowledge' for this service
     roomId?: UUID;
     count?: number;
     end?: number; // timestamp for "before"
   }): Promise<Memory[]> {
-    if (params.tableName !== 'documents') {
-      logger.warn(
-        `KnowledgeService.getMemories called with tableName ${params.tableName}, but this service primarily manages 'documents'. Proceeding, but review usage.`
-      );
-      // Allow fetching from other tables if runtime.getMemories supports it broadly,
-      // but log a warning.
-    }
     return this.runtime.getMemories({
       ...params, // includes tableName, roomId, count, end
-      agentId: this.runtime.agentId, // Ensure agentId is correctly scoped
     });
   }
 
