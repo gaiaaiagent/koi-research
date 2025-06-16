@@ -683,11 +683,17 @@ async function searchKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
     const parsedThreshold = req.query.threshold
       ? Number.parseFloat(req.query.threshold as string)
       : NaN;
-    const matchThreshold = Number.isNaN(parsedThreshold) ? 0.5 : parsedThreshold;
+    let matchThreshold = Number.isNaN(parsedThreshold) ? 0.5 : parsedThreshold;
+
+    // Clamp threshold between 0 and 1
+    matchThreshold = Math.max(0, Math.min(1, matchThreshold));
 
     // Parse limit with NaN check
     const parsedLimit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : NaN;
-    const limit = Number.isNaN(parsedLimit) ? 20 : parsedLimit;
+    let limit = Number.isNaN(parsedLimit) ? 20 : parsedLimit;
+
+    // Clamp limit between 1 and 100
+    limit = Math.max(1, Math.min(100, limit));
 
     const agentId = (req.query.agentId as UUID) || runtime.agentId;
 
@@ -695,8 +701,18 @@ async function searchKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
       return sendError(res, 400, 'INVALID_QUERY', 'Search query cannot be empty');
     }
 
-    logger.info(
-      `[KNOWLEDGE SEARCH] Searching for: "${searchText}" with threshold: ${matchThreshold}`
+    // Log if values were clamped
+    if (req.query.threshold && (parsedThreshold < 0 || parsedThreshold > 1)) {
+      logger.debug(
+        `[KNOWLEDGE SEARCH] Threshold value ${parsedThreshold} was clamped to ${matchThreshold}`
+      );
+    }
+    if (req.query.limit && (parsedLimit < 1 || parsedLimit > 100)) {
+      logger.debug(`[KNOWLEDGE SEARCH] Limit value ${parsedLimit} was clamped to ${limit}`);
+    }
+
+    logger.debug(
+      `[KNOWLEDGE SEARCH] Searching for: "${searchText}" with threshold: ${matchThreshold}, limit: ${limit}`
     );
 
     // First get the embedding for the search text
