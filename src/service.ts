@@ -166,9 +166,10 @@ export class KnowledgeService extends Service {
     storedDocumentMemoryId: UUID;
     fragmentCount: number;
   }> {
-    const agentId = this.runtime.agentId as string;
+    // Use agentId from options if provided (from frontend), otherwise fall back to runtime
+    const agentId = options.agentId || (this.runtime.agentId as UUID);
     logger.info(
-      `KnowledgeService (agent: ${agentId}) processing document for public addKnowledge: ${options.originalFilename}, type: ${options.contentType}`
+      `KnowledgeService processing document for agent: ${agentId}, file: ${options.originalFilename}, type: ${options.contentType}`
     );
 
     // Check if document already exists in database using clientDocumentId as the primary key for "documents" table
@@ -219,6 +220,7 @@ export class KnowledgeService extends Service {
    * @returns Promise with document processing result
    */
   private async processDocument({
+    agentId: passedAgentId,
     clientDocumentId,
     contentType,
     originalFilename,
@@ -232,11 +234,12 @@ export class KnowledgeService extends Service {
     storedDocumentMemoryId: UUID;
     fragmentCount: number;
   }> {
-    const agentId = this.runtime.agentId as UUID;
+    // Use agentId from options if provided (from frontend), otherwise fall back to runtime
+    const agentId = passedAgentId || (this.runtime.agentId as UUID);
 
     try {
       logger.debug(
-        `KnowledgeService: Processing document ${originalFilename} (type: ${contentType}) via processDocument`
+        `KnowledgeService: Processing document ${originalFilename} (type: ${contentType}) via processDocument for agent: ${agentId}`
       );
 
       let fileBuffer: Buffer | null = null;
@@ -668,6 +671,7 @@ export class KnowledgeService extends Service {
   }): Promise<Memory[]> {
     return this.runtime.getMemories({
       ...params, // includes tableName, roomId, count, end
+      agentId: this.runtime.agentId,
     });
   }
 

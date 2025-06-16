@@ -1,5 +1,5 @@
 import type { IAgentRuntime, Route, UUID, Memory, KnowledgeItem } from '@elizaos/core';
-import { MemoryType, createUniqueUuid, logger } from '@elizaos/core';
+import { MemoryType, createUniqueUuid, logger, ModelType } from '@elizaos/core';
 import { KnowledgeService } from './service';
 import fs from 'node:fs'; // For file operations in upload
 import path from 'node:path'; // For path operations
@@ -109,13 +109,26 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
         return sendError(res, 400, 'NO_FILES', 'No files uploaded');
       }
 
+      // Get agentId from request body or query parameter BEFORE processing files
+      // IMPORTANT: We require explicit agent ID to prevent cross-agent contamination
+      const agentId = (req.body.agentId as UUID) || (req.query.agentId as UUID);
+
+      if (!agentId) {
+        logger.error('[KNOWLEDGE UPLOAD HANDLER] No agent ID provided in request');
+        return sendError(
+          res,
+          400,
+          'MISSING_AGENT_ID',
+          'Agent ID is required for uploading knowledge'
+        );
+      }
+
+      const worldId = (req.body.worldId as UUID) || agentId;
+      logger.info(`[KNOWLEDGE UPLOAD HANDLER] Processing upload for agent: ${agentId}`);
+
       const processingPromises = files.map(async (file, index) => {
         let knowledgeId: UUID;
         const originalFilename = file.originalname;
-        // Get agentId from request body or query parameter
-        const agentId =
-          (req.body.agentId as UUID) || (req.query.agentId as UUID) || runtime.agentId;
-        const worldId = (req.body.worldId as UUID) || agentId;
         const filePath = file.path;
 
         knowledgeId =
@@ -123,33 +136,17 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
           req.body?.documentId ||
           (createUniqueUuid(runtime, `knowledge-${originalFilename}-${Date.now()}`) as UUID);
 
+        logger.debug(
+          `[KNOWLEDGE UPLOAD HANDLER] File: ${originalFilename}, Agent ID: ${agentId}, World ID: ${worldId}, Knowledge ID: ${knowledgeId}`
+        );
+
         try {
           const fileBuffer = await fs.promises.readFile(filePath);
-          const fileExt = file.originalname.split('.').pop()?.toLowerCase() || '';
-          const filename = file.originalname;
-          const title = filename.replace(`.${fileExt}`, '');
           const base64Content = fileBuffer.toString('base64');
-
-          const knowledgeItem: KnowledgeItem = {
-            id: knowledgeId,
-            content: {
-              text: base64Content,
-            },
-            metadata: {
-              type: MemoryType.DOCUMENT,
-              timestamp: Date.now(),
-              source: 'upload',
-              filename: filename,
-              fileExt: fileExt,
-              title: title,
-              path: originalFilename,
-              fileType: file.mimetype,
-              fileSize: file.size,
-            } as import('@elizaos/core').CustomMetadata,
-          };
 
           // Construct AddKnowledgeOptions directly using available variables
           const addKnowledgeOpts: import('./types.ts').AddKnowledgeOptions = {
+            agentId: agentId, // Pass the agent ID from frontend
             clientDocumentId: knowledgeId, // This is knowledgeItem.id
             contentType: file.mimetype, // Directly from multer file object
             originalFilename: originalFilename, // Directly from multer file object
@@ -201,7 +198,20 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
       }
 
       // Get agentId from request body or query parameter
-      const agentId = (req.body.agentId as UUID) || (req.query.agentId as UUID) || runtime.agentId;
+      // IMPORTANT: We require explicit agent ID to prevent cross-agent contamination
+      const agentId = (req.body.agentId as UUID) || (req.query.agentId as UUID);
+
+      if (!agentId) {
+        logger.error('[KNOWLEDGE URL HANDLER] No agent ID provided in request');
+        return sendError(
+          res,
+          400,
+          'MISSING_AGENT_ID',
+          'Agent ID is required for uploading knowledge from URLs'
+        );
+      }
+
+      logger.info(`[KNOWLEDGE URL HANDLER] Processing URL upload for agent: ${agentId}`);
 
       // Process each URL as a distinct file
       const processingPromises = fileUrls.map(async (fileUrl: string) => {
@@ -251,6 +261,7 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
 
           // Construct AddKnowledgeOptions with the fetched content
           const addKnowledgeOpts: import('./types.ts').AddKnowledgeOptions = {
+            agentId: agentId, // Pass the agent ID from frontend
             clientDocumentId: knowledgeId,
             contentType: contentType,
             originalFilename: originalFilename,
@@ -659,6 +670,122 @@ async function getKnowledgeChunksHandler(req: any, res: any, runtime: IAgentRunt
   }
 }
 
+async function searchKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime) {
+  const service = runtime.getService<KnowledgeService>(KnowledgeService.serviceType);
+  if (!service) {
+    return sendError(res, 500, 'SERVICE_NOT_FOUND', 'KnowledgeService not found');
+  }
+
+  try {
+    const searchText = req.query.q as string;
+
+    // Parse threshold with NaN check
+    const parsedThreshold = req.query.threshold
+      ? Number.parseFloat(req.query.threshold as string)
+      : NaN;
+    let matchThreshold = Number.isNaN(parsedThreshold) ? 0.5 : parsedThreshold;
+
+    // Clamp threshold between 0 and 1
+    matchThreshold = Math.max(0, Math.min(1, matchThreshold));
+
+    // Parse limit with NaN check
+    const parsedLimit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : NaN;
+    let limit = Number.isNaN(parsedLimit) ? 20 : parsedLimit;
+
+    // Clamp limit between 1 and 100
+    limit = Math.max(1, Math.min(100, limit));
+
+    const agentId = (req.query.agentId as UUID) || runtime.agentId;
+
+    if (!searchText || searchText.trim().length === 0) {
+      return sendError(res, 400, 'INVALID_QUERY', 'Search query cannot be empty');
+    }
+
+    // Log if values were clamped
+    if (req.query.threshold && (parsedThreshold < 0 || parsedThreshold > 1)) {
+      logger.debug(
+        `[KNOWLEDGE SEARCH] Threshold value ${parsedThreshold} was clamped to ${matchThreshold}`
+      );
+    }
+    if (req.query.limit && (parsedLimit < 1 || parsedLimit > 100)) {
+      logger.debug(`[KNOWLEDGE SEARCH] Limit value ${parsedLimit} was clamped to ${limit}`);
+    }
+
+    logger.debug(
+      `[KNOWLEDGE SEARCH] Searching for: "${searchText}" with threshold: ${matchThreshold}, limit: ${limit}`
+    );
+
+    // First get the embedding for the search text
+    const embedding = await runtime.useModel(ModelType.TEXT_EMBEDDING, {
+      text: searchText,
+    });
+
+    // Use searchMemories directly for more control over the search
+    const results = await runtime.searchMemories({
+      tableName: 'knowledge',
+      embedding,
+      query: searchText,
+      count: limit,
+      match_threshold: matchThreshold,
+      roomId: agentId,
+    });
+
+    // Enhance results with document information
+    const enhancedResults = await Promise.all(
+      results.map(async (fragment) => {
+        let documentTitle = 'Unknown Document';
+        let documentFilename = 'unknown';
+
+        // Try to get the parent document information
+        if (
+          fragment.metadata &&
+          typeof fragment.metadata === 'object' &&
+          'documentId' in fragment.metadata
+        ) {
+          const documentId = fragment.metadata.documentId as UUID;
+          try {
+            const document = await runtime.getMemoryById(documentId);
+            if (document && document.metadata) {
+              documentTitle =
+                (document.metadata as any).title ||
+                (document.metadata as any).filename ||
+                documentTitle;
+              documentFilename = (document.metadata as any).filename || documentFilename;
+            }
+          } catch (e) {
+            logger.debug(`Could not fetch document ${documentId} for fragment`);
+          }
+        }
+
+        return {
+          id: fragment.id,
+          content: fragment.content,
+          similarity: fragment.similarity || 0,
+          metadata: {
+            ...(fragment.metadata || {}),
+            documentTitle,
+            documentFilename,
+          },
+        };
+      })
+    );
+
+    logger.info(
+      `[KNOWLEDGE SEARCH] Found ${enhancedResults.length} results for query: "${searchText}"`
+    );
+
+    sendSuccess(res, {
+      query: searchText,
+      threshold: matchThreshold,
+      results: enhancedResults,
+      count: enhancedResults.length,
+    });
+  } catch (error: any) {
+    logger.error('[KNOWLEDGE SEARCH] Error searching knowledge:', error);
+    sendError(res, 500, 'SEARCH_ERROR', 'Failed to search knowledge', error.message);
+  }
+}
+
 // Wrapper handler that applies multer middleware before calling the upload handler
 async function uploadKnowledgeWithMulter(req: any, res: any, runtime: IAgentRuntime) {
   const upload = createUploadMiddleware(runtime);
@@ -715,5 +842,10 @@ export const knowledgeRoutes: Route[] = [
     type: 'GET',
     path: '/knowledges',
     handler: getKnowledgeChunksHandler,
+  },
+  {
+    type: 'GET',
+    path: '/search',
+    handler: searchKnowledgeHandler,
   },
 ];
