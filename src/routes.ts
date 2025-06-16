@@ -109,26 +109,26 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
         return sendError(res, 400, 'NO_FILES', 'No files uploaded');
       }
 
+      // Get agentId from request body or query parameter BEFORE processing files
+      // IMPORTANT: We require explicit agent ID to prevent cross-agent contamination
+      const agentId = (req.body.agentId as UUID) || (req.query.agentId as UUID);
+
+      if (!agentId) {
+        logger.error('[KNOWLEDGE UPLOAD HANDLER] No agent ID provided in request');
+        return sendError(
+          res,
+          400,
+          'MISSING_AGENT_ID',
+          'Agent ID is required for uploading knowledge'
+        );
+      }
+
+      const worldId = (req.body.worldId as UUID) || agentId;
+      logger.info(`[KNOWLEDGE UPLOAD HANDLER] Processing upload for agent: ${agentId}`);
+
       const processingPromises = files.map(async (file, index) => {
         let knowledgeId: UUID;
         const originalFilename = file.originalname;
-        // Get agentId from request body or query parameter
-        // IMPORTANT: We require explicit agent ID to prevent cross-agent contamination
-        const agentId = (req.body.agentId as UUID) || (req.query.agentId as UUID);
-
-        if (!agentId) {
-          logger.error('[KNOWLEDGE UPLOAD HANDLER] No agent ID provided in request');
-          return sendError(
-            res,
-            400,
-            'MISSING_AGENT_ID',
-            'Agent ID is required for uploading knowledge'
-          );
-        }
-
-        const worldId = (req.body.worldId as UUID) || agentId;
-
-        logger.info(`[KNOWLEDGE UPLOAD HANDLER] Processing upload for agent: ${agentId}`);
         const filePath = file.path;
 
         knowledgeId =
