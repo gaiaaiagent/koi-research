@@ -3,7 +3,45 @@ import { MemoryType, createUniqueUuid, logger } from '@elizaos/core';
 import { KnowledgeService } from './service';
 import fs from 'node:fs'; // For file operations in upload
 import path from 'node:path'; // For path operations
+import multer from 'multer'; // For handling multipart uploads
 import { fetchUrlContent, normalizeS3Url } from './utils'; // Import utils functions
+
+// Create multer configuration function that uses runtime settings
+const createUploadMiddleware = (runtime: IAgentRuntime) => {
+  const uploadDir = runtime.getSetting('KNOWLEDGE_UPLOAD_DIR') || '/tmp/uploads/';
+  const maxFileSize = parseInt(runtime.getSetting('KNOWLEDGE_MAX_FILE_SIZE') || '52428800'); // 50MB default
+  const maxFiles = parseInt(runtime.getSetting('KNOWLEDGE_MAX_FILES') || '10');
+  const allowedMimeTypes = runtime.getSetting('KNOWLEDGE_ALLOWED_MIME_TYPES')?.split(',') || [
+    'text/plain',
+    'text/markdown',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/html',
+    'application/json',
+    'application/xml',
+    'text/csv',
+  ];
+
+  return multer({
+    dest: uploadDir,
+    limits: {
+      fileSize: maxFileSize,
+      files: maxFiles,
+    },
+    fileFilter: (req, file, cb) => {
+      if (allowedMimeTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(
+          new Error(
+            `File type ${file.mimetype} not allowed. Allowed types: ${allowedMimeTypes.join(', ')}`
+          )
+        );
+      }
+    },
+  });
+};
 
 // Add this type declaration to fix Express.Multer.File error
 interface MulterFile {
@@ -48,23 +86,24 @@ const cleanupFiles = (files: MulterFile[]) => {
   }
 };
 
+// Main upload handler (without multer, multer is applied by wrapper)
 async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime) {
   const service = runtime.getService<KnowledgeService>(KnowledgeService.serviceType);
   if (!service) {
     return sendError(res, 500, 'SERVICE_NOT_FOUND', 'KnowledgeService not found');
   }
 
-  // Check if the request is a multipart request or a JSON request
-  const isMultipartRequest = req.files && Object.keys(req.files).length > 0;
-  const isJsonRequest = !isMultipartRequest && req.body && (req.body.fileUrl || req.body.fileUrls);
+  // Check if the request has uploaded files or URLs
+  const hasUploadedFiles = req.files && req.files.length > 0;
+  const isJsonRequest = !hasUploadedFiles && req.body && (req.body.fileUrl || req.body.fileUrls);
 
-  if (!isMultipartRequest && !isJsonRequest) {
+  if (!hasUploadedFiles && !isJsonRequest) {
     return sendError(res, 400, 'INVALID_REQUEST', 'Request must contain either files or URLs');
   }
 
   try {
     // Process multipart requests (file uploads)
-    if (isMultipartRequest) {
+    if (hasUploadedFiles) {
       const files = req.files as MulterFile[];
       if (!files || files.length === 0) {
         return sendError(res, 400, 'NO_FILES', 'No files uploaded');
@@ -73,7 +112,10 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
       const processingPromises = files.map(async (file, index) => {
         let knowledgeId: UUID;
         const originalFilename = file.originalname;
-        const worldId = (req.body.worldId as UUID) || runtime.agentId;
+        // Get agentId from request body or query parameter
+        const agentId =
+          (req.body.agentId as UUID) || (req.query.agentId as UUID) || runtime.agentId;
+        const worldId = (req.body.worldId as UUID) || agentId;
         const filePath = file.path;
 
         knowledgeId =
@@ -113,8 +155,8 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
             originalFilename: originalFilename, // Directly from multer file object
             content: base64Content, // The base64 string of the file
             worldId,
-            roomId: runtime.agentId, // Or a more specific room ID if available
-            entityId: runtime.agentId,
+            roomId: agentId, // Use the correct agent ID
+            entityId: agentId, // Use the correct agent ID
           };
 
           await service.addKnowledge(addKnowledgeOpts);
@@ -144,44 +186,47 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
 
       const results = await Promise.all(processingPromises);
       sendSuccess(res, results);
-    } 
+    }
     // Process JSON requests (URL uploads)
     else if (isJsonRequest) {
       // Accept either an array of URLs or a single URL
-      const fileUrls = Array.isArray(req.body.fileUrls) 
-        ? req.body.fileUrls 
-        : req.body.fileUrl 
-          ? [req.body.fileUrl] 
+      const fileUrls = Array.isArray(req.body.fileUrls)
+        ? req.body.fileUrls
+        : req.body.fileUrl
+          ? [req.body.fileUrl]
           : [];
 
       if (fileUrls.length === 0) {
         return sendError(res, 400, 'MISSING_URL', 'File URL is required');
       }
 
+      // Get agentId from request body or query parameter
+      const agentId = (req.body.agentId as UUID) || (req.query.agentId as UUID) || runtime.agentId;
+
       // Process each URL as a distinct file
       const processingPromises = fileUrls.map(async (fileUrl: string) => {
         try {
           // Normalize the URL for storage (remove query parameters)
           const normalizedUrl = normalizeS3Url(fileUrl);
-          
+
           // Create a unique ID based on the normalized URL
           const knowledgeId = createUniqueUuid(runtime, normalizedUrl) as UUID;
-          
+
           // Extract filename from URL for better display
           const urlObject = new URL(fileUrl);
           const pathSegments = urlObject.pathname.split('/');
           // Decode URL-encoded characters and handle empty filename
           const encodedFilename = pathSegments[pathSegments.length - 1] || 'document.pdf';
           const originalFilename = decodeURIComponent(encodedFilename);
-          
+
           logger.info(`[KNOWLEDGE URL HANDLER] Fetching content from URL: ${fileUrl}`);
-          
+
           // Fetch the content from the URL
           const { content, contentType: fetchedContentType } = await fetchUrlContent(fileUrl);
-          
+
           // Determine content type, using the one from the server response or inferring from extension
           let contentType = fetchedContentType;
-          
+
           // If content type is generic, try to infer from file extension
           if (contentType === 'application/octet-stream') {
             const fileExtension = originalFilename.split('.').pop()?.toLowerCase();
@@ -203,25 +248,27 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
               }
             }
           }
-          
+
           // Construct AddKnowledgeOptions with the fetched content
           const addKnowledgeOpts: import('./types.ts').AddKnowledgeOptions = {
             clientDocumentId: knowledgeId,
             contentType: contentType,
             originalFilename: originalFilename,
             content: content, // Use the base64 encoded content from the URL
-            worldId: runtime.agentId,
-            roomId: runtime.agentId,
-            entityId: runtime.agentId,
+            worldId: agentId,
+            roomId: agentId,
+            entityId: agentId,
             // Store the normalized URL in metadata
             metadata: {
-              url: normalizedUrl
-            }
+              url: normalizedUrl,
+            },
           };
 
-          logger.debug(`[KNOWLEDGE URL HANDLER] Processing knowledge from URL: ${fileUrl} (type: ${contentType})`);
+          logger.debug(
+            `[KNOWLEDGE URL HANDLER] Processing knowledge from URL: ${fileUrl} (type: ${contentType})`
+          );
           const result = await service.addKnowledge(addKnowledgeOpts);
-          
+
           return {
             id: result.clientDocumentId,
             fileUrl: fileUrl,
@@ -229,14 +276,14 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
             message: 'Knowledge created successfully',
             createdAt: Date.now(),
             fragmentCount: result.fragmentCount,
-            status: 'success'
+            status: 'success',
           };
         } catch (urlError: any) {
           logger.error(`[KNOWLEDGE URL HANDLER] Error processing URL ${fileUrl}: ${urlError}`);
           return {
             fileUrl: fileUrl,
             status: 'error_processing',
-            error: urlError.message
+            error: urlError.message,
           };
         }
       });
@@ -246,7 +293,7 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
     }
   } catch (error: any) {
     logger.error('[KNOWLEDGE HANDLER] Error processing knowledge:', error);
-    if (isMultipartRequest) {
+    if (hasUploadedFiles) {
       cleanupFiles(req.files as MulterFile[]);
     }
     sendError(res, 500, 'PROCESSING_ERROR', 'Failed to process knowledge', error.message);
@@ -268,12 +315,13 @@ async function getKnowledgeDocumentsHandler(req: any, res: any, runtime: IAgentR
     const limit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : 20;
     const before = req.query.before ? Number.parseInt(req.query.before as string, 10) : Date.now();
     const includeEmbedding = req.query.includeEmbedding === 'true';
-    
+    const agentId = req.query.agentId as UUID | undefined;
+
     // Retrieve fileUrls if they are provided in the request
-    const fileUrls = req.query.fileUrls ? 
-      (typeof req.query.fileUrls === 'string' && req.query.fileUrls.includes(',') 
-        ? req.query.fileUrls.split(',') 
-        : [req.query.fileUrls]) 
+    const fileUrls = req.query.fileUrls
+      ? typeof req.query.fileUrls === 'string' && req.query.fileUrls.includes(',')
+        ? req.query.fileUrls.split(',')
+        : [req.query.fileUrls]
       : null;
 
     const memories = await service.getMemories({
@@ -287,19 +335,25 @@ async function getKnowledgeDocumentsHandler(req: any, res: any, runtime: IAgentR
     if (fileUrls && fileUrls.length > 0) {
       // Normalize the URLs for comparison
       const normalizedRequestUrls = fileUrls.map((url: string) => normalizeS3Url(url));
-      
+
       // Create IDs based on normalized URLs for comparison
-      const urlBasedIds = normalizedRequestUrls.map((url: string) => createUniqueUuid(runtime, url));
-      
-      filteredMemories = memories.filter(memory => 
-        urlBasedIds.includes(memory.id) || // If the ID corresponds directly
-        // Or if the URL is stored in the metadata (check if it exists)
-        (memory.metadata && 'url' in memory.metadata && 
-         typeof memory.metadata.url === 'string' && 
-         normalizedRequestUrls.includes(normalizeS3Url(memory.metadata.url)))
+      const urlBasedIds = normalizedRequestUrls.map((url: string) =>
+        createUniqueUuid(runtime, url)
       );
-      
-      logger.debug(`[KNOWLEDGE GET HANDLER] Filtered documents by URLs: ${fileUrls.length} URLs, found ${filteredMemories.length} matching documents`);
+
+      filteredMemories = memories.filter(
+        (memory) =>
+          urlBasedIds.includes(memory.id) || // If the ID corresponds directly
+          // Or if the URL is stored in the metadata (check if it exists)
+          (memory.metadata &&
+            'url' in memory.metadata &&
+            typeof memory.metadata.url === 'string' &&
+            normalizedRequestUrls.includes(normalizeS3Url(memory.metadata.url)))
+      );
+
+      logger.debug(
+        `[KNOWLEDGE GET HANDLER] Filtered documents by URLs: ${fileUrls.length} URLs, found ${filteredMemories.length} matching documents`
+      );
     }
 
     const cleanMemories = includeEmbedding
@@ -308,11 +362,11 @@ async function getKnowledgeDocumentsHandler(req: any, res: any, runtime: IAgentR
           ...memory,
           embedding: undefined,
         }));
-    sendSuccess(res, { 
+    sendSuccess(res, {
       memories: cleanMemories,
       urlFiltered: fileUrls ? true : false,
       totalFound: cleanMemories.length,
-      totalRequested: fileUrls ? fileUrls.length : 0
+      totalRequested: fileUrls ? fileUrls.length : 0,
     });
   } catch (error: any) {
     logger.error('[KNOWLEDGE GET HANDLER] Error retrieving documents:', error);
@@ -338,7 +392,7 @@ async function deleteKnowledgeDocumentHandler(req: any, res: any, runtime: IAgen
 
   // Get the ID directly from the route parameters
   const knowledgeId = req.params.knowledgeId;
-  
+
   if (!knowledgeId || knowledgeId.length < 36) {
     logger.error(`[KNOWLEDGE DELETE HANDLER] Invalid knowledge ID format: ${knowledgeId}`);
     return sendError(res, 400, 'INVALID_ID', 'Invalid Knowledge ID format');
@@ -347,10 +401,14 @@ async function deleteKnowledgeDocumentHandler(req: any, res: any, runtime: IAgen
   try {
     // Use type conversion with template string to ensure the typing is correct
     const typedKnowledgeId = knowledgeId as `${string}-${string}-${string}-${string}-${string}`;
-    logger.debug(`[KNOWLEDGE DELETE HANDLER] Attempting to delete document with ID: ${typedKnowledgeId}`);
-    
+    logger.debug(
+      `[KNOWLEDGE DELETE HANDLER] Attempting to delete document with ID: ${typedKnowledgeId}`
+    );
+
     await service.deleteMemory(typedKnowledgeId);
-    logger.info(`[KNOWLEDGE DELETE HANDLER] Successfully deleted document with ID: ${typedKnowledgeId}`);
+    logger.info(
+      `[KNOWLEDGE DELETE HANDLER] Successfully deleted document with ID: ${typedKnowledgeId}`
+    );
     sendSuccess(res, null, 204);
   } catch (error: any) {
     logger.error(`[KNOWLEDGE DELETE HANDLER] Error deleting document ${knowledgeId}:`, error);
@@ -384,6 +442,8 @@ async function getKnowledgeByIdHandler(req: any, res: any, runtime: IAgentRuntim
 
   try {
     logger.debug(`[KNOWLEDGE GET BY ID HANDLER] Retrieving document with ID: ${knowledgeId}`);
+    const agentId = req.query.agentId as UUID | undefined;
+
     // Use the service methods instead of calling runtime directly
     // We can't use getMemoryById directly because it's not exposed by the service
     // So we'll use getMemories with a filter
@@ -391,23 +451,23 @@ async function getKnowledgeByIdHandler(req: any, res: any, runtime: IAgentRuntim
       tableName: 'documents',
       count: 1000,
     });
-    
+
     // Use type conversion with template string to ensure the typing is correct
     const typedKnowledgeId = knowledgeId as `${string}-${string}-${string}-${string}-${string}`;
-    
+
     // Find the document with the corresponding ID
-    const document = memories.find(memory => memory.id === typedKnowledgeId);
-    
+    const document = memories.find((memory) => memory.id === typedKnowledgeId);
+
     if (!document) {
       return sendError(res, 404, 'NOT_FOUND', `Knowledge with ID ${typedKnowledgeId} not found`);
     }
-    
+
     // Filter the embedding if necessary
     const cleanDocument = {
       ...document,
       embedding: undefined,
     };
-    
+
     sendSuccess(res, { document: cleanDocument });
   } catch (error: any) {
     logger.error(`[KNOWLEDGE GET BY ID HANDLER] Error retrieving document ${knowledgeId}:`, error);
@@ -418,11 +478,15 @@ async function getKnowledgeByIdHandler(req: any, res: any, runtime: IAgentRuntim
 // Handler for the panel itself - serves the actual HTML frontend
 async function knowledgePanelHandler(req: any, res: any, runtime: IAgentRuntime) {
   const agentId = runtime.agentId; // Get from runtime context
-  
+
+  logger.debug(`[KNOWLEDGE PANEL] Serving panel for agent ${agentId}, request path: ${req.path}`);
+
   try {
     const currentDir = path.dirname(new URL(import.meta.url).pathname);
     // Serve the main index.html from Vite's build output
     const frontendPath = path.join(currentDir, '../dist/index.html');
+
+    logger.debug(`[KNOWLEDGE PANEL] Looking for frontend at: ${frontendPath}`);
 
     if (fs.existsSync(frontendPath)) {
       const html = await fs.promises.readFile(frontendPath, 'utf8');
@@ -433,7 +497,7 @@ async function knowledgePanelHandler(req: any, res: any, runtime: IAgentRuntime)
           <script>
             window.ELIZA_CONFIG = {
               agentId: '${agentId}',
-              apiBase: '/api/agents/${agentId}/plugins/knowledge'
+              apiBase: '/api'
             };
           </script>`
       );
@@ -444,13 +508,13 @@ async function knowledgePanelHandler(req: any, res: any, runtime: IAgentRuntime)
       // Use manifest.json to get the correct asset filenames if it exists
       let cssFile = 'index.css';
       let jsFile = 'index.js';
-      
+
       const manifestPath = path.join(currentDir, '../dist/manifest.json');
       if (fs.existsSync(manifestPath)) {
         try {
           const manifestContent = await fs.promises.readFile(manifestPath, 'utf8');
           const manifest = JSON.parse(manifestContent);
-          
+
           // Look for the entry points in the manifest
           // Different Vite versions might structure the manifest differently
           for (const [key, value] of Object.entries(manifest)) {
@@ -468,9 +532,9 @@ async function knowledgePanelHandler(req: any, res: any, runtime: IAgentRuntime)
           // Continue with default filenames if manifest can't be read
         }
       }
-      
+
       logger.debug(`[KNOWLEDGE PANEL] Using fallback with CSS: ${cssFile}, JS: ${jsFile}`);
-      
+
       const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -481,7 +545,7 @@ async function knowledgePanelHandler(req: any, res: any, runtime: IAgentRuntime)
     <script>
       window.ELIZA_CONFIG = {
         agentId: '${agentId}',
-        apiBase: '/api/agents/${agentId}/plugins/knowledge'
+        apiBase: '/api'
       };
     </script>
     <link rel="stylesheet" href="./assets/${cssFile}">
@@ -568,21 +632,23 @@ async function getKnowledgeChunksHandler(req: any, res: any, runtime: IAgentRunt
     const limit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : 100;
     const before = req.query.before ? Number.parseInt(req.query.before as string, 10) : Date.now();
     const documentId = req.query.documentId as string | undefined;
-    
+    const agentId = req.query.agentId as UUID | undefined;
+
     // Get knowledge chunks/fragments for graph view
     const chunks = await service.getMemories({
-      tableName: 'knowledge', // or whatever table stores the chunks
+      tableName: 'knowledge',
       count: limit,
       end: before,
     });
 
     // Filter chunks by documentId if provided
-    const filteredChunks = documentId 
-      ? chunks.filter(chunk => 
-          chunk.metadata && 
-          typeof chunk.metadata === 'object' && 
-          'documentId' in chunk.metadata && 
-          chunk.metadata.documentId === documentId
+    const filteredChunks = documentId
+      ? chunks.filter(
+          (chunk) =>
+            chunk.metadata &&
+            typeof chunk.metadata === 'object' &&
+            'documentId' in chunk.metadata &&
+            chunk.metadata.documentId === documentId
         )
       : chunks;
 
@@ -591,6 +657,25 @@ async function getKnowledgeChunksHandler(req: any, res: any, runtime: IAgentRunt
     logger.error('[KNOWLEDGE CHUNKS GET HANDLER] Error retrieving chunks:', error);
     sendError(res, 500, 'RETRIEVAL_ERROR', 'Failed to retrieve knowledge chunks', error.message);
   }
+}
+
+// Wrapper handler that applies multer middleware before calling the upload handler
+async function uploadKnowledgeWithMulter(req: any, res: any, runtime: IAgentRuntime) {
+  const upload = createUploadMiddleware(runtime);
+  const uploadArray = upload.array(
+    'files',
+    parseInt(runtime.getSetting('KNOWLEDGE_MAX_FILES') || '10')
+  );
+
+  // Apply multer middleware manually
+  uploadArray(req, res, (err: any) => {
+    if (err) {
+      logger.error('[KNOWLEDGE UPLOAD] Multer error:', err);
+      return sendError(res, 400, 'UPLOAD_ERROR', err.message);
+    }
+    // If multer succeeded, call the actual handler
+    uploadKnowledgeHandler(req, res, runtime);
+  });
 }
 
 export const knowledgeRoutes: Route[] = [
@@ -609,8 +694,7 @@ export const knowledgeRoutes: Route[] = [
   {
     type: 'POST',
     path: '/documents',
-    handler: uploadKnowledgeHandler,
-    isMultipart: true,
+    handler: uploadKnowledgeWithMulter,
   },
   {
     type: 'GET',
@@ -633,6 +717,3 @@ export const knowledgeRoutes: Route[] = [
     handler: getKnowledgeChunksHandler,
   },
 ];
-
-
-

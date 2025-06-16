@@ -1,6 +1,6 @@
 import React from 'react';
 import type { UUID, Memory } from '@elizaos/core';
-import { Book, Clock, File, FileText, LoaderIcon, Trash2, Upload } from 'lucide-react';
+import { Book, Clock, File, FileText, LoaderIcon, Trash2, Upload, List, Network } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ExtendedMemoryMetadata } from '../../types';
@@ -67,14 +67,70 @@ interface UploadResultItem {
     filename?: string;
 }
 
+// Helper function to get correct MIME type based on file extension
+const getCorrectMimeType = (file: File): string => {
+    const filename = file.name.toLowerCase();
+    const ext = filename.split('.').pop() || '';
+
+    // Map common text file extensions to text/plain
+    const textExtensions = [
+        'ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs',
+        'py', 'pyw', 'pyi', 'java', 'c', 'cpp', 'cc', 'cxx', 'h', 'hpp',
+        'cs', 'php', 'rb', 'go', 'rs', 'swift', 'kt', 'kts', 'scala',
+        'clj', 'cljs', 'ex', 'exs', 'r', 'R', 'm', 'mm', 'sh', 'bash',
+        'zsh', 'fish', 'ps1', 'bat', 'cmd', 'sql', 'lua', 'pl', 'pm',
+        'dart', 'hs', 'elm', 'ml', 'fs', 'fsx', 'vb', 'pas', 'd', 'nim',
+        'zig', 'jl', 'tcl', 'awk', 'sed', 'vue', 'svelte', 'astro',
+        'gitignore', 'dockerignore', 'editorconfig', 'env', 'cfg', 'conf',
+        'ini', 'log', 'txt'
+    ];
+
+    const markdownExtensions = ['md', 'markdown'];
+    const jsonExtensions = ['json'];
+    const xmlExtensions = ['xml'];
+    const htmlExtensions = ['html', 'htm'];
+    const cssExtensions = ['css', 'scss', 'sass', 'less'];
+    const csvExtensions = ['csv', 'tsv'];
+    const yamlExtensions = ['yaml', 'yml'];
+
+    // Check extensions and return appropriate MIME type
+    if (textExtensions.includes(ext)) {
+        return 'text/plain';
+    } else if (markdownExtensions.includes(ext)) {
+        return 'text/markdown';
+    } else if (jsonExtensions.includes(ext)) {
+        return 'application/json';
+    } else if (xmlExtensions.includes(ext)) {
+        return 'application/xml';
+    } else if (htmlExtensions.includes(ext)) {
+        return 'text/html';
+    } else if (cssExtensions.includes(ext)) {
+        return 'text/css';
+    } else if (csvExtensions.includes(ext)) {
+        return 'text/csv';
+    } else if (yamlExtensions.includes(ext)) {
+        return 'text/yaml';
+    } else if (ext === 'pdf') {
+        return 'application/pdf';
+    } else if (ext === 'doc') {
+        return 'application/msword';
+    } else if (ext === 'docx') {
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    }
+
+    // Return the original MIME type if not recognized
+    return file.type || 'application/octet-stream';
+};
+
 const apiClient = {
     getKnowledgeDocuments: async (agentId: UUID, options?: { limit?: number; before?: number; includeEmbedding?: boolean }) => {
         const params = new URLSearchParams();
+        params.append('agentId', agentId);
         if (options?.limit) params.append('limit', options.limit.toString());
         if (options?.before) params.append('before', options.before.toString());
         if (options?.includeEmbedding) params.append('includeEmbedding', 'true');
 
-        const response = await fetch(`/api/agents/${agentId}/plugins/knowledge/documents?${params.toString()}`);
+        const response = await fetch(`/api/documents?${params.toString()}`);
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`Failed to fetch knowledge documents: ${response.status} ${errorText}`);
@@ -84,11 +140,12 @@ const apiClient = {
 
     getKnowledgeChunks: async (agentId: UUID, options?: { limit?: number; before?: number; documentId?: UUID }) => {
         const params = new URLSearchParams();
+        params.append('agentId', agentId);
         if (options?.limit) params.append('limit', options.limit.toString());
         if (options?.before) params.append('before', options.before.toString());
         if (options?.documentId) params.append('documentId', options.documentId);
 
-        const response = await fetch(`/api/agents/${agentId}/plugins/knowledge/knowledges?${params.toString()}`);
+        const response = await fetch(`/api/knowledges?${params.toString()}`);
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`Failed to fetch knowledge chunks: ${response.status} ${errorText}`);
@@ -97,7 +154,10 @@ const apiClient = {
     },
 
     deleteKnowledgeDocument: async (agentId: UUID, knowledgeId: UUID) => {
-        const response = await fetch(`/api/agents/${agentId}/plugins/knowledge/documents/${knowledgeId}`, {
+        const params = new URLSearchParams();
+        params.append('agentId', agentId);
+
+        const response = await fetch(`/api/documents/${knowledgeId}?${params.toString()}`, {
             method: 'DELETE',
         });
         if (!response.ok) {
@@ -110,9 +170,16 @@ const apiClient = {
 
     uploadKnowledge: async (agentId: string, files: File[]) => {
         const formData = new FormData();
-        files.forEach(file => formData.append('files', file));
+        for (const file of files) {
+            // Create a new Blob with the correct MIME type
+            const correctedMimeType = getCorrectMimeType(file);
+            const blob = new Blob([file], { type: correctedMimeType });
+            // Append as a file with the original name
+            formData.append('files', blob, file.name);
+        }
+        formData.append('agentId', agentId);
 
-        const response = await fetch(`/api/agents/${agentId}/plugins/knowledge/documents`, {
+        const response = await fetch(`/api/documents`, {
             method: 'POST',
             body: formData,
         });
@@ -149,7 +216,7 @@ const useKnowledgeChunks = (agentId: UUID, enabled: boolean = true, documentIdFi
         },
         enabled,
     });
-    
+
     // Query to get documents
     const {
         data: documents = [],
@@ -163,14 +230,14 @@ const useKnowledgeChunks = (agentId: UUID, enabled: boolean = true, documentIdFi
         },
         enabled,
     });
-    
+
     // Combine documents and fragments
     const allMemories = [...documents, ...chunks];
     const isLoading = chunksLoading || documentsLoading;
     const error = chunksError || documentsError;
-    
+
     console.log(`Documents: ${documents.length}, Fragments: ${chunks.length}, Total: ${allMemories.length}`);
-    
+
     return {
         data: allMemories,
         isLoading,
@@ -211,7 +278,7 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
     const [isUrlUploading, setIsUrlUploading] = useState(false);
     const [urlError, setUrlError] = useState<string | null>(null);
     const [urls, setUrls] = useState<string[]>([]);
-    
+
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
@@ -320,12 +387,12 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                 setUrlError('URL must start with http:// or https://');
                 return;
             }
-            
+
             if (urls.includes(urlInput)) {
                 setUrlError('This URL is already in the list');
                 return;
             }
-            
+
             setUrls([...urls, urlInput]);
             setUrlInput('');
             setUrlError(null);
@@ -350,7 +417,7 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                 // If the input is not a valid URL, just ignore it
             }
         }
-        
+
         // If no URLs to process, show error
         if (urls.length === 0) {
             setUrlError('Please add at least one valid URL');
@@ -361,12 +428,12 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
         setUrlError(null);
 
         try {
-            const result = await fetch(`/api/agents/${agentId}/plugins/knowledge/documents`, {
+            const result = await fetch(`/api/documents`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ fileUrls: urls }),
+                body: JSON.stringify({ fileUrls: urls, agentId }),
             });
 
             if (!result.ok) {
@@ -375,7 +442,7 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
             }
 
             const data = await result.json();
-            
+
             if (data.success) {
                 toast({
                     title: 'URLs imported',
@@ -406,7 +473,27 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
         setIsUploading(true);
         try {
             const fileArray = Array.from(files);
-            const result = await apiClient.uploadKnowledge(agentId, fileArray);
+            // Use direct fetch instead of apiClient until it's updated
+            const formData = new FormData();
+            for (const file of fileArray) {
+                // Create a new Blob with the correct MIME type
+                const correctedMimeType = getCorrectMimeType(file);
+                const blob = new Blob([file], { type: correctedMimeType });
+                // Append as a file with the original name
+                formData.append('files', blob, file.name);
+            }
+            formData.append('agentId', agentId);
+
+            const response = await fetch('/api/documents', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Upload failed: ${response.statusText}`);
+            }
+
+            const result = await response.json();
 
             // The actual array of upload outcomes is in result.data
             const uploadOutcomes: UploadResultItem[] = result.data || [];
@@ -536,7 +623,7 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
         const metadata = memory.metadata as MemoryMetadata;
         const isFragment = metadata?.type === 'fragment';
         const isDocument = metadata?.type === 'document';
-        
+
         return (
             <div className="border-t border-border bg-card text-card-foreground h-full flex flex-col">
                 <div className="p-4 flex justify-between items-start flex-shrink-0">
@@ -557,45 +644,45 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                                 {metadata?.title || memory.id?.substring(0, 8)}
                             </span>
                         </h3>
-                        
+
                         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
                             <div className="col-span-2">ID: <span className="font-mono">{memory.id}</span></div>
-                            
+
                             {isFragment && metadata.documentId && (
                                 <div className="col-span-2">
                                     Parent Document: <span className="font-mono text-primary/80">{metadata.documentId}</span>
                                 </div>
                             )}
-                            
+
                             {isFragment && metadata.position !== undefined && (
                                 <div>Position: {metadata.position}</div>
                             )}
-                            
+
                             {metadata.source && (
                                 <div>Source: {metadata.source}</div>
                             )}
-                            
+
                             <div>Created on: {formatDate(memory.createdAt || 0)}</div>
                         </div>
                     </div>
-                    
-                    <Button 
-                        variant="ghost" 
-                        size="sm" 
+
+                    <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setSelectedMemory(null)}
                         className="text-xs h-7 px-2"
                     >
                         Close
                     </Button>
                 </div>
-                
+
                 <div className="px-4 pb-4 flex-1 flex flex-col">
                     <div className="bg-background rounded border border-border p-3 text-sm overflow-auto flex-1">
                         <pre className="whitespace-pre-wrap font-mono text-xs h-full">
                             {memory.content?.text || 'No content available'}
                         </pre>
                     </div>
-                    
+
                     {memory.embedding && (
                         <div className="mt-2 flex items-center text-xs text-muted-foreground flex-shrink-0">
                             <span className="bg-accent/20 text-accent-foreground px-1.5 py-0.5 rounded text-[10px] font-medium mr-1.5">EMBEDDING</span>
@@ -609,28 +696,69 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
 
     return (
         <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between p-4 border-b">
-                <h2 className="text-lg font-semibold">Knowledge</h2>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setViewMode(viewMode === 'list' ? 'graph' : 'list')}>
-                        {viewMode === 'list' ? 'Graph' : 'List'}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border-b gap-3">
+                <div className="flex flex-col gap-1">
+                    <h2 className="text-lg font-semibold">Knowledge</h2>
+                    <p className="text-xs text-muted-foreground">
+                        {viewMode === 'list'
+                            ? 'Viewing documents only'
+                            : 'Viewing documents and their fragments'}
+                    </p>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setViewMode(viewMode === 'list' ? 'graph' : 'list')}
+                        className="flex-shrink-0"
+                        title={viewMode === 'list' ? 'Switch to Graph view to see documents and fragments' : 'Switch to List view to see documents only'}
+                    >
+                        {viewMode === 'list' ? (
+                            <>
+                                <Network className="h-4 w-4 mr-2" />
+                                <span className="hidden md:inline">Graph View</span>
+                                <span className="md:hidden">Graph</span>
+                            </>
+                        ) : (
+                            <>
+                                <List className="h-4 w-4 mr-2" />
+                                <span className="hidden md:inline">List View</span>
+                                <span className="md:hidden">List</span>
+                            </>
+                        )}
                     </Button>
                     {viewMode === 'graph' && documentIdFilter && (
-                        <Button variant="outline" size="sm" onClick={() => setDocumentIdFilter(undefined)}>
-                            Clear Filter
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDocumentIdFilter(undefined)}
+                            className="flex-shrink-0"
+                        >
+                            <span className="hidden sm:inline">Clear Filter</span>
+                            <span className="sm:hidden">Clear</span>
                         </Button>
                     )}
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={handleUrlUploadClick}>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <div className="flex gap-2 ml-auto sm:ml-0">
+                        <Button
+                            variant="outline"
+                            onClick={handleUrlUploadClick}
+                            size="sm"
+                            className="flex-shrink-0"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
                                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
                             </svg>
-                            URL
+                            <span className="hidden sm:inline">URL</span>
                         </Button>
-                        <Button onClick={handleUploadClick} disabled={isUploading}>
-                            {isUploading ? <LoaderIcon className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
-                            Upload
+                        <Button
+                            onClick={handleUploadClick}
+                            disabled={isUploading}
+                            size="sm"
+                            className="flex-shrink-0"
+                        >
+                            {isUploading ? <LoaderIcon className="h-4 w-4 animate-spin sm:mr-2" /> : <Upload className="h-4 w-4 sm:mr-2" />}
+                            <span className="hidden sm:inline">Upload</span>
                         </Button>
                     </div>
                 </div>
@@ -655,27 +783,27 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                                     onChange={(e) => setUrlInput(e.target.value)}
                                     disabled={isUrlUploading}
                                     className="flex-1"
-                                    onKeyDown={(e) => {
+                                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                                         if (e.key === 'Enter' && urlInput.trim()) {
                                             e.preventDefault();
                                             addUrlToList();
                                         }
                                     }}
                                 />
-                                <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    onClick={addUrlToList} 
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={addUrlToList}
                                     disabled={isUrlUploading || !urlInput.trim()}
                                 >
                                     Add
                                 </Button>
                             </div>
-                            
+
                             {urlError && (
                                 <div className="text-sm text-destructive bg-destructive/10 p-2 rounded-md">{urlError}</div>
                             )}
-                            
+
                             {urls.length > 0 && (
                                 <div className="border border-border rounded-md bg-card/50 p-3 mt-2">
                                     <h4 className="text-sm font-medium mb-2">URLs to import ({urls.length})</h4>
@@ -683,10 +811,10 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                                         {urls.map((url, index) => (
                                             <div key={index} className="flex items-center justify-between text-sm bg-background p-2 rounded border border-border">
                                                 <span className="truncate flex-1">{url}</span>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    className="h-6 w-6 hover:bg-destructive/10 hover:text-destructive" 
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-6 w-6 hover:bg-destructive/10 hover:text-destructive"
                                                     onClick={() => removeUrl(url)}
                                                     disabled={isUrlUploading}
                                                 >
@@ -702,15 +830,15 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                         </div>
 
                         <DialogFooter className="mt-6 pt-4 border-t border-border">
-                            <Button 
-                                variant="outline" 
-                                onClick={() => setShowUrlDialog(false)} 
+                            <Button
+                                variant="outline"
+                                onClick={() => setShowUrlDialog(false)}
                                 disabled={isUrlUploading}
                             >
                                 Cancel
                             </Button>
-                            <Button 
-                                onClick={handleUrlSubmit} 
+                            <Button
+                                onClick={handleUrlSubmit}
                                 disabled={isUrlUploading || (urls.length === 0 && !urlInput.trim())}
                             >
                                 {isUrlUploading ? (
@@ -748,9 +876,9 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                                 onNodeClick={(memory) => {
                                     setSelectedMemory(memory);
                                     // If this is a document, filter to show only its chunks
-                                    if (memory.metadata && 
-                                        typeof memory.metadata === 'object' && 
-                                        ('type' in memory.metadata) && 
+                                    if (memory.metadata &&
+                                        typeof memory.metadata === 'object' &&
+                                        ('type' in memory.metadata) &&
                                         ((memory.metadata.type || '').toLowerCase() === 'document') &&
                                         !('documentId' in memory.metadata)) {
                                         handleDocumentFilter(memory.id as UUID);
@@ -769,7 +897,7 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                                 </div>
                             )}
                         </div>
-                        
+
                         {/* Display details of selected node */}
                         {selectedMemory && (
                             <div className="h-2/3 overflow-hidden flex-1 transition-all duration-300">
@@ -853,8 +981,26 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
 
                                 if (isPdf && viewingContent.content?.text) {
                                     // For PDFs, the content.text contains base64 data
+                                    // Validate base64 content before creating data URL
+                                    const base64Content = viewingContent.content.text.trim();
+
+                                    if (!base64Content) {
+                                        // Show error message if no content available
+                                        return (
+                                            <div className="h-full w-full bg-background rounded-lg border border-border p-6 flex items-center justify-center">
+                                                <div className="text-center text-muted-foreground">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 18.5c-.77.833.192 2.5 1.732 2.5z" />
+                                                    </svg>
+                                                    <p className="text-lg font-medium">PDF Content Unavailable</p>
+                                                    <p className="text-sm">The PDF content could not be loaded.</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+
                                     // Create a data URL for the PDF
-                                    const pdfDataUrl = `data:application/pdf;base64,${viewingContent.content.text}`;
+                                    const pdfDataUrl = `data:application/pdf;base64,${base64Content}`;
 
                                     return (
                                         <div className="w-full h-full rounded-lg overflow-auto bg-card border border-border">
@@ -876,7 +1022,23 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                                                         backgroundColor: 'var(--background)',
                                                     }}
                                                     title="PDF Document"
+                                                    onError={() => {
+                                                        console.error('Failed to load PDF in iframe');
+                                                    }}
                                                 />
+                                            </div>
+                                        </div>
+                                    );
+                                } else if (isPdf && !viewingContent.content?.text) {
+                                    // Show error message for PDFs without content
+                                    return (
+                                        <div className="h-full w-full bg-background rounded-lg border border-border p-6 flex items-center justify-center">
+                                            <div className="text-center text-muted-foreground">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                                <p className="text-lg font-medium">PDF Not Available</p>
+                                                <p className="text-sm">This PDF document has no content to display.</p>
                                             </div>
                                         </div>
                                     );
