@@ -762,7 +762,7 @@ async function searchKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
           content: fragment.content,
           similarity: fragment.similarity || 0,
           metadata: {
-            ...fragment.metadata,
+            ...(fragment.metadata || {}),
             documentTitle,
             documentFilename,
           },
