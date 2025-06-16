@@ -1,5 +1,5 @@
 import type { IAgentRuntime, Route, UUID, Memory, KnowledgeItem } from '@elizaos/core';
-import { MemoryType, createUniqueUuid, logger } from '@elizaos/core';
+import { MemoryType, createUniqueUuid, logger, ModelType } from '@elizaos/core';
 import { KnowledgeService } from './service';
 import fs from 'node:fs'; // For file operations in upload
 import path from 'node:path'; // For path operations
@@ -659,6 +659,109 @@ async function getKnowledgeChunksHandler(req: any, res: any, runtime: IAgentRunt
   }
 }
 
+async function searchKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime) {
+  const service = runtime.getService<KnowledgeService>(KnowledgeService.serviceType);
+  if (!service) {
+    return sendError(res, 500, 'SERVICE_NOT_FOUND', 'KnowledgeService not found');
+  }
+
+  try {
+    const searchText = req.query.q as string;
+    const matchThreshold = req.query.threshold
+      ? Number.parseFloat(req.query.threshold as string)
+      : 0.5;
+    const limit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : 20;
+    const agentId = (req.query.agentId as UUID) || runtime.agentId;
+
+    if (!searchText || searchText.trim().length === 0) {
+      return sendError(res, 400, 'INVALID_QUERY', 'Search query cannot be empty');
+    }
+
+    logger.info(
+      `[KNOWLEDGE SEARCH] Searching for: "${searchText}" with threshold: ${matchThreshold}`
+    );
+
+    // Create a memory object to use with getKnowledge
+    const searchMemory: Memory = {
+      id: createUniqueUuid(runtime, `search-${Date.now()}-${searchText}`) as UUID,
+      content: { text: searchText },
+      agentId: agentId,
+      roomId: agentId,
+      entityId: agentId,
+      createdAt: Date.now(),
+    };
+
+    // First get the embedding for the search text
+    const embedding = await runtime.useModel(ModelType.TEXT_EMBEDDING, {
+      text: searchText,
+    });
+
+    // Use searchMemories directly for more control over the search
+    const results = await runtime.searchMemories({
+      tableName: 'knowledge',
+      embedding,
+      query: searchText,
+      count: limit,
+      match_threshold: matchThreshold,
+      roomId: agentId,
+    });
+
+    // Enhance results with document information
+    const enhancedResults = await Promise.all(
+      results.map(async (fragment) => {
+        let documentTitle = 'Unknown Document';
+        let documentFilename = 'unknown';
+
+        // Try to get the parent document information
+        if (
+          fragment.metadata &&
+          typeof fragment.metadata === 'object' &&
+          'documentId' in fragment.metadata
+        ) {
+          const documentId = fragment.metadata.documentId as UUID;
+          try {
+            const document = await runtime.getMemoryById(documentId);
+            if (document && document.metadata) {
+              documentTitle =
+                (document.metadata as any).title ||
+                (document.metadata as any).filename ||
+                documentTitle;
+              documentFilename = (document.metadata as any).filename || documentFilename;
+            }
+          } catch (e) {
+            logger.debug(`Could not fetch document ${documentId} for fragment`);
+          }
+        }
+
+        return {
+          id: fragment.id,
+          content: fragment.content,
+          similarity: fragment.similarity || 0,
+          metadata: {
+            ...fragment.metadata,
+            documentTitle,
+            documentFilename,
+          },
+        };
+      })
+    );
+
+    logger.info(
+      `[KNOWLEDGE SEARCH] Found ${enhancedResults.length} results for query: "${searchText}"`
+    );
+
+    sendSuccess(res, {
+      query: searchText,
+      threshold: matchThreshold,
+      results: enhancedResults,
+      count: enhancedResults.length,
+    });
+  } catch (error: any) {
+    logger.error('[KNOWLEDGE SEARCH] Error searching knowledge:', error);
+    sendError(res, 500, 'SEARCH_ERROR', 'Failed to search knowledge', error.message);
+  }
+}
+
 // Wrapper handler that applies multer middleware before calling the upload handler
 async function uploadKnowledgeWithMulter(req: any, res: any, runtime: IAgentRuntime) {
   const upload = createUploadMiddleware(runtime);
@@ -715,5 +818,10 @@ export const knowledgeRoutes: Route[] = [
     type: 'GET',
     path: '/knowledges',
     handler: getKnowledgeChunksHandler,
+  },
+  {
+    type: 'GET',
+    path: '/search',
+    handler: searchKnowledgeHandler,
   },
 ];

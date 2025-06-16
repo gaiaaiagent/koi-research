@@ -668,6 +668,7 @@ export class KnowledgeService extends Service {
   }): Promise<Memory[]> {
     return this.runtime.getMemories({
       ...params, // includes tableName, roomId, count, end
+      agentId: this.runtime.agentId,
     });
   }
 
