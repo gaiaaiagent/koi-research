@@ -113,9 +113,22 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
         let knowledgeId: UUID;
         const originalFilename = file.originalname;
         // Get agentId from request body or query parameter
-        const agentId =
-          (req.body.agentId as UUID) || (req.query.agentId as UUID) || runtime.agentId;
+        // IMPORTANT: We require explicit agent ID to prevent cross-agent contamination
+        const agentId = (req.body.agentId as UUID) || (req.query.agentId as UUID);
+
+        if (!agentId) {
+          logger.error('[KNOWLEDGE UPLOAD HANDLER] No agent ID provided in request');
+          return sendError(
+            res,
+            400,
+            'MISSING_AGENT_ID',
+            'Agent ID is required for uploading knowledge'
+          );
+        }
+
         const worldId = (req.body.worldId as UUID) || agentId;
+
+        logger.info(`[KNOWLEDGE UPLOAD HANDLER] Processing upload for agent: ${agentId}`);
         const filePath = file.path;
 
         knowledgeId =
@@ -123,33 +136,17 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
           req.body?.documentId ||
           (createUniqueUuid(runtime, `knowledge-${originalFilename}-${Date.now()}`) as UUID);
 
+        logger.debug(
+          `[KNOWLEDGE UPLOAD HANDLER] File: ${originalFilename}, Agent ID: ${agentId}, World ID: ${worldId}, Knowledge ID: ${knowledgeId}`
+        );
+
         try {
           const fileBuffer = await fs.promises.readFile(filePath);
-          const fileExt = file.originalname.split('.').pop()?.toLowerCase() || '';
-          const filename = file.originalname;
-          const title = filename.replace(`.${fileExt}`, '');
           const base64Content = fileBuffer.toString('base64');
-
-          const knowledgeItem: KnowledgeItem = {
-            id: knowledgeId,
-            content: {
-              text: base64Content,
-            },
-            metadata: {
-              type: MemoryType.DOCUMENT,
-              timestamp: Date.now(),
-              source: 'upload',
-              filename: filename,
-              fileExt: fileExt,
-              title: title,
-              path: originalFilename,
-              fileType: file.mimetype,
-              fileSize: file.size,
-            } as import('@elizaos/core').CustomMetadata,
-          };
 
           // Construct AddKnowledgeOptions directly using available variables
           const addKnowledgeOpts: import('./types.ts').AddKnowledgeOptions = {
+            agentId: agentId, // Pass the agent ID from frontend
             clientDocumentId: knowledgeId, // This is knowledgeItem.id
             contentType: file.mimetype, // Directly from multer file object
             originalFilename: originalFilename, // Directly from multer file object
@@ -201,7 +198,20 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
       }
 
       // Get agentId from request body or query parameter
-      const agentId = (req.body.agentId as UUID) || (req.query.agentId as UUID) || runtime.agentId;
+      // IMPORTANT: We require explicit agent ID to prevent cross-agent contamination
+      const agentId = (req.body.agentId as UUID) || (req.query.agentId as UUID);
+
+      if (!agentId) {
+        logger.error('[KNOWLEDGE URL HANDLER] No agent ID provided in request');
+        return sendError(
+          res,
+          400,
+          'MISSING_AGENT_ID',
+          'Agent ID is required for uploading knowledge from URLs'
+        );
+      }
+
+      logger.info(`[KNOWLEDGE URL HANDLER] Processing URL upload for agent: ${agentId}`);
 
       // Process each URL as a distinct file
       const processingPromises = fileUrls.map(async (fileUrl: string) => {
@@ -251,6 +261,7 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
 
           // Construct AddKnowledgeOptions with the fetched content
           const addKnowledgeOpts: import('./types.ts').AddKnowledgeOptions = {
+            agentId: agentId, // Pass the agent ID from frontend
             clientDocumentId: knowledgeId,
             contentType: contentType,
             originalFilename: originalFilename,
