@@ -667,10 +667,17 @@ async function searchKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
 
   try {
     const searchText = req.query.q as string;
-    const matchThreshold = req.query.threshold
+
+    // Parse threshold with NaN check
+    const parsedThreshold = req.query.threshold
       ? Number.parseFloat(req.query.threshold as string)
-      : 0.5;
-    const limit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : 20;
+      : NaN;
+    const matchThreshold = Number.isNaN(parsedThreshold) ? 0.5 : parsedThreshold;
+
+    // Parse limit with NaN check
+    const parsedLimit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : NaN;
+    const limit = Number.isNaN(parsedLimit) ? 20 : parsedLimit;
+
     const agentId = (req.query.agentId as UUID) || runtime.agentId;
 
     if (!searchText || searchText.trim().length === 0) {
@@ -680,16 +687,6 @@ async function searchKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
     logger.info(
       `[KNOWLEDGE SEARCH] Searching for: "${searchText}" with threshold: ${matchThreshold}`
     );
-
-    // Create a memory object to use with getKnowledge
-    const searchMemory: Memory = {
-      id: createUniqueUuid(runtime, `search-${Date.now()}-${searchText}`) as UUID,
-      content: { text: searchText },
-      agentId: agentId,
-      roomId: agentId,
-      entityId: agentId,
-      createdAt: Date.now(),
-    };
 
     // First get the embedding for the search text
     const embedding = await runtime.useModel(ModelType.TEXT_EMBEDDING, {
