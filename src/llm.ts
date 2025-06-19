@@ -39,6 +39,74 @@ export async function generateTextEmbedding(text: string): Promise<{ embedding: 
 }
 
 /**
+ * Generates text embeddings in batches for improved performance
+ * @param texts Array of texts to embed
+ * @param batchSize Maximum number of texts to process in each batch (default: 20)
+ * @returns Array of embedding results with success indicators
+ */
+export async function generateTextEmbeddingsBatch(
+  texts: string[],
+  batchSize: number = 20
+): Promise<Array<{ embedding: number[] | null; success: boolean; error?: any; index: number }>> {
+  const config = validateModelConfig();
+  const results: Array<{ embedding: number[] | null; success: boolean; error?: any; index: number }> =
+    [];
+
+  logger.debug(`[LLM Service - Batch Embedding] Processing ${texts.length} texts in batches of ${batchSize}`);
+
+  // Process texts in batches
+  for (let i = 0; i < texts.length; i += batchSize) {
+    const batch = texts.slice(i, i + batchSize);
+    const batchStartIndex = i;
+
+    logger.debug(
+      `[LLM Service - Batch Embedding] Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(texts.length / batchSize)} (${batch.length} items)`
+    );
+
+    // Process batch in parallel
+    const batchPromises = batch.map(async (text, batchIndex) => {
+      const globalIndex = batchStartIndex + batchIndex;
+      try {
+        const result = await generateTextEmbedding(text);
+        return {
+          embedding: result.embedding,
+          success: true,
+          index: globalIndex,
+        };
+      } catch (error) {
+        logger.error(
+          `[LLM Service - Batch Embedding] Error generating embedding for item ${globalIndex}:`,
+          error
+        );
+        return {
+          embedding: null,
+          success: false,
+          error,
+          index: globalIndex,
+        };
+      }
+    });
+
+    const batchResults = await Promise.all(batchPromises);
+    results.push(...batchResults);
+
+    // Add a small delay between batches to respect rate limits
+    if (i + batchSize < texts.length) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+
+  const successCount = results.filter((r) => r.success).length;
+  const failureCount = results.length - successCount;
+  
+  logger.debug(
+    `[LLM Service - Batch Embedding] Complete. Success: ${successCount}, Failures: ${failureCount}`
+  );
+
+  return results;
+}
+
+/**
  * Generates an embedding using OpenAI
  */
 async function generateOpenAIEmbedding(
