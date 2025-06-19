@@ -9,7 +9,6 @@ import { logger, IAgentRuntime } from '@elizaos/core';
  */
 export function validateModelConfig(runtime?: IAgentRuntime): ModelConfig {
   try {
-    console.log('####### PLUGIN KNOWLEDGE validateModelConfig');
     // Helper function to get setting from runtime or fallback to process.env
     const getSetting = (key: string, defaultValue?: string) => {
       if (runtime) {
