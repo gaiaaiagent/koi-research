@@ -105,8 +105,43 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
     // Process multipart requests (file uploads)
     if (hasUploadedFiles) {
       const files = req.files as MulterFile[];
+      
       if (!files || files.length === 0) {
         return sendError(res, 400, 'NO_FILES', 'No files uploaded');
+      }
+
+      // Validate files for corruption/truncation
+      const invalidFiles = files.filter((file) => {
+        // Check for empty files
+        if (file.size === 0) {
+          logger.warn(`File ${file.originalname} is empty`);
+          return true;
+        }
+
+        // Check if file has a name
+        if (!file.originalname || file.originalname.trim() === '') {
+          logger.warn(`File has no name`);
+          return true;
+        }
+
+        // Check if file has valid path
+        if (!file.path) {
+          logger.warn(`File ${file.originalname} has no path`);
+          return true;
+        }
+
+        return false;
+      });
+
+      if (invalidFiles.length > 0) {
+        cleanupFiles(files);
+        const invalidFileNames = invalidFiles.map((f) => f.originalname || 'unnamed').join(', ');
+        return sendError(
+          res,
+          400,
+          'INVALID_FILES',
+          `Invalid or corrupted files: ${invalidFileNames}`
+        );
       }
 
       // Get agentId from request body or query parameter BEFORE processing files
@@ -127,17 +162,11 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
       logger.info(`[KNOWLEDGE UPLOAD HANDLER] Processing upload for agent: ${agentId}`);
 
       const processingPromises = files.map(async (file, index) => {
-        let knowledgeId: UUID;
         const originalFilename = file.originalname;
         const filePath = file.path;
 
-        knowledgeId =
-          (req.body?.documentIds && req.body.documentIds[index]) ||
-          req.body?.documentId ||
-          (createUniqueUuid(runtime, `knowledge-${originalFilename}-${Date.now()}`) as UUID);
-
         logger.debug(
-          `[KNOWLEDGE UPLOAD HANDLER] File: ${originalFilename}, Agent ID: ${agentId}, World ID: ${worldId}, Knowledge ID: ${knowledgeId}`
+          `[KNOWLEDGE UPLOAD HANDLER] File: ${originalFilename}, Agent ID: ${agentId}, World ID: ${worldId}`
         );
 
         try {
@@ -145,9 +174,10 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
           const base64Content = fileBuffer.toString('base64');
 
           // Construct AddKnowledgeOptions directly using available variables
+          // Note: We no longer provide clientDocumentId - the service will generate it
           const addKnowledgeOpts: import('./types.ts').AddKnowledgeOptions = {
             agentId: agentId, // Pass the agent ID from frontend
-            clientDocumentId: knowledgeId, // This is knowledgeItem.id
+            clientDocumentId: '' as UUID, // This will be ignored by the service
             contentType: file.mimetype, // Directly from multer file object
             originalFilename: originalFilename, // Directly from multer file object
             content: base64Content, // The base64 string of the file
@@ -156,11 +186,12 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
             entityId: agentId, // Use the correct agent ID
           };
 
-          await service.addKnowledge(addKnowledgeOpts);
+          const result = await service.addKnowledge(addKnowledgeOpts);
 
           cleanupFile(filePath);
+
           return {
-            id: knowledgeId,
+            id: result.clientDocumentId, // Use the content-based ID returned by the service
             filename: originalFilename,
             type: file.mimetype,
             size: file.size,
@@ -173,7 +204,7 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
           );
           cleanupFile(filePath);
           return {
-            id: knowledgeId,
+            id: '', // No ID since processing failed
             filename: originalFilename,
             status: 'error_processing',
             error: fileError.message,
@@ -219,8 +250,7 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
           // Normalize the URL for storage (remove query parameters)
           const normalizedUrl = normalizeS3Url(fileUrl);
 
-          // Create a unique ID based on the normalized URL
-          const knowledgeId = createUniqueUuid(runtime, normalizedUrl) as UUID;
+          // Remove the knowledgeId generation here - let the service handle it based on content
 
           // Extract filename from URL for better display
           const urlObject = new URL(fileUrl);
@@ -262,7 +292,7 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
           // Construct AddKnowledgeOptions with the fetched content
           const addKnowledgeOpts: import('./types.ts').AddKnowledgeOptions = {
             agentId: agentId, // Pass the agent ID from frontend
-            clientDocumentId: knowledgeId,
+            clientDocumentId: '' as UUID, // This will be ignored by the service
             contentType: contentType,
             originalFilename: originalFilename,
             content: content, // Use the base64 encoded content from the URL
@@ -281,7 +311,7 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
           const result = await service.addKnowledge(addKnowledgeOpts);
 
           return {
-            id: result.clientDocumentId,
+            id: result.clientDocumentId, // Use the content-based ID returned by the service
             fileUrl: fileUrl,
             filename: originalFilename,
             message: 'Knowledge created successfully',
