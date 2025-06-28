@@ -353,7 +353,7 @@ async function getKnowledgeDocumentsHandler(req: any, res: any, runtime: IAgentR
   }
 
   try {
-    const limit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : 20;
+    const limit = req.query.limit ? Number.parseInt(req.query.limit as string, 10) : 10000;
     const before = req.query.before ? Number.parseInt(req.query.before as string, 10) : Date.now();
     const includeEmbedding = req.query.includeEmbedding === 'true';
     const agentId = req.query.agentId as UUID | undefined;
@@ -484,7 +484,7 @@ async function getKnowledgeByIdHandler(req: any, res: any, runtime: IAgentRuntim
     // So we'll use getMemories with a filter
     const memories = await service.getMemories({
       tableName: 'documents',
-      count: 1000,
+      count: 10000,
     });
 
     // Use type conversion with template string to ensure the typing is correct
@@ -668,7 +668,7 @@ async function getKnowledgeChunksHandler(req: any, res: any, runtime: IAgentRunt
     // Always get documents first
     const documents = await service.getMemories({
       tableName: 'documents',
-      count: 1000, // Reasonable limit for documents
+      count: 10000, // High limit to get all documents
       end: Date.now(),
     });
 

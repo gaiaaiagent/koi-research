@@ -147,11 +147,8 @@ export interface KnowledgeDocumentMetadata extends Record<string, any> {
   fileExt?: string;
   fileType?: string; // MIME type
   fileSize?: number;
-  url?: string; // if applicable
-  timestamp: number; // creation/ingestion timestamp
-  documentId?: string; // if from an external system
-  // Add other relevant metadata fields
 }
+
 
 export interface KnowledgeConfig {
   CTX_KNOWLEDGE_ENABLED: boolean;

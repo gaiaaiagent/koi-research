@@ -364,7 +364,6 @@ const useKnowledgeChunks = (agentId: UUID, enabled: boolean = true, selectedDocu
     queryKey: ['agents', agentId, 'knowledge', 'documents-graph'],
     queryFn: async () => {
       const response = await apiClient.getKnowledgeDocuments(agentId, {
-        limit: 1000,
         includeEmbedding: false,
       });
       return response.data.memories || [];
@@ -795,7 +794,13 @@ export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setVisibleItems((prev) => prev + ITEMS_PER_PAGE)}
+          onClick={() => {
+            setLoadingMore(true);
+            setTimeout(() => {
+              setVisibleItems((prev) => Math.min(prev + ITEMS_PER_PAGE, filteredMemories.length));
+              setLoadingMore(false);
+            }, 100);
+          }}
           className="text-xs"
         >
           Show more

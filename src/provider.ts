@@ -19,9 +19,8 @@ export const knowledgeProvider: Provider = {
     'Knowledge from the knowledge base that the agent knows, retrieved whenever the agent needs to answer a question about their expertise.',
   dynamic: true,
   get: async (runtime: IAgentRuntime, message: Memory) => {
-    const knowledgeData = await (runtime.getService('knowledge') as KnowledgeService)?.getKnowledge(
-      message
-    );
+    const knowledgeService = runtime.getService('knowledge') as KnowledgeService;
+    const knowledgeData = await knowledgeService?.getKnowledge(message);
 
     const firstFiveKnowledgeItems = knowledgeData?.slice(0, 5);
 
@@ -39,14 +38,54 @@ export const knowledgeProvider: Provider = {
       knowledge = knowledge.slice(0, 4000 * tokenLength);
     }
 
+    // 📊 Prepare RAG metadata for conversation memory tracking
+    let ragMetadata = null;
+    if (knowledgeData && knowledgeData.length > 0) {
+      ragMetadata = {
+        retrievedFragments: knowledgeData.map(fragment => ({
+          fragmentId: fragment.id,
+          documentTitle: (fragment.metadata as any)?.filename || (fragment.metadata as any)?.title || 'Unknown Document',
+          similarityScore: (fragment as any).similarity,
+          contentPreview: (fragment.content?.text || 'No content').substring(0, 100) + '...',
+        })),
+        queryText: message.content?.text || 'Unknown query',
+        totalFragments: knowledgeData.length,
+        retrievalTimestamp: Date.now(),
+      };
+    }
+
+    // 🎯 Store RAG metadata for conversation memory enrichment
+    if (knowledgeData && knowledgeData.length > 0 && knowledgeService && ragMetadata) {
+      try {
+        knowledgeService.setPendingRAGMetadata(ragMetadata);
+        
+        // Schedule enrichment check (with small delay to allow memory creation)
+        setTimeout(async () => {
+          try {
+            await knowledgeService.enrichRecentMemoriesWithPendingRAG();
+          } catch (error: any) {
+            console.warn('RAG memory enrichment failed:', error.message);
+          }
+        }, 2000); // 2 second delay
+      } catch (error: any) {
+        // Don't fail the provider if enrichment fails
+        console.warn('RAG memory enrichment failed:', error.message);
+      }
+    }
+
     return {
       data: {
         knowledge,
+        ragMetadata, // 🎯 Include RAG metadata for memory tracking
+        knowledgeUsed: knowledgeData && knowledgeData.length > 0, // Simple flag for easy detection
       },
       values: {
         knowledge,
+        knowledgeUsed: knowledgeData && knowledgeData.length > 0, // Simple flag for easy detection
       },
       text: knowledge,
+      ragMetadata, // 🎯 Also include at top level for easy access
+      knowledgeUsed: knowledgeData && knowledgeData.length > 0, // 🎯 Simple flag at top level too
     };
   },
 };
