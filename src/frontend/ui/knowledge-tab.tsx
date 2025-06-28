@@ -22,7 +22,7 @@ type MemoryMetadata = ExtendedMemoryMetadata;
 // Use local UI components instead of importing from client
 import { Badge } from './badge';
 import { Button } from './button';
-import { Card, CardFooter, CardHeader } from './card';
+import { Card } from './card';
 import { Input } from './input';
 import { MemoryGraph } from './memory-graph';
 
@@ -443,6 +443,7 @@ export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [filenameFilter, setFilenameFilter] = useState('');
   const [selectedDocumentForGraph, setSelectedDocumentForGraph] = useState<UUID | undefined>(
     undefined
   );
@@ -479,8 +480,24 @@ export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
 
   const { mutate: deleteKnowledgeDoc } = useDeleteKnowledgeDocument(agentId);
 
+  // Filter memories by filename in list view
+  const filteredMemories = React.useMemo(() => {
+    if (viewMode !== 'list' || !filenameFilter.trim()) {
+      return memories;
+    }
+
+    return memories.filter((memory) => {
+      const metadata = (memory.metadata as MemoryMetadata) || {};
+      const filename = metadata.filename || metadata.originalFilename || metadata.path || '';
+      return filename.toLowerCase().includes(filenameFilter.toLowerCase());
+    });
+  }, [memories, filenameFilter, viewMode]);
+
+  const visibleMemories = filteredMemories.slice(0, visibleItems);
+  const hasMoreToLoad = visibleItems < filteredMemories.length;
+
   const handleScroll = useCallback(() => {
-    if (!scrollContainerRef.current || loadingMore || visibleItems >= memories.length) {
+    if (!scrollContainerRef.current || loadingMore || visibleItems >= filteredMemories.length) {
       return;
     }
     const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
@@ -488,15 +505,35 @@ export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
     if (scrolledToBottom) {
       setLoadingMore(true);
       setTimeout(() => {
-        setVisibleItems((prev) => Math.min(prev + ITEMS_PER_PAGE, memories.length));
+        setVisibleItems((prev) => Math.min(prev + ITEMS_PER_PAGE, filteredMemories.length));
         setLoadingMore(false);
       }, 300);
     }
-  }, [loadingMore, visibleItems, memories.length]);
+  }, [loadingMore, visibleItems, filteredMemories.length]);
 
   useEffect(() => {
     setVisibleItems(ITEMS_PER_PAGE);
   }, []);
+
+  // Reset visible items when filter changes
+  useEffect(() => {
+    setVisibleItems(ITEMS_PER_PAGE);
+  }, [filenameFilter]);
+
+  // Handle escape key to close document detail modal
+  useEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && viewingContent) {
+        setViewingContent(null);
+        setPdfZoom(1.0); // Reset zoom when closing
+      }
+    };
+
+    if (viewingContent) {
+      document.addEventListener('keydown', handleEscapeKey);
+      return () => document.removeEventListener('keydown', handleEscapeKey);
+    }
+  }, [viewingContent]);
 
   useEffect(() => {
     const scrollContainer = scrollContainerRef.current;
@@ -529,18 +566,18 @@ export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
     const ext = fileName.split('.').pop()?.toLowerCase();
     switch (ext) {
       case 'md':
-        return <File className="h-4 w-4 text-blue-500" />;
+        return <File className="h-5 w-5 text-blue-500" />;
       case 'js':
       case 'ts':
       case 'jsx':
       case 'tsx':
-        return <File className="h-4 w-4 text-yellow-500" />;
+        return <File className="h-5 w-5 text-yellow-500" />;
       case 'json':
-        return <File className="h-4 w-4 text-green-500" />;
+        return <File className="h-5 w-5 text-green-500" />;
       case 'pdf':
-        return <FileText className="h-4 w-4 text-red-500" />;
+        return <FileText className="h-5 w-5 text-red-500" />;
       default:
-        return <FileText className="h-4 w-4 text-gray-500" />;
+        return <FileText className="h-5 w-5 text-gray-500" />;
     }
   };
 
@@ -746,8 +783,6 @@ export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
     }
   };
 
-  const visibleMemories = memories.slice(0, visibleItems);
-  const hasMoreToLoad = visibleItems < memories.length;
 
   const LoadingIndicator = () => (
     <div className="flex justify-center p-4">
@@ -780,6 +815,140 @@ export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
       </Button>
     </div>
   );
+
+  const HeaderControls = () => {
+    if (isDocumentFocused) {
+      // Simplified controls when document is focused
+      return (
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setViewMode('list')}
+            className="flex-shrink-0"
+            title="Switch to List view to see documents only"
+          >
+            <List className="h-4 w-4 mr-2" />
+            <span>List View</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSelectedDocumentForGraph(undefined);
+              setSelectedMemory(null);
+            }}
+            className="flex-shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            <span>Overview Graph</span>
+          </Button>
+        </>
+      );
+    }
+
+    if (showSearch) {
+      // Search mode: only show List View button
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setShowSearch(false);
+            setSearchQuery('');
+            setSearchResults([]);
+            setSearchError(null);
+            setViewMode('list');
+          }}
+          className="flex-shrink-0"
+          title="Exit search and return to List view"
+        >
+          <List className="h-4 w-4 mr-2" />
+          <span className="hidden md:inline">List View</span>
+          <span className="md:hidden">List</span>
+        </Button>
+      );
+    }
+
+    if (viewMode === 'graph') {
+      // Graph mode: only show List View button
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setViewMode('list')}
+          className="flex-shrink-0"
+          title="Switch to List view to see documents only"
+        >
+          <List className="h-4 w-4 mr-2" />
+          <span className="hidden md:inline">List View</span>
+          <span className="md:hidden">List</span>
+        </Button>
+      );
+    }
+
+    // List mode: show full controls
+    return (
+      <>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setViewMode('graph')}
+          className="flex-shrink-0"
+          title="Switch to Graph view to see documents and fragments"
+        >
+          <Network className="h-4 w-4 mr-2" />
+          <span className="hidden md:inline">Graph View</span>
+          <span className="md:hidden">Graph</span>
+        </Button>
+        <div className="flex gap-2 ml-auto sm:ml-0">
+          <Button
+            variant="outline"
+            onClick={() => setShowSearch(true)}
+            size="sm"
+            className="flex-shrink-0"
+          >
+            <Search className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Search</span>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleUrlUploadClick}
+            size="sm"
+            className="flex-shrink-0"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4 sm:mr-2"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+            <span className="hidden sm:inline">URL</span>
+          </Button>
+          <Button
+            onClick={handleUploadClick}
+            disabled={isUploading}
+            size="sm"
+            className="flex-shrink-0"
+          >
+            {isUploading ? (
+              <LoaderIcon className="h-4 w-4 animate-spin sm:mr-2" />
+            ) : (
+              <Upload className="h-4 w-4 sm:mr-2" />
+            )}
+            <span className="hidden sm:inline">Upload</span>
+          </Button>
+        </div>
+      </>
+    );
+  };
 
   const KnowledgeCard = ({ memory, index }: { memory: Memory; index: number }) => {
     const metadata = (memory.metadata as MemoryMetadata) || {};
@@ -820,11 +989,16 @@ export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
         onClick={() => setViewingContent(memory)}
       >
         <div className="flex items-center px-1 py-2 min-h-[2rem]">
-          {/* Left side: Icon + Filename + Date */}
+          {/* Left side: Icon + Filename + Pill + Date */}
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <div className="flex-shrink-0">{getFileIcon(displayName)}</div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium truncate">{subtitle}</div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-medium truncate">{subtitle}</span>
+                <Badge variant="outline" className="px-1 py-0 h-4 text-xs flex-shrink-0">
+                  {fileExt || 'doc'}
+                </Badge>
+              </div>
               <div className="text-xs text-muted-foreground">
                 {new Date(memory.createdAt || 0).toLocaleString(undefined, {
                   month: 'numeric',
@@ -836,12 +1010,9 @@ export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
               </div>
             </div>
           </div>
-          
-          {/* Right side: Badge aligned right, Delete button separate */}
+
+          {/* Right side: Delete button */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Badge variant="outline" className="px-1 py-0 h-4 text-xs">
-              {fileExt || 'doc'}
-            </Badge>
             {memory.id && (
               <Button
                 variant="ghost"
@@ -963,117 +1134,7 @@ export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
           </p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          {isDocumentFocused ? (
-            // Simplified controls when document is focused
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setViewMode('list')}
-                className="flex-shrink-0"
-                title="Switch to List view to see documents only"
-              >
-                <List className="h-4 w-4 mr-2" />
-                <span>List View</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSelectedDocumentForGraph(undefined);
-                  setSelectedMemory(null);
-                }}
-                className="flex-shrink-0"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                <span>Overview Graph</span>
-              </Button>
-            </>
-          ) : (
-            // Full controls when not in document focus mode
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setViewMode(viewMode === 'list' ? 'graph' : 'list')}
-                className="flex-shrink-0"
-                title={
-                  viewMode === 'list'
-                    ? 'Switch to Graph view to see documents and fragments'
-                    : 'Switch to List view to see documents only'
-                }
-                disabled={showSearch}
-              >
-                {viewMode === 'list' ? (
-                  <>
-                    <Network className="h-4 w-4 mr-2" />
-                    <span className="hidden md:inline">Graph View</span>
-                    <span className="md:hidden">Graph</span>
-                  </>
-                ) : (
-                  <>
-                    <List className="h-4 w-4 mr-2" />
-                    <span className="hidden md:inline">List View</span>
-                    <span className="md:hidden">List</span>
-                  </>
-                )}
-              </Button>
-              <div className="flex gap-2 ml-auto sm:ml-0">
-                <Button
-                  variant={showSearch ? 'default' : 'outline'}
-                  onClick={() => {
-                    setShowSearch(!showSearch);
-                    if (showSearch) {
-                      // if turning search OFF
-                      setSearchQuery('');
-                      setSearchResults([]);
-                      setSearchError(null);
-                    }
-                  }}
-                  size="sm"
-                  className="flex-shrink-0"
-                >
-                  <Search className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Search</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleUrlUploadClick}
-                  size="sm"
-                  className="flex-shrink-0"
-                  disabled={showSearch}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 sm:mr-2"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                  </svg>
-                  <span className="hidden sm:inline">URL</span>
-                </Button>
-                <Button
-                  onClick={handleUploadClick}
-                  disabled={isUploading || showSearch}
-                  size="sm"
-                  className="flex-shrink-0"
-                >
-                  {isUploading ? (
-                    <LoaderIcon className="h-4 w-4 animate-spin sm:mr-2" />
-                  ) : (
-                    <Upload className="h-4 w-4 sm:mr-2" />
-                  )}
-                  <span className="hidden sm:inline">Upload</span>
-                </Button>
-              </div>
-            </>
-          )}
+          <HeaderControls />
         </div>
       </div>
 
@@ -1083,7 +1144,7 @@ export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Info className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Search your knowledge base using semantic vector search. Adjust the similarity
                 threshold to control how closely results must match your query.
               </p>
@@ -1373,13 +1434,25 @@ export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
             )}
           </div>
         ) : (
-          <div ref={scrollContainerRef} className="h-full overflow-y-auto p-4">
-            <div className="grid gap-1.5">
-              {visibleMemories.map((memory, index) => (
-                <KnowledgeCard key={memory.id || index} memory={memory} index={index} />
-              ))}
+          <div className="h-full flex flex-col">
+            {/* Filename filter search bar */}
+            <div className="flex-shrink-0 p-4 pb-2 border-b border-border/30">
+              <Input
+                placeholder="Filter by filename..."
+                value={filenameFilter}
+                onChange={(e) => setFilenameFilter(e.target.value)}
+                className="w-full text-sm"
+              />
             </div>
-            {hasMoreToLoad && <LoadingIndicator />}
+
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 pt-2">
+              <div className="grid gap-1.5">
+                {visibleMemories.map((memory, index) => (
+                  <KnowledgeCard key={memory.id || index} memory={memory} index={index} />
+                ))}
+              </div>
+              {hasMoreToLoad && <LoadingIndicator />}
+            </div>
           </div>
         )}
       </div>
