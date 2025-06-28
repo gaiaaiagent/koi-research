@@ -2,7 +2,6 @@ import React from 'react';
 import type { UUID, Memory } from '@elizaos/core';
 import {
   Book,
-  Clock,
   File,
   FileText,
   LoaderIcon,
@@ -817,61 +816,51 @@ export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
       <button
         key={memory.id || index}
         type="button"
-        className="w-full text-left"
+        className="w-full text-left hover:bg-accent/5 transition-colors group border-b border-border/30 cursor-pointer"
         onClick={() => setViewingContent(memory)}
       >
-        <Card className="hover:bg-accent/10 transition-colors relative group">
-          <div className="absolute top-3 left-3 opacity-70">{getFileIcon(displayName)}</div>
-          <CardHeader className="p-3 pb-2 pl-10">
-            <div className="text-xs text-muted-foreground mb-1 line-clamp-1">{subtitle}</div>
-            <div className="mb-2">
-              <div className="text-sm font-medium mb-1">{displayName}</div>
-              {metadata.description && (
-                <div className="text-xs text-muted-foreground line-clamp-2">
-                  {metadata.description}
-                </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardFooter className="p-2 border-t bg-muted/30 text-xs text-muted-foreground">
-            <div className="flex justify-between items-center w-full">
-              <div className="flex items-center">
-                <Clock className="h-3 w-3 mr-1.5" />
-                <span>
-                  {new Date(memory.createdAt || 0).toLocaleString(undefined, {
-                    month: 'numeric',
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: 'numeric',
-                    minute: 'numeric',
-                  })}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="px-1.5 py-0 h-5">
-                  {fileExt || 'doc'}
-                </Badge>
-                {memory.id && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => {
-                      if (e) {
-                        e.stopPropagation();
-                        e.preventDefault();
-                      }
-                      handleDelete(memory.id || '');
-                    }}
-                    title="Delete knowledge"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                  </Button>
-                )}
+        <div className="flex items-center px-1 py-2 min-h-[2rem]">
+          {/* Left side: Icon + Filename + Date */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="flex-shrink-0">{getFileIcon(displayName)}</div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-medium truncate">{subtitle}</div>
+              <div className="text-xs text-muted-foreground">
+                {new Date(memory.createdAt || 0).toLocaleString(undefined, {
+                  month: 'numeric',
+                  day: 'numeric',
+                  year: '2-digit',
+                  hour: 'numeric',
+                  minute: 'numeric',
+                })}
               </div>
             </div>
-          </CardFooter>
-        </Card>
+          </div>
+          
+          {/* Right side: Badge aligned right, Delete button separate */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Badge variant="outline" className="px-1 py-0 h-4 text-xs">
+              {fileExt || 'doc'}
+            </Badge>
+            {memory.id && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                  if (e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                  }
+                  handleDelete(memory.id || '');
+                }}
+                title="Delete knowledge"
+              >
+                <Trash2 className="h-3 w-3 text-destructive" />
+              </Button>
+            )}
+          </div>
+        </div>
       </button>
     );
   };
@@ -1385,7 +1374,7 @@ export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
           </div>
         ) : (
           <div ref={scrollContainerRef} className="h-full overflow-y-auto p-4">
-            <div className="grid gap-3">
+            <div className="grid gap-1.5">
               {visibleMemories.map((memory, index) => (
                 <KnowledgeCard key={memory.id || index} memory={memory} index={index} />
               ))}
