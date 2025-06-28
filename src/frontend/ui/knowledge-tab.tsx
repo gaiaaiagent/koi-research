@@ -364,11 +364,11 @@ const useKnowledgeChunks = (agentId: UUID, enabled: boolean = true, selectedDocu
   } = useQuery<Memory[], Error>({
     queryKey: ['agents', agentId, 'knowledge', 'documents-graph'],
     queryFn: async () => {
-      const response = await apiClient.getKnowledgeChunks(agentId, {
-        documentsOnly: true,
+      const response = await apiClient.getKnowledgeDocuments(agentId, {
         limit: 1000,
+        includeEmbedding: false,
       });
-      return response.data.chunks || [];
+      return response.data.memories || [];
     },
     enabled: enabled && !selectedDocumentId,
   });
@@ -396,17 +396,13 @@ const useKnowledgeChunks = (agentId: UUID, enabled: boolean = true, selectedDocu
   const isLoading = documentsLoading || fragmentsLoading;
   const error = documentsError || fragmentsError;
 
-  console.log(
-    `Graph data - Mode: ${selectedDocumentId ? 'Document+Fragments' : 'Documents only'}, Total nodes: ${allMemories.length}`
-  );
-
   return {
     data: allMemories,
     isLoading,
     error,
     documents: selectedDocumentId ? documents : allMemories,
     fragments: selectedDocumentId
-      ? documentWithFragments.filter((m) => (m.metadata as any)?.type === 'fragment')
+      ? documentWithFragments.filter((m: Memory) => (m.metadata as any)?.type === 'fragment')
       : [],
     mode: selectedDocumentId ? 'document-fragments' : 'documents-only',
   };
@@ -427,7 +423,7 @@ const useDeleteKnowledgeDocument = (agentId: UUID) => {
   });
 };
 
-export function KnowledgeTab({ agentId }: { agentId: UUID }) {
+export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
   const [viewingContent, setViewingContent] = useState<Memory | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [visibleItems, setVisibleItems] = useState(ITEMS_PER_PAGE);
@@ -469,12 +465,18 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
     data: graphMemories = [],
     isLoading: graphLoading,
     error: graphError,
+    documents: graphDocuments = [],
+    fragments: graphFragments = [],
   } = useKnowledgeChunks(agentId, viewMode === 'graph' && !showSearch, selectedDocumentForGraph);
 
   // Use the appropriate data based on the mode
   const isLoading = viewMode === 'list' ? documentsLoading : graphLoading;
   const error = viewMode === 'list' ? documentsError : graphError;
   const memories = viewMode === 'list' ? documentsOnly : graphMemories;
+
+  // Calculate counts for display
+  const documentCount = viewMode === 'list' ? documentsOnly.length : graphDocuments.length;
+  const fragmentCount = viewMode === 'graph' ? graphFragments.length : 0;
 
   const { mutate: deleteKnowledgeDoc } = useDeleteKnowledgeDocument(agentId);
 
@@ -878,7 +880,6 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
   const MemoryDetails = ({ memory }: { memory: Memory }) => {
     const metadata = memory.metadata as MemoryMetadata;
     const isFragment = metadata?.type === 'fragment';
-    const isDocument = metadata?.type === 'document';
 
     return (
       <div className="border-t border-border bg-card text-card-foreground h-full flex flex-col">
@@ -953,115 +954,137 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
     );
   };
 
+  // Check if we're in a focused document view that needs simplified controls
+  const isDocumentFocused = viewMode === 'graph' && selectedDocumentForGraph && !showSearch;
+
   return (
     <div className="flex flex-col h-full">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border-b gap-3">
+      <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between border-b gap-3 ${isDocumentFocused ? 'p-6 pb-4' : 'p-4'
+        }`}>
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-semibold">Knowledge</h2>
           <p className="text-xs text-muted-foreground">
             {showSearch
               ? 'Searching knowledge fragments'
               : viewMode === 'list'
-                ? 'Viewing documents only'
-                : 'Viewing documents and their fragments'}
+                ? `Viewing ${documentCount} document${documentCount !== 1 ? 's' : ''}`
+                : isDocumentFocused
+                  ? `Inspecting document with ${fragmentCount} fragment${fragmentCount !== 1 ? 's' : ''}`
+                  : `Viewing ${documentCount} document${documentCount !== 1 ? 's' : ''}`}
           </p>
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setViewMode(viewMode === 'list' ? 'graph' : 'list')}
-            className="flex-shrink-0"
-            title={
-              viewMode === 'list'
-                ? 'Switch to Graph view to see documents and fragments'
-                : 'Switch to List view to see documents only'
-            }
-            disabled={showSearch}
-          >
-            {viewMode === 'list' ? (
-              <>
-                <Network className="h-4 w-4 mr-2" />
-                <span className="hidden md:inline">Graph View</span>
-                <span className="md:hidden">Graph</span>
-              </>
-            ) : (
-              <>
-                <List className="h-4 w-4 mr-2" />
-                <span className="hidden md:inline">List View</span>
-                <span className="md:hidden">List</span>
-              </>
-            )}
-          </Button>
-          {viewMode === 'graph' && selectedDocumentForGraph && !showSearch && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSelectedDocumentForGraph(undefined);
-                setSelectedMemory(null);
-              }}
-              className="flex-shrink-0"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Back to All Documents</span>
-              <span className="sm:hidden">Back</span>
-            </Button>
-          )}
-          <div className="flex gap-2 ml-auto sm:ml-0">
-            <Button
-              variant={showSearch ? 'default' : 'outline'}
-              onClick={() => {
-                setShowSearch(!showSearch);
-                if (showSearch) {
-                  // if turning search OFF
-                  setSearchQuery('');
-                  setSearchResults([]);
-                  setSearchError(null);
-                }
-              }}
-              size="sm"
-              className="flex-shrink-0"
-            >
-              <Search className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Search</span>
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleUrlUploadClick}
-              size="sm"
-              className="flex-shrink-0"
-              disabled={showSearch}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-4 w-4 sm:mr-2"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          {isDocumentFocused ? (
+            // Simplified controls when document is focused
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="flex-shrink-0"
+                title="Switch to List view to see documents only"
               >
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-              </svg>
-              <span className="hidden sm:inline">URL</span>
-            </Button>
-            <Button
-              onClick={handleUploadClick}
-              disabled={isUploading || showSearch}
-              size="sm"
-              className="flex-shrink-0"
-            >
-              {isUploading ? (
-                <LoaderIcon className="h-4 w-4 animate-spin sm:mr-2" />
-              ) : (
-                <Upload className="h-4 w-4 sm:mr-2" />
-              )}
-              <span className="hidden sm:inline">Upload</span>
-            </Button>
-          </div>
+                <List className="h-4 w-4 mr-2" />
+                <span>List View</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedDocumentForGraph(undefined);
+                  setSelectedMemory(null);
+                }}
+                className="flex-shrink-0"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                <span>Overview Graph</span>
+              </Button>
+            </>
+          ) : (
+            // Full controls when not in document focus mode
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setViewMode(viewMode === 'list' ? 'graph' : 'list')}
+                className="flex-shrink-0"
+                title={
+                  viewMode === 'list'
+                    ? 'Switch to Graph view to see documents and fragments'
+                    : 'Switch to List view to see documents only'
+                }
+                disabled={showSearch}
+              >
+                {viewMode === 'list' ? (
+                  <>
+                    <Network className="h-4 w-4 mr-2" />
+                    <span className="hidden md:inline">Graph View</span>
+                    <span className="md:hidden">Graph</span>
+                  </>
+                ) : (
+                  <>
+                    <List className="h-4 w-4 mr-2" />
+                    <span className="hidden md:inline">List View</span>
+                    <span className="md:hidden">List</span>
+                  </>
+                )}
+              </Button>
+              <div className="flex gap-2 ml-auto sm:ml-0">
+                <Button
+                  variant={showSearch ? 'default' : 'outline'}
+                  onClick={() => {
+                    setShowSearch(!showSearch);
+                    if (showSearch) {
+                      // if turning search OFF
+                      setSearchQuery('');
+                      setSearchResults([]);
+                      setSearchError(null);
+                    }
+                  }}
+                  size="sm"
+                  className="flex-shrink-0"
+                >
+                  <Search className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Search</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleUrlUploadClick}
+                  size="sm"
+                  className="flex-shrink-0"
+                  disabled={showSearch}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 sm:mr-2"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                  </svg>
+                  <span className="hidden sm:inline">URL</span>
+                </Button>
+                <Button
+                  onClick={handleUploadClick}
+                  disabled={isUploading || showSearch}
+                  size="sm"
+                  className="flex-shrink-0"
+                >
+                  {isUploading ? (
+                    <LoaderIcon className="h-4 w-4 animate-spin sm:mr-2" />
+                  ) : (
+                    <Upload className="h-4 w-4 sm:mr-2" />
+                  )}
+                  <span className="hidden sm:inline">Upload</span>
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -1343,28 +1366,6 @@ export function KnowledgeTab({ agentId }: { agentId: UUID }) {
                 }}
                 selectedMemoryId={selectedMemory?.id}
               />
-              {selectedDocumentForGraph && (
-                <div className="absolute top-16 left-4 bg-card/90 backdrop-blur-sm text-card-foreground p-2 rounded-md shadow-sm border border-border">
-                  <span className="text-xs text-muted-foreground flex items-center">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-3 w-3 mr-1.5"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                    </svg>
-                    Viewing document and fragments:{' '}
-                    <span className="font-mono ml-1">
-                      {selectedDocumentForGraph.substring(0, 8)}...
-                    </span>
-                  </span>
-                </div>
-              )}
               {viewMode === 'graph' && graphLoading && selectedDocumentForGraph && (
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-sm p-4 rounded-lg shadow-lg border border-border">
                   <div className="flex items-center gap-2">
