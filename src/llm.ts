@@ -49,10 +49,16 @@ export async function generateTextEmbeddingsBatch(
   batchSize: number = 20
 ): Promise<Array<{ embedding: number[] | null; success: boolean; error?: any; index: number }>> {
   const config = validateModelConfig();
-  const results: Array<{ embedding: number[] | null; success: boolean; error?: any; index: number }> =
-    [];
+  const results: Array<{
+    embedding: number[] | null;
+    success: boolean;
+    error?: any;
+    index: number;
+  }> = [];
 
-  logger.debug(`[LLM Service - Batch Embedding] Processing ${texts.length} texts in batches of ${batchSize}`);
+  logger.debug(
+    `[LLM Service - Batch Embedding] Processing ${texts.length} texts in batches of ${batchSize}`
+  );
 
   // Process texts in batches
   for (let i = 0; i < texts.length; i += batchSize) {
@@ -98,7 +104,7 @@ export async function generateTextEmbeddingsBatch(
 
   const successCount = results.filter((r) => r.success).length;
   const failureCount = results.length - successCount;
-  
+
   logger.debug(
     `[LLM Service - Batch Embedding] Complete. Success: ${successCount}, Failures: ${failureCount}`
   );

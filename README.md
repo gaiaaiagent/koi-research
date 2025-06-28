@@ -5,6 +5,7 @@ Give your AI agent the ability to learn from documents and answer questions base
 ## 🚀 Getting Started (Beginner-Friendly)
 
 ### Step 1: Add the Plugin
+
 The Knowledge plugin works automatically with any ElizaOS agent. Just add it to your agent's plugin list:
 
 ```typescript
@@ -12,8 +13,8 @@ The Knowledge plugin works automatically with any ElizaOS agent. Just add it to 
 export const character = {
   name: 'MyAgent',
   plugins: [
-    '@elizaos/plugin-openai',        // ← Make sure you have this
-    '@elizaos/plugin-knowledge',     // ← Add this line
+    '@elizaos/plugin-openai', // ← Make sure you have this
+    '@elizaos/plugin-knowledge', // ← Add this line
     // ... your other plugins
   ],
   // ... rest of your character config
@@ -23,9 +24,11 @@ export const character = {
 **That's it!** Your agent can now learn from documents. No environment variables or API keys needed.
 
 ### Step 2: Upload Documents (Optional)
+
 Want your agent to automatically learn from documents when it starts?
 
 1. **Create a `docs` folder** in your project root:
+
    ```
    your-project/
    ├── .env
@@ -37,6 +40,7 @@ Want your agent to automatically learn from documents when it starts?
    ```
 
 2. **Add this line to your `.env` file:**
+
    ```env
    LOAD_DOCS_ON_STARTUP=true
    ```
@@ -44,6 +48,7 @@ Want your agent to automatically learn from documents when it starts?
 3. **Start your agent** - it will automatically learn from all documents in the `docs` folder!
 
 ### Step 3: Ask Questions
+
 Once documents are loaded, just talk to your agent naturally:
 
 - "What does the guide say about setup?"
@@ -62,7 +67,7 @@ The plugin can read almost any document:
 
 ## 💬 Using the Web Interface
 
-The plugin includes a web interface for managing documents! 
+The plugin includes a web interface for managing documents!
 
 **Access it at:** `http://localhost:3000/api/agents/[your-agent-id]/plugins/knowledge/display`
 
@@ -111,11 +116,13 @@ OPENROUTER_API_KEY=your-openrouter-api-key
 ```
 
 **Benefits:**
+
 - 📈 **Better Understanding:** Chunks include surrounding context
 - 💰 **90% Cost Reduction:** Document caching reduces repeated processing costs
 - 🎯 **Improved Accuracy:** More relevant search results
 
 **Best Models for Contextual Mode:**
+
 - `anthropic/claude-3.5-sonnet` (recommended)
 - `google/gemini-2.5-flash` (fast + cheap)
 - `anthropic/claude-3.5-haiku` (budget option)
@@ -126,12 +133,14 @@ OPENROUTER_API_KEY=your-openrouter-api-key
 <summary><strong>⚙️ Custom Configuration Options</strong></summary>
 
 ### Document Loading
+
 ```env
 LOAD_DOCS_ON_STARTUP=true          # Auto-load from docs folder
 KNOWLEDGE_PATH=/custom/path        # Custom document path (default: ./docs)
 ```
 
 ### Embedding Configuration
+
 ```env
 # Only needed if you're not using a standard AI plugin
 EMBEDDING_PROVIDER=openai          # openai | google
@@ -140,12 +149,14 @@ EMBEDDING_DIMENSION=1536           # Vector dimension
 ```
 
 ### Text Generation (for Contextual Mode)
+
 ```env
 TEXT_PROVIDER=openrouter           # openai | anthropic | openrouter | google
 TEXT_MODEL=anthropic/claude-3.5-sonnet
 ```
 
 ### API Keys (as needed)
+
 ```env
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
@@ -154,6 +165,7 @@ GOOGLE_API_KEY=your-key
 ```
 
 ### Performance Tuning
+
 ```env
 MAX_CONCURRENT_REQUESTS=30         # Parallel processing limit
 REQUESTS_PER_MINUTE=60             # Rate limiting
@@ -168,6 +180,7 @@ MAX_OUTPUT_TOKENS=4096             # Response size limit
 <summary><strong>🔌 API Reference</strong></summary>
 
 ### HTTP Endpoints
+
 - `POST /api/agents/{agentId}/plugins/knowledge/documents` - Upload documents
 - `GET /api/agents/{agentId}/plugins/knowledge/documents` - List all documents
 - `GET /api/agents/{agentId}/plugins/knowledge/documents/{id}` - Get specific document
@@ -175,29 +188,31 @@ MAX_OUTPUT_TOKENS=4096             # Response size limit
 - `GET /api/agents/{agentId}/plugins/knowledge/display` - Web interface
 
 ### Programmatic Usage
+
 ```typescript
 import { KnowledgeService } from '@elizaos/plugin-knowledge';
 
 // Add knowledge programmatically
 const result = await knowledgeService.addKnowledge({
   clientDocumentId: 'unique-doc-id',
-  content: documentContent,          // Base64 for PDFs, plain text for others
+  content: documentContent, // Base64 for PDFs, plain text for others
   contentType: 'application/pdf',
   originalFilename: 'document.pdf',
   worldId: runtime.worldId,
   roomId: runtime.roomId,
   entityId: runtime.entityId,
-  metadata: {                        // Optional
+  metadata: {
+    // Optional
     source: 'upload',
-    author: 'John Doe'
-  }
+    author: 'John Doe',
+  },
 });
 
 // Search knowledge
 const searchResults = await knowledgeService.searchKnowledge({
   query: 'quantum computing',
   agentId: runtime.agentId,
-  limit: 10
+  limit: 10,
 });
 ```
 
@@ -209,25 +224,30 @@ const searchResults = await knowledgeService.searchKnowledge({
 ### Common Issues
 
 **"Knowledge plugin failed to initialize"**
+
 - Make sure you have an AI provider plugin (openai, google-genai, etc.)
 - Check that your AI provider has valid API keys
 
 **"Documents not loading automatically"**
+
 - Verify `LOAD_DOCS_ON_STARTUP=true` in your `.env` file
 - Check that the `docs` folder exists in your project root
 - Make sure files are readable and in supported formats
 
 **"Search returns no results"**
+
 - Documents need to be processed first (wait for startup to complete)
 - Try simpler search terms
 - Check that documents actually contain the content you're searching for
 
 **"Out of memory errors"**
+
 - Reduce `MAX_CONCURRENT_REQUESTS` to 10-15
 - Process smaller documents or fewer documents at once
 - Increase Node.js memory limit: `node --max-old-space-size=4096`
 
 ### Performance Tips
+
 - **Smaller chunks = better search precision** (but more tokens used)
 - **Contextual mode = better understanding** (but slower processing)
 - **Batch document uploads** rather than one-by-one for better performance

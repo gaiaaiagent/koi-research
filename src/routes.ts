@@ -105,7 +105,7 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
     // Process multipart requests (file uploads)
     if (hasUploadedFiles) {
       const files = req.files as MulterFile[];
-      
+
       if (!files || files.length === 0) {
         return sendError(res, 400, 'NO_FILES', 'No files uploaded');
       }
