@@ -429,7 +429,7 @@ export function getPromptForMimeType(
     minTokens = CONTEXT_TARGETS.TECHNICAL.MIN_TOKENS;
     maxTokens = CONTEXT_TARGETS.TECHNICAL.MAX_TOKENS;
     promptTemplate = TECHNICAL_PROMPT_TEMPLATE;
-    console.debug('Using technical documentation prompt template');
+    // Using technical documentation prompt template
   }
 
   return getContextualizationPrompt(docContent, chunkContent, minTokens, maxTokens, promptTemplate);

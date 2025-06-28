@@ -183,17 +183,13 @@ export class KnowledgeService extends Service {
       maxChars: 2000, // Use first 2KB of content for ID generation
     }) as UUID;
 
-    logger.info(
-      `KnowledgeService processing document for agent: ${agentId}, file: ${options.originalFilename}, type: ${options.contentType}, generated ID: ${contentBasedId}`
-    );
+    logger.info(`📝 Processing "${options.originalFilename}" (${options.contentType})`);
 
     // Check if document already exists in database using content-based ID
     try {
       const existingDocument = await this.runtime.getMemoryById(contentBasedId);
       if (existingDocument && existingDocument.metadata?.type === MemoryType.DOCUMENT) {
-        logger.info(
-          `Document ${options.originalFilename} with ID ${contentBasedId} already exists. Skipping processing.`
-        );
+        logger.info(`⏭️ "${options.originalFilename}" already exists - skipping`);
 
         // Count existing fragments for this document
         const fragments = await this.runtime.getMemories({
@@ -377,11 +373,10 @@ export class KnowledgeService extends Service {
         roomId: roomId || agentId,
         entityId: entityId || agentId,
         worldId: worldId || agentId,
+        documentTitle: originalFilename,
       });
 
-      logger.info(
-        `KnowledgeService: Document ${originalFilename} processed with ${fragmentCount} fragments for agent ${agentId}`
-      );
+      logger.debug(`📄 "${originalFilename}" stored with ${fragmentCount} fragments`);
 
       return {
         clientDocumentId,

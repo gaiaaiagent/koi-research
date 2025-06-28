@@ -30,10 +30,7 @@ export async function generateTextEmbedding(text: string): Promise<{ embedding: 
 
     throw new Error(`Unsupported embedding provider: ${config.EMBEDDING_PROVIDER}`);
   } catch (error) {
-    logger.error(
-      `[LLM Service - ${config.EMBEDDING_PROVIDER} Embedding] Error generating embedding:`,
-      error
-    );
+    logger.error(`[Document Processor] ❌ ${config.EMBEDDING_PROVIDER} embedding error:`, error);
     throw error;
   }
 }
@@ -57,7 +54,7 @@ export async function generateTextEmbeddingsBatch(
   }> = [];
 
   logger.debug(
-    `[LLM Service - Batch Embedding] Processing ${texts.length} texts in batches of ${batchSize}`
+    `[Document Processor] 📦 Processing ${texts.length} embeddings in batches of ${batchSize}`
   );
 
   // Process texts in batches
@@ -66,7 +63,7 @@ export async function generateTextEmbeddingsBatch(
     const batchStartIndex = i;
 
     logger.debug(
-      `[LLM Service - Batch Embedding] Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(texts.length / batchSize)} (${batch.length} items)`
+      `[Document Processor] 📦 Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(texts.length / batchSize)} (${batch.length} items)`
     );
 
     // Process batch in parallel
@@ -81,8 +78,7 @@ export async function generateTextEmbeddingsBatch(
         };
       } catch (error) {
         logger.error(
-          `[LLM Service - Batch Embedding] Error generating embedding for item ${globalIndex}:`,
-          error
+          `[Document Processor] ❌ Embedding error for item ${globalIndex}:`, error
         );
         return {
           embedding: null,
@@ -106,7 +102,7 @@ export async function generateTextEmbeddingsBatch(
   const failureCount = results.length - successCount;
 
   logger.debug(
-    `[LLM Service - Batch Embedding] Complete. Success: ${successCount}, Failures: ${failureCount}`
+    `[Document Processor] 📦 Embedding batch complete: ${successCount} success, ${failureCount} failures`
   );
 
   return results;
@@ -144,9 +140,7 @@ async function generateOpenAIEmbedding(
   const totalTokens = (usage as { totalTokens?: number })?.totalTokens;
   const usageMessage = totalTokens ? `${totalTokens} total tokens` : 'Usage details N/A';
   logger.debug(
-    `[LLM Service - OpenAI Embedding] Generated using ${config.TEXT_EMBEDDING_MODEL}${
-      modelOptions.dimensions ? ` with configured dimension ${modelOptions.dimensions}` : ''
-    }. Usage: ${usageMessage}.`
+    `[Document Processor] 🔤 OpenAI embedding ${config.TEXT_EMBEDDING_MODEL}${modelOptions.dimensions ? ` (${modelOptions.dimensions}D)` : ''}: ${usageMessage}`
   );
 
   return { embedding };
@@ -176,7 +170,7 @@ async function generateGoogleEmbedding(
   const totalTokens = (usage as { totalTokens?: number })?.totalTokens;
   const usageMessage = totalTokens ? `${totalTokens} total tokens` : 'Usage details N/A';
   logger.debug(
-    `[LLM Service - Google Embedding] Generated using ${config.TEXT_EMBEDDING_MODEL}. Usage: ${usageMessage}.`
+    `[Document Processor] 🔤 Google embedding ${config.TEXT_EMBEDDING_MODEL}: ${usageMessage}`
   );
 
   return { embedding };
@@ -247,13 +241,13 @@ export async function generateText(
         throw new Error(`Unsupported text provider: ${provider}`);
     }
   } catch (error) {
-    logger.error(`[LLM Service - ${provider}] Error generating text with ${modelName}:`, error);
+    logger.error(`[Document Processor] ❌ ${provider} ${modelName} error:`, error);
     throw error;
   }
 }
 
 /**
- * Generates text using the Anthropic API
+ * Generates text using the Anthropic API with exponential backoff retry
  */
 async function generateAnthropicText(
   prompt: string,
@@ -269,19 +263,44 @@ async function generateAnthropicText(
 
   const modelInstance = anthropic(modelName);
 
-  const result = await aiGenerateText({
-    model: modelInstance,
-    prompt: prompt,
-    system: system,
-    temperature: 0.3,
-    maxTokens: maxTokens,
-  });
+  // Retry with exponential backoff for rate limit errors
+  const maxRetries = 3;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const result = await aiGenerateText({
+        model: modelInstance,
+        prompt: prompt,
+        system: system,
+        temperature: 0.3,
+        maxTokens: maxTokens,
+      });
 
-  logger.debug(
-    `[LLM Service - Anthropic] Text generated with ${modelName}. Usage: ${result.usage.promptTokens} prompt tokens, ${result.usage.completionTokens} completion tokens.`
-  );
+      const totalTokens = result.usage.promptTokens + result.usage.completionTokens;
+      logger.debug(`[Document Processor] 🤖 ${modelName}: ${totalTokens} tokens (${result.usage.promptTokens}→${result.usage.completionTokens})`);
 
-  return result;
+      return result;
+    } catch (error: any) {
+      // Check if it's a rate limit error (status 429)
+      const isRateLimit = error?.status === 429 || 
+                         error?.message?.includes('rate limit') || 
+                         error?.message?.includes('429');
+      
+      if (isRateLimit && attempt < maxRetries - 1) {
+        // Exponential backoff: 2^attempt seconds (2s, 4s, 8s)
+        const delay = Math.pow(2, attempt + 1) * 1000;
+        logger.warn(
+          `[Document Processor] ⚠️  Rate limit hit (${modelName}): attempt ${attempt + 1}/${maxRetries}, retrying in ${Math.round(delay/1000)}s`
+        );
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      // Re-throw error if not rate limit or max retries exceeded
+      throw error;
+    }
+  }
+  
+  throw new Error('Max retries exceeded for Anthropic text generation');
 }
 
 /**
@@ -309,9 +328,8 @@ async function generateOpenAIText(
     maxTokens: maxTokens,
   });
 
-  logger.debug(
-    `[LLM Service - OpenAI] Text generated with ${modelName}. Usage: ${result.usage.promptTokens} prompt tokens, ${result.usage.completionTokens} completion tokens.`
-  );
+  const totalTokens = result.usage.promptTokens + result.usage.completionTokens;
+  logger.debug(`[Document Processor] 🤖 OpenAI ${modelName}: ${totalTokens} tokens (${result.usage.promptTokens}→${result.usage.completionTokens})`);
 
   return result;
 }
@@ -344,9 +362,8 @@ async function generateGoogleText(
     maxTokens: maxTokens,
   });
 
-  logger.debug(
-    `[LLM Service - Google] Text generated with ${modelName}. Usage: ${result.usage.promptTokens} prompt tokens, ${result.usage.completionTokens} completion tokens.`
-  );
+  const totalTokens = result.usage.promptTokens + result.usage.completionTokens;
+  logger.debug(`[Document Processor] 🤖 Google ${modelName}: ${totalTokens} tokens (${result.usage.promptTokens}→${result.usage.completionTokens})`);
 
   return result;
 }
@@ -401,7 +418,7 @@ async function generateOpenRouterText(
     if (docMatch && docMatch[1]) {
       documentForCaching = docMatch[1].trim();
       logger.debug(
-        `[LLM Service - OpenRouter] Auto-detected document for caching (${documentForCaching.length} chars)`
+        `[Document Processor] 📄 Auto-detected document for caching (${documentForCaching.length} chars)`
       );
     }
   }
@@ -440,7 +457,7 @@ async function generateOpenRouterText(
   }
 
   // Standard request without caching
-  logger.debug('[LLM Service - OpenRouter] Using standard request without caching');
+  logger.debug('[Document Processor] 🔧 Using standard request without caching');
   return await generateStandardOpenRouterText(prompt, system, modelInstance, modelName, maxTokens);
 }
 
@@ -456,7 +473,7 @@ async function generateClaudeWithCaching(
   documentForCaching: string
 ): Promise<GenerateTextResult<any, any>> {
   logger.debug(
-    `[LLM Service - OpenRouter] Using explicit prompt caching with Claude model ${modelName}`
+    `[Document Processor] 🔧 Using explicit prompt caching with Claude ${modelName}`
   );
 
   // Structure for Claude models
@@ -514,7 +531,7 @@ async function generateClaudeWithCaching(
       : null,
   ].filter(Boolean);
 
-  logger.debug('[LLM Service - OpenRouter] Using Claude-specific caching structure');
+  logger.debug('[Document Processor] 🔧 Using Claude-specific caching structure');
 
   // Generate text with cache-enabled structured messages
   const result = await aiGenerateText({
@@ -532,10 +549,8 @@ async function generateClaudeWithCaching(
   });
 
   logCacheMetrics(result);
-  logger.debug(
-    `[LLM Service - OpenRouter] Text generated with ${modelName} using Claude caching. ` +
-      `Usage: ${result.usage.promptTokens} prompt tokens, ${result.usage.completionTokens} completion tokens.`
-  );
+  const totalTokens = result.usage.promptTokens + result.usage.completionTokens;
+  logger.debug(`[Document Processor] 🤖 OpenRouter ${modelName}: ${totalTokens} tokens (${result.usage.promptTokens}→${result.usage.completionTokens})`);
 
   return result;
 }
@@ -563,27 +578,27 @@ async function generateGeminiWithCaching(
 
   if (usingImplicitCaching) {
     logger.debug(
-      `[LLM Service - OpenRouter] Using Gemini 2.5 implicit caching with model ${modelName}`
+      `[Document Processor] 🔧 Using Gemini 2.5 implicit caching with ${modelName}`
     );
     logger.debug(
-      `[LLM Service - OpenRouter] Gemini 2.5 models automatically cache large prompts (no cache_control needed)`
+      `[Document Processor] 🔧 Gemini 2.5 models automatically cache large prompts (no cache_control needed)`
     );
 
     if (likelyTriggersCaching) {
       logger.debug(
-        `[LLM Service - OpenRouter] Document size ~${estimatedDocTokens} tokens exceeds minimum ${minTokensForImplicitCache} tokens for implicit caching`
+        `[Document Processor] 🔧 Document ~${estimatedDocTokens} tokens exceeds ${minTokensForImplicitCache} token threshold for caching`
       );
     } else {
       logger.debug(
-        `[LLM Service - OpenRouter] Warning: Document size ~${estimatedDocTokens} tokens may not meet minimum ${minTokensForImplicitCache} token threshold for implicit caching`
+        `[Document Processor] ⚠️ Document ~${estimatedDocTokens} tokens may not meet ${minTokensForImplicitCache} token threshold for caching`
       );
     }
   } else {
     logger.debug(
-      `[LLM Service - OpenRouter] Using standard prompt format with Gemini model ${modelName}`
+      `[Document Processor] 🔧 Using standard prompt format with Gemini ${modelName}`
     );
     logger.debug(
-      `[LLM Service - OpenRouter] Note: Only Gemini 2.5 models support automatic implicit caching`
+      `[Document Processor] 🔧 Note: Only Gemini 2.5 models support automatic implicit caching`
     );
   }
 
@@ -610,10 +625,9 @@ async function generateGeminiWithCaching(
   });
 
   logCacheMetrics(result);
-  logger.debug(
-    `[LLM Service - OpenRouter] Text generated with ${modelName} using ${usingImplicitCaching ? 'implicit' : 'standard'} caching. ` +
-      `Usage: ${result.usage.promptTokens} prompt tokens, ${result.usage.completionTokens} completion tokens.`
-  );
+  const totalTokens = result.usage.promptTokens + result.usage.completionTokens;
+  const cachingType = usingImplicitCaching ? 'implicit' : 'standard';
+  logger.debug(`[Document Processor] 🤖 OpenRouter ${modelName} (${cachingType} caching): ${totalTokens} tokens (${result.usage.promptTokens}→${result.usage.completionTokens})`);
 
   return result;
 }
@@ -643,9 +657,8 @@ async function generateStandardOpenRouterText(
     },
   });
 
-  logger.debug(
-    `[LLM Service - OpenRouter] Text generated with ${modelName}. Usage: ${result.usage.promptTokens} prompt tokens, ${result.usage.completionTokens} completion tokens.`
-  );
+  const totalTokens = result.usage.promptTokens + result.usage.completionTokens;
+  logger.debug(`[Document Processor] 🤖 OpenRouter ${modelName}: ${totalTokens} tokens (${result.usage.promptTokens}→${result.usage.completionTokens})`);
 
   return result;
 }
@@ -656,9 +669,7 @@ async function generateStandardOpenRouterText(
 function logCacheMetrics(result: GenerateTextResult<any, any>): void {
   if (result.usage && (result.usage as any).cacheTokens) {
     logger.debug(
-      `[LLM Service - OpenRouter] Cache metrics - ` +
-        `Cached tokens: ${(result.usage as any).cacheTokens}, ` +
-        `Cache discount: ${(result.usage as any).cacheDiscount}`
+      `[Document Processor] 💰 Cache metrics - tokens: ${(result.usage as any).cacheTokens}, discount: ${(result.usage as any).cacheDiscount}`
     );
   }
 }

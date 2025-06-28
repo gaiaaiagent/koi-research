@@ -32,30 +32,58 @@ export const knowledgePlugin: Plugin = {
     try {
       // Validate the model configuration
       logger.info('Validating model configuration for Knowledge plugin...');
+      
+      // CRITICAL FIX: During plugin init, runtime might not be fully available
+      // So we need to check environment variables directly as a fallback
+      logger.info(`[Knowledge Plugin] INIT DEBUG:`);
+      logger.info(`[Knowledge Plugin] - Runtime available: ${!!runtime}`);
+      logger.info(`[Knowledge Plugin] - process.env.CTX_KNOWLEDGE_ENABLED: '${process.env.CTX_KNOWLEDGE_ENABLED}'`);
+      logger.info(`[Knowledge Plugin] - config.CTX_KNOWLEDGE_ENABLED: '${config.CTX_KNOWLEDGE_ENABLED}'`);
+      if (runtime) {
+        logger.info(`[Knowledge Plugin] - runtime.getSetting('CTX_KNOWLEDGE_ENABLED'): '${runtime.getSetting('CTX_KNOWLEDGE_ENABLED')}'`);
+      }
+      
       const validatedConfig = validateModelConfig(runtime);
 
+      // CRITICAL: Check CTX_KNOWLEDGE_ENABLED from multiple sources during init
+      const ctxEnabledFromEnv = process.env.CTX_KNOWLEDGE_ENABLED === 'true' || process.env.CTX_KNOWLEDGE_ENABLED === 'True';
+      const ctxEnabledFromConfig = config.CTX_KNOWLEDGE_ENABLED === 'true' || config.CTX_KNOWLEDGE_ENABLED === 'True';
+      const ctxEnabledFromValidated = validatedConfig.CTX_KNOWLEDGE_ENABLED;
+      const ctxEnabledFromRuntime = runtime ? (runtime.getSetting('CTX_KNOWLEDGE_ENABLED') === 'true' || runtime.getSetting('CTX_KNOWLEDGE_ENABLED') === 'True') : false;
+      
+      // Use the most permissive check during initialization
+      const finalCtxEnabled = ctxEnabledFromEnv || ctxEnabledFromConfig || ctxEnabledFromValidated || ctxEnabledFromRuntime;
+      
+      logger.info(`[Knowledge Plugin] CTX_KNOWLEDGE_ENABLED sources:`);
+      logger.info(`[Knowledge Plugin] - From env: ${ctxEnabledFromEnv}`);
+      logger.info(`[Knowledge Plugin] - From config: ${ctxEnabledFromConfig}`);
+      logger.info(`[Knowledge Plugin] - From validated: ${ctxEnabledFromValidated}`);
+      logger.info(`[Knowledge Plugin] - From runtime: ${ctxEnabledFromRuntime}`);
+      logger.info(`[Knowledge Plugin] - FINAL RESULT: ${finalCtxEnabled}`);
+      
       // Log the operational mode
-      if (validatedConfig.CTX_KNOWLEDGE_ENABLED) {
-        logger.info('Running in Contextual Knowledge mode with text generation capabilities.');
+      if (finalCtxEnabled) {
+        logger.info('🚀 Running in Contextual Knowledge mode with text generation capabilities.');
         logger.info(
-          `Using ${validatedConfig.EMBEDDING_PROVIDER} for embeddings and ${validatedConfig.TEXT_PROVIDER} for text generation.`
+          `🔧 Using ${validatedConfig.EMBEDDING_PROVIDER || 'auto-detected'} for embeddings and ${validatedConfig.TEXT_PROVIDER || process.env.TEXT_PROVIDER} for text generation.`
         );
+        logger.info(`🤖 Text model: ${validatedConfig.TEXT_MODEL || process.env.TEXT_MODEL}`);
       } else {
         const usingPluginOpenAI = !process.env.EMBEDDING_PROVIDER;
 
+        logger.warn('⚠️  Running in Basic Embedding mode - documents will NOT be enriched with context!');
+        logger.info('💡 To enable contextual enrichment:');
+        logger.info('   - Set CTX_KNOWLEDGE_ENABLED=true');
+        logger.info('   - Configure TEXT_PROVIDER (anthropic/openai/openrouter/google)');
+        logger.info('   - Configure TEXT_MODEL and API key');
+        
         if (usingPluginOpenAI) {
-          logger.info(
-            'Running in Basic Embedding mode with auto-detected configuration from plugin-openai.'
-          );
+          logger.info('🔧 Using auto-detected configuration from plugin-openai for embeddings.');
         } else {
           logger.info(
-            'Running in Basic Embedding mode (CTX_KNOWLEDGE_ENABLED=false). TEXT_PROVIDER and TEXT_MODEL not required.'
+            `🔧 Using ${validatedConfig.EMBEDDING_PROVIDER} for embeddings with ${validatedConfig.TEXT_EMBEDDING_MODEL}.`
           );
         }
-
-        logger.info(
-          `Using ${validatedConfig.EMBEDDING_PROVIDER} for embeddings with ${validatedConfig.TEXT_EMBEDDING_MODEL}.`
-        );
       }
 
       logger.info('Model configuration validated successfully.');

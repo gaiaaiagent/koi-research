@@ -18,8 +18,13 @@ export function validateModelConfig(runtime?: IAgentRuntime): ModelConfig {
     };
 
     // Determine if contextual Knowledge is enabled
-    const ctxKnowledgeEnabled = getSetting('CTX_KNOWLEDGE_ENABLED') === 'true';
-    logger.debug(`Configuration: CTX_KNOWLEDGE_ENABLED=${ctxKnowledgeEnabled}`);
+    const ctxKnowledgeEnabledSetting = getSetting('CTX_KNOWLEDGE_ENABLED');
+    // CRITICAL FIX: Use robust string comparison with trim and lowercase
+    const cleanSetting = ctxKnowledgeEnabledSetting?.toString().trim().toLowerCase();
+    const ctxKnowledgeEnabled = cleanSetting === 'true';
+    
+    // Log configuration once during validation (not per chunk)
+    logger.debug(`[Document Processor] 🔧 CTX_KNOWLEDGE_ENABLED: '${ctxKnowledgeEnabledSetting}' → ${ctxKnowledgeEnabled} (runtime: ${!!runtime})`);
 
     // If EMBEDDING_PROVIDER is not provided, assume we're using plugin-openai
     const embeddingProvider = getSetting('EMBEDDING_PROVIDER');
@@ -30,10 +35,12 @@ export function validateModelConfig(runtime?: IAgentRuntime): ModelConfig {
       const openaiEmbeddingModel = getSetting('OPENAI_EMBEDDING_MODEL');
 
       if (openaiApiKey && openaiEmbeddingModel) {
-        logger.debug('EMBEDDING_PROVIDER not specified, using configuration from plugin-openai');
+        logger.debug(
+          '[Document Processor] 🔧 EMBEDDING_PROVIDER not specified, using configuration from plugin-openai'
+        );
       } else {
         logger.debug(
-          'EMBEDDING_PROVIDER not specified. Assuming embeddings are provided by another plugin (e.g., plugin-google-genai).'
+          '[Document Processor] 🔧 EMBEDDING_PROVIDER not specified. Assuming embeddings are provided by another plugin (e.g., plugin-google-genai).'
         );
       }
     }
@@ -110,7 +117,9 @@ function validateConfigRequirements(config: ModelConfig, assumePluginOpenAI: boo
 
   // If no embedding provider is set, skip validation - let runtime handle it
   if (!embeddingProvider) {
-    logger.debug('No EMBEDDING_PROVIDER specified. Embeddings will be handled by the runtime.');
+    logger.debug(
+      '[Document Processor] 🔧 No EMBEDDING_PROVIDER specified. Embeddings will be handled by the runtime.'
+    );
   }
 
   // If we're assuming plugin-openai AND user has OpenAI configuration, validate it
@@ -121,7 +130,10 @@ function validateConfigRequirements(config: ModelConfig, assumePluginOpenAI: boo
 
   // If Contextual Knowledge is enabled, we need additional validations
   if (config.CTX_KNOWLEDGE_ENABLED) {
-    logger.debug('Contextual Knowledge is enabled. Validating text generation settings...');
+    // Only log validation once during config init (not per document)
+    logger.debug(
+      '[Document Processor] 📋 CTX validation: Checking text generation settings...'
+    );
 
     // Validate API keys based on the text provider
     if (config.TEXT_PROVIDER === 'openai' && !config.OPENAI_API_KEY) {
@@ -142,24 +154,29 @@ function validateConfigRequirements(config: ModelConfig, assumePluginOpenAI: boo
       const modelName = config.TEXT_MODEL?.toLowerCase() || '';
       if (modelName.includes('claude') || modelName.includes('gemini')) {
         logger.debug(
-          `Using ${modelName} with OpenRouter. This configuration supports document caching for improved performance.`
+          `[Document Processor] 🔧 Using ${modelName} with OpenRouter. This configuration supports document caching for improved performance.`
         );
       }
     }
   } else {
     // Log appropriate message based on where embedding config came from
+    logger.info('[Document Processor] ⚠️  Contextual Knowledge is DISABLED!');
+    logger.info('[Document Processor] ⚠️  This means documents will NOT be enriched with context.');
     if (assumePluginOpenAI) {
-      logger.debug(
-        'Contextual Knowledge is disabled. Embeddings will be handled by the runtime (e.g., plugin-openai, plugin-google-genai).'
+      logger.info(
+        '[Document Processor] ℹ️  Embeddings will be handled by the runtime (e.g., plugin-openai, plugin-google-genai).'
       );
     } else {
-      logger.debug('Contextual Knowledge is disabled. Using configured embedding provider.');
+      logger.info(
+        '[Document Processor] ℹ️  Using configured embedding provider for basic embeddings only.'
+      );
     }
   }
 }
 
 /**
  * Returns rate limit information for the configured providers
+ * Checks BOTH TEXT_PROVIDER (for LLM calls) and EMBEDDING_PROVIDER
  *
  * @param runtime The agent runtime to get settings from
  * @returns Rate limit configuration for the current providers
@@ -180,8 +197,24 @@ export async function getProviderRateLimits(runtime?: IAgentRuntime): Promise<Pr
   const requestsPerMinute = parseInt(getSetting('REQUESTS_PER_MINUTE', '60'), 10);
   const tokensPerMinute = parseInt(getSetting('TOKENS_PER_MINUTE', '150000'), 10);
 
-  // Provider-specific rate limits
-  switch (config.EMBEDDING_PROVIDER) {
+  // CRITICAL FIX: Check TEXT_PROVIDER first since that's where rate limits are typically hit
+  const primaryProvider = config.TEXT_PROVIDER || config.EMBEDDING_PROVIDER;
+
+  logger.debug(
+    `[Document Processor] 🛡️ Rate limiting for ${primaryProvider}: ${requestsPerMinute} RPM, ${tokensPerMinute} TPM, ${maxConcurrentRequests} concurrent`
+  );
+
+  // Provider-specific rate limits based on actual usage
+  switch (primaryProvider) {
+    case 'anthropic':
+      // Anthropic Claude rate limits - use user settings (they know their tier)
+      return {
+        maxConcurrentRequests,
+        requestsPerMinute,
+        tokensPerMinute,
+        provider: 'anthropic',
+      };
+
     case 'openai':
       // OpenAI typically allows 150,000 tokens per minute for embeddings
       // and up to 3,000 RPM for Tier 4+ accounts
@@ -202,22 +235,12 @@ export async function getProviderRateLimits(runtime?: IAgentRuntime): Promise<Pr
       };
 
     default:
-      // Use default values for unknown providers
+      // Use user-configured values for unknown providers
       return {
         maxConcurrentRequests,
         requestsPerMinute,
         tokensPerMinute,
-        provider: config.EMBEDDING_PROVIDER,
+        provider: primaryProvider || 'unknown',
       };
   }
-}
-
-/**
- * Helper function to get integer value from environment variables
- * @param envVar The environment variable name
- * @param defaultValue The default value if not present
- * @returns The parsed integer value
- */
-function getEnvInt(envVar: string, defaultValue: number): number {
-  return process.env[envVar] ? parseInt(process.env[envVar]!, 10) : defaultValue;
 }

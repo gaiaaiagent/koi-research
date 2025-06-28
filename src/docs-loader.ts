@@ -110,7 +110,7 @@ export async function loadDocsFromPath(
       logger.debug(`Processing document: ${fileName}`);
       const result = await service.addKnowledge(knowledgeOptions);
 
-      logger.info(`Successfully processed ${fileName}: ${result.fragmentCount} fragments created`);
+      logger.info(`✅ "${fileName}": ${result.fragmentCount} fragments created`);
       successful++;
     } catch (error) {
       logger.error(`Failed to process file ${filePath}:`, error);
