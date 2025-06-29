@@ -22,9 +22,11 @@ export function validateModelConfig(runtime?: IAgentRuntime): ModelConfig {
     // CRITICAL FIX: Use robust string comparison with trim and lowercase
     const cleanSetting = ctxKnowledgeEnabledSetting?.toString().trim().toLowerCase();
     const ctxKnowledgeEnabled = cleanSetting === 'true';
-    
+
     // Log configuration once during validation (not per chunk)
-    logger.debug(`[Document Processor] 🔧 CTX_KNOWLEDGE_ENABLED: '${ctxKnowledgeEnabledSetting}' → ${ctxKnowledgeEnabled} (runtime: ${!!runtime})`);
+    logger.debug(
+      `[Document Processor] CTX_KNOWLEDGE_ENABLED: '${ctxKnowledgeEnabledSetting}' → ${ctxKnowledgeEnabled} (runtime: ${!!runtime})`
+    );
 
     // If EMBEDDING_PROVIDER is not provided, assume we're using plugin-openai
     const embeddingProvider = getSetting('EMBEDDING_PROVIDER');
@@ -36,11 +38,11 @@ export function validateModelConfig(runtime?: IAgentRuntime): ModelConfig {
 
       if (openaiApiKey && openaiEmbeddingModel) {
         logger.debug(
-          '[Document Processor] 🔧 EMBEDDING_PROVIDER not specified, using configuration from plugin-openai'
+          '[Document Processor] EMBEDDING_PROVIDER not specified, using configuration from plugin-openai'
         );
       } else {
         logger.debug(
-          '[Document Processor] 🔧 EMBEDDING_PROVIDER not specified. Assuming embeddings are provided by another plugin (e.g., plugin-google-genai).'
+          '[Document Processor] EMBEDDING_PROVIDER not specified. Assuming embeddings are provided by another plugin (e.g., plugin-google-genai).'
         );
       }
     }
@@ -118,7 +120,7 @@ function validateConfigRequirements(config: ModelConfig, assumePluginOpenAI: boo
   // If no embedding provider is set, skip validation - let runtime handle it
   if (!embeddingProvider) {
     logger.debug(
-      '[Document Processor] 🔧 No EMBEDDING_PROVIDER specified. Embeddings will be handled by the runtime.'
+      '[Document Processor] No EMBEDDING_PROVIDER specified. Embeddings will be handled by the runtime.'
     );
   }
 
@@ -131,9 +133,7 @@ function validateConfigRequirements(config: ModelConfig, assumePluginOpenAI: boo
   // If Contextual Knowledge is enabled, we need additional validations
   if (config.CTX_KNOWLEDGE_ENABLED) {
     // Only log validation once during config init (not per document)
-    logger.debug(
-      '[Document Processor] 📋 CTX validation: Checking text generation settings...'
-    );
+    logger.debug('[Document Processor] CTX validation: Checking text generation settings...');
 
     // Validate API keys based on the text provider
     if (config.TEXT_PROVIDER === 'openai' && !config.OPENAI_API_KEY) {
@@ -154,21 +154,21 @@ function validateConfigRequirements(config: ModelConfig, assumePluginOpenAI: boo
       const modelName = config.TEXT_MODEL?.toLowerCase() || '';
       if (modelName.includes('claude') || modelName.includes('gemini')) {
         logger.debug(
-          `[Document Processor] 🔧 Using ${modelName} with OpenRouter. This configuration supports document caching for improved performance.`
+          `[Document Processor] Using ${modelName} with OpenRouter. This configuration supports document caching for improved performance.`
         );
       }
     }
   } else {
     // Log appropriate message based on where embedding config came from
-    logger.info('[Document Processor] ⚠️  Contextual Knowledge is DISABLED!');
-    logger.info('[Document Processor] ⚠️  This means documents will NOT be enriched with context.');
+    logger.info('[Document Processor] Contextual Knowledge is DISABLED!');
+    logger.info('[Document Processor] This means documents will NOT be enriched with context.');
     if (assumePluginOpenAI) {
       logger.info(
-        '[Document Processor] ℹ️  Embeddings will be handled by the runtime (e.g., plugin-openai, plugin-google-genai).'
+        '[Document Processor] Embeddings will be handled by the runtime (e.g., plugin-openai, plugin-google-genai).'
       );
     } else {
       logger.info(
-        '[Document Processor] ℹ️  Using configured embedding provider for basic embeddings only.'
+        '[Document Processor] Using configured embedding provider for basic embeddings only.'
       );
     }
   }
@@ -201,7 +201,7 @@ export async function getProviderRateLimits(runtime?: IAgentRuntime): Promise<Pr
   const primaryProvider = config.TEXT_PROVIDER || config.EMBEDDING_PROVIDER;
 
   logger.debug(
-    `[Document Processor] 🛡️ Rate limiting for ${primaryProvider}: ${requestsPerMinute} RPM, ${tokensPerMinute} TPM, ${maxConcurrentRequests} concurrent`
+    `[Document Processor] Rate limiting for ${primaryProvider}: ${requestsPerMinute} RPM, ${tokensPerMinute} TPM, ${maxConcurrentRequests} concurrent`
   );
 
   // Provider-specific rate limits based on actual usage

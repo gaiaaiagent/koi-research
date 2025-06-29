@@ -183,13 +183,13 @@ export class KnowledgeService extends Service {
       maxChars: 2000, // Use first 2KB of content for ID generation
     }) as UUID;
 
-    logger.info(`📝 Processing "${options.originalFilename}" (${options.contentType})`);
+    logger.info(`Processing "${options.originalFilename}" (${options.contentType})`);
 
     // Check if document already exists in database using content-based ID
     try {
       const existingDocument = await this.runtime.getMemoryById(contentBasedId);
       if (existingDocument && existingDocument.metadata?.type === MemoryType.DOCUMENT) {
-        logger.info(`⏭️ "${options.originalFilename}" already exists - skipping`);
+        logger.info(`"${options.originalFilename}" already exists - skipping`);
 
         // Count existing fragments for this document
         const fragments = await this.runtime.getMemories({
@@ -376,7 +376,7 @@ export class KnowledgeService extends Service {
         documentTitle: originalFilename,
       });
 
-      logger.debug(`📄 "${originalFilename}" stored with ${fragmentCount} fragments`);
+      logger.debug(`"${originalFilename}" stored with ${fragmentCount} fragments`);
 
       return {
         clientDocumentId,
@@ -445,8 +445,6 @@ export class KnowledgeService extends Service {
       }));
   }
 
-
-
   /**
    * Enrich a conversation memory with RAG metadata
    * This can be called after response generation to add RAG tracking data
@@ -454,7 +452,7 @@ export class KnowledgeService extends Service {
    * @param ragMetadata The RAG metadata to add
    */
   async enrichConversationMemoryWithRAG(
-    memoryId: UUID, 
+    memoryId: UUID,
     ragMetadata: {
       retrievedFragments: Array<{
         fragmentId: UUID;
@@ -496,9 +494,13 @@ export class KnowledgeService extends Service {
         metadata: updatedMetadata,
       });
 
-      logger.debug(`📊 Enriched conversation memory ${memoryId} with RAG data: ${ragMetadata.totalFragments} fragments`);
+      logger.debug(
+        `Enriched conversation memory ${memoryId} with RAG data: ${ragMetadata.totalFragments} fragments`
+      );
     } catch (error: any) {
-      logger.warn(`Failed to enrich conversation memory ${memoryId} with RAG data: ${error.message}`);
+      logger.warn(
+        `Failed to enrich conversation memory ${memoryId} with RAG data: ${error.message}`
+      );
     }
   }
 
@@ -519,16 +521,16 @@ export class KnowledgeService extends Service {
     // Clean up old pending enrichments (older than 30 seconds)
     const now = Date.now();
     this.pendingRAGEnrichment = this.pendingRAGEnrichment.filter(
-      entry => now - entry.timestamp < 30000
+      (entry) => now - entry.timestamp < 30000
     );
-    
+
     // Add new pending enrichment
     this.pendingRAGEnrichment.push({
       ragMetadata,
       timestamp: now,
     });
-    
-    logger.debug(`📊 Stored pending RAG metadata for next conversation memory`);
+
+    logger.debug(`Stored pending RAG metadata for next conversation memory`);
   }
 
   /**
@@ -549,23 +551,24 @@ export class KnowledgeService extends Service {
 
       const now = Date.now();
       const recentConversationMemories = recentMemories
-        .filter(memory => 
-          memory.metadata?.type === 'message' &&
-          now - (memory.createdAt || 0) < 10000 && // Created in last 10 seconds
-          !(memory.metadata as any)?.ragUsage // Doesn't already have RAG data
+        .filter(
+          (memory) =>
+            memory.metadata?.type === 'message' &&
+            now - (memory.createdAt || 0) < 10000 && // Created in last 10 seconds
+            !(memory.metadata as any)?.ragUsage // Doesn't already have RAG data
         )
         .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); // Most recent first
 
       // Match pending RAG metadata with recent memories
       for (const pendingEntry of this.pendingRAGEnrichment) {
         // Find a memory created after this RAG metadata was generated
-        const matchingMemory = recentConversationMemories.find(memory => 
-          (memory.createdAt || 0) > pendingEntry.timestamp
+        const matchingMemory = recentConversationMemories.find(
+          (memory) => (memory.createdAt || 0) > pendingEntry.timestamp
         );
 
         if (matchingMemory && matchingMemory.id) {
           await this.enrichConversationMemoryWithRAG(matchingMemory.id, pendingEntry.ragMetadata);
-          
+
           // Remove this pending enrichment
           const index = this.pendingRAGEnrichment.indexOf(pendingEntry);
           if (index > -1) {

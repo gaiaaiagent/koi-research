@@ -252,7 +252,7 @@ export function MemoryGraph({ memories, onNodeClick, selectedMemoryId }: MemoryG
           }
           nodeLabel={(node: MemoryNode) => {
             const metadata = node.memory.metadata as MemoryMetadata;
-            return `${node.type === 'document' ? '📄 Document' : '📝 Fragment'}: ${metadata.title || node.id.substring(0, 8)}`;
+            return `${node.type === 'document' ? 'Document' : 'Fragment'}: ${metadata.title || node.id.substring(0, 8)}`;
           }}
           onNodeClick={(node: MemoryNode) => {
             onNodeClick(node.memory);

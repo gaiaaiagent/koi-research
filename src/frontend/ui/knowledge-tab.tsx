@@ -421,7 +421,7 @@ const useDeleteKnowledgeDocument = (agentId: UUID) => {
   });
 };
 
-export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
+export function KnowledgeTab({ agentId }: { agentId: UUID }) {
   const [viewingContent, setViewingContent] = useState<Memory | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [visibleItems, setVisibleItems] = useState(ITEMS_PER_PAGE);
@@ -782,7 +782,6 @@ export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
     }
   };
 
-
   const LoadingIndicator = () => (
     <div className="flex justify-center p-4">
       {loadingMore ? (
@@ -1124,8 +1123,11 @@ export function KnowledgeTab ({ agentId }: { agentId: UUID }) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between border-b gap-3 ${isDocumentFocused ? 'p-6 pb-4' : 'p-4'
-        }`}>
+      <div
+        className={`flex flex-col sm:flex-row items-start sm:items-center justify-between border-b gap-3 ${
+          isDocumentFocused ? 'p-6 pb-4' : 'p-4'
+        }`}
+      >
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-semibold">Knowledge</h2>
           <p className="text-xs text-muted-foreground">

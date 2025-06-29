@@ -39,7 +39,7 @@ function getCtxKnowledgeEnabled(runtime?: IAgentRuntime): boolean {
   let result: boolean;
   let source: string;
   let rawValue: string | undefined;
-  
+
   if (runtime) {
     rawValue = runtime.getSetting('CTX_KNOWLEDGE_ENABLED');
     // CRITICAL FIX: Use trim() and case-insensitive comparison
@@ -52,12 +52,12 @@ function getCtxKnowledgeEnabled(runtime?: IAgentRuntime): boolean {
     result = cleanValue === 'true';
     source = 'process.env';
   }
-  
+
   // Only log when there's a mismatch or for initial debugging
   if (process.env.NODE_ENV === 'development' && rawValue && !result) {
-    logger.debug(`[Document Processor] 🔍 CTX config mismatch - ${source}: '${rawValue}' → ${result}`);
+    logger.debug(`[Document Processor] CTX config mismatch - ${source}: '${rawValue}' → ${result}`);
   }
-  
+
   return result;
 }
 
@@ -143,17 +143,19 @@ export async function processFragmentsSynchronously({
   }
 
   const docName = documentTitle || documentId.substring(0, 8);
-  logger.info(`[Document Processor] 📄 "${docName}": Split into ${chunks.length} chunks`);
+  logger.info(`[Document Processor] "${docName}": Split into ${chunks.length} chunks`);
 
   // Get provider limits for rate limiting
   const providerLimits = await getProviderRateLimits();
   const CONCURRENCY_LIMIT = Math.min(30, providerLimits.maxConcurrentRequests || 30);
   const rateLimiter = createRateLimiter(
-    providerLimits.requestsPerMinute || 60, 
+    providerLimits.requestsPerMinute || 60,
     providerLimits.tokensPerMinute
   );
 
-  logger.debug(`[Document Processor] 🛡️  Rate limits: ${providerLimits.requestsPerMinute} RPM, ${providerLimits.tokensPerMinute} TPM (${providerLimits.provider}, concurrency: ${CONCURRENCY_LIMIT})`);
+  logger.debug(
+    `[Document Processor] Rate limits: ${providerLimits.requestsPerMinute} RPM, ${providerLimits.tokensPerMinute} TPM (${providerLimits.provider}, concurrency: ${CONCURRENCY_LIMIT})`
+  );
 
   // Process and save fragments
   const { savedCount, failedCount } = await processAndSaveFragments({
@@ -173,13 +175,17 @@ export async function processFragmentsSynchronously({
 
   // Report results with summary
   const successRate = ((savedCount / chunks.length) * 100).toFixed(1);
-  
+
   if (failedCount > 0) {
-    logger.warn(`[Document Processor] ⚠️  "${docName}": ${failedCount}/${chunks.length} chunks failed processing`);
+    logger.warn(
+      `[Document Processor] "${docName}": ${failedCount}/${chunks.length} chunks failed processing`
+    );
   }
 
-  logger.info(`[Document Processor] ✅ "${docName}" complete: ${savedCount}/${chunks.length} fragments saved (${successRate}% success)`);
-  
+  logger.info(
+    `[Document Processor] "${docName}" complete: ${savedCount}/${chunks.length} fragments saved (${successRate}% success)`
+  );
+
   // Provide comprehensive end summary
   logKnowledgeGenerationSummary({
     documentId,
@@ -188,9 +194,9 @@ export async function processFragmentsSynchronously({
     failedCount,
     successRate: parseFloat(successRate),
     ctxEnabled: getCtxKnowledgeEnabled(runtime),
-    providerLimits
+    providerLimits,
   });
-  
+
   return savedCount;
 }
 
@@ -374,7 +380,7 @@ async function processAndSaveFragments({
     const batchOriginalIndices = Array.from({ length: batchChunks.length }, (_, k) => i + k);
 
     logger.debug(
-      `[Document Processor] 📦 Batch ${Math.floor(i / concurrencyLimit) + 1}/${Math.ceil(chunks.length / concurrencyLimit)}: processing ${batchChunks.length} chunks (${batchOriginalIndices[0]}-${batchOriginalIndices[batchOriginalIndices.length-1]})`
+      `[Document Processor] Batch ${Math.floor(i / concurrencyLimit) + 1}/${Math.ceil(chunks.length / concurrencyLimit)}: processing ${batchChunks.length} chunks (${batchOriginalIndices[0]}-${batchOriginalIndices[batchOriginalIndices.length - 1]})`
     );
 
     // Process context generation in an optimized batch
@@ -439,7 +445,9 @@ async function processAndSaveFragments({
         // Log when all chunks for this document are processed
         if (originalChunkIndex === chunks.length - 1) {
           const docName = documentTitle || documentId.substring(0, 8);
-          logger.info(`[Document Processor] ✓ "${docName}": All ${chunks.length} chunks processed successfully`);
+          logger.info(
+            `[Document Processor] "${docName}": All ${chunks.length} chunks processed successfully`
+          );
         }
         savedCount++;
       } catch (saveError: any) {
@@ -565,15 +573,17 @@ async function getContextualizedChunks(
   documentTitle?: string
 ): Promise<Array<{ contextualizedText: string; index: number; success: boolean }>> {
   const ctxEnabled = getCtxKnowledgeEnabled(runtime);
-  
+
   // Log configuration state once per document (not per batch)
   if (batchOriginalIndices[0] === 0) {
     const docName = documentTitle || 'Document';
     const provider = runtime?.getSetting('TEXT_PROVIDER') || process.env.TEXT_PROVIDER;
     const model = runtime?.getSetting('TEXT_MODEL') || process.env.TEXT_MODEL;
-    logger.info(`[Document Processor] 📋 "${docName}": CTX enrichment ${ctxEnabled ? 'ENABLED' : 'DISABLED'}${ctxEnabled ? ` (${provider}/${model})` : ''}`);
+    logger.info(
+      `[Document Processor] "${docName}": CTX enrichment ${ctxEnabled ? 'ENABLED' : 'DISABLED'}${ctxEnabled ? ` (${provider}/${model})` : ''}`
+    );
   }
-  
+
   // Enhanced logging for contextual processing
   if (ctxEnabled && fullDocumentText) {
     return await generateContextsInBatch(
@@ -585,15 +595,17 @@ async function getContextualizedChunks(
       documentTitle
     );
   } else if (!ctxEnabled && batchOriginalIndices[0] === 0) {
-    logger.debug(`[Document Processor] ℹ️  To enable CTX: Set CTX_KNOWLEDGE_ENABLED=true and configure TEXT_PROVIDER/TEXT_MODEL`);
-    
-    // If contextual Knowledge is disabled, prepare the chunks without modification
-    return chunks.map((chunkText, idx) => ({
-      contextualizedText: chunkText,
-      index: batchOriginalIndices[idx],
-      success: true,
-    }));
+    logger.debug(
+      `[Document Processor] To enable CTX: Set CTX_KNOWLEDGE_ENABLED=true and configure TEXT_PROVIDER/TEXT_MODEL`
+    );
   }
+
+  // If contextual Knowledge is disabled, prepare the chunks without modification
+  return chunks.map((chunkText, idx) => ({
+    contextualizedText: chunkText,
+    index: batchOriginalIndices[idx],
+    success: true,
+  }));
 }
 
 /**
@@ -626,7 +638,7 @@ async function generateContextsInBatch(
       config.TEXT_MODEL?.toLowerCase().includes('gemini'));
 
   logger.debug(
-    `[Document Processor] 🎯 Contextualizing ${chunks.length} chunks with ${config.TEXT_PROVIDER}/${config.TEXT_MODEL} (cache: ${isUsingCacheCapableModel})`
+    `[Document Processor] Contextualizing ${chunks.length} chunks with ${config.TEXT_PROVIDER}/${config.TEXT_MODEL} (cache: ${isUsingCacheCapableModel})`
   );
 
   // Prepare prompts or system messages in parallel
@@ -697,9 +709,14 @@ async function generateContextsInBatch(
         const contextualizedText = getChunkWithContext(item.chunkText, generatedContext);
 
         // Track context generation progress without spam
-        if ((item.originalIndex + 1) % Math.max(1, Math.floor(chunks.length / 3)) === 0 || item.originalIndex === chunks.length - 1) {
+        if (
+          (item.originalIndex + 1) % Math.max(1, Math.floor(chunks.length / 3)) === 0 ||
+          item.originalIndex === chunks.length - 1
+        ) {
           const docName = documentTitle || 'Document';
-          logger.debug(`[Document Processor] 🧠 "${docName}": Context added for ${item.originalIndex + 1}/${chunks.length} chunks`);
+          logger.debug(
+            `[Document Processor] "${docName}": Context added for ${item.originalIndex + 1}/${chunks.length} chunks`
+          );
         }
 
         return {
@@ -893,7 +910,7 @@ function createRateLimiter(requestsPerMinute: number, tokensPerMinute?: number) 
     while (requestTimes.length > 0 && now - requestTimes[0] > intervalMs) {
       requestTimes.shift();
     }
-    
+
     // Remove old token usage
     while (tokenUsage.length > 0 && now - tokenUsage[0].timestamp > intervalMs) {
       tokenUsage.shift();
@@ -901,20 +918,20 @@ function createRateLimiter(requestsPerMinute: number, tokensPerMinute?: number) 
 
     // Calculate current token usage
     const currentTokens = tokenUsage.reduce((sum, usage) => sum + usage.tokens, 0);
-    
+
     // Check both request and token limits
     const requestLimitExceeded = requestTimes.length >= requestsPerMinute;
-    const tokenLimitExceeded = tokensPerMinute && (currentTokens + estimatedTokens) > tokensPerMinute;
+    const tokenLimitExceeded = tokensPerMinute && currentTokens + estimatedTokens > tokensPerMinute;
 
     if (requestLimitExceeded || tokenLimitExceeded) {
       let timeToWait = 0;
-      
+
       if (requestLimitExceeded) {
         const oldestRequest = requestTimes[0];
         timeToWait = Math.max(timeToWait, oldestRequest + intervalMs - now);
       }
-      
-      if (tokenLimitExceeded) {
+
+      if (tokenLimitExceeded && tokenUsage.length > 0) {
         const oldestTokenUsage = tokenUsage[0];
         timeToWait = Math.max(timeToWait, oldestTokenUsage.timestamp + intervalMs - now);
       }
@@ -923,9 +940,13 @@ function createRateLimiter(requestsPerMinute: number, tokensPerMinute?: number) 
         const reason = requestLimitExceeded ? 'request' : 'token';
         // Only log significant waits to reduce spam
         if (timeToWait > 5000) {
-          logger.info(`[Document Processor] 🐌 Rate limiting: waiting ${Math.round(timeToWait/1000)}s due to ${reason} limit`);
+          logger.info(
+            `[Document Processor] Rate limiting: waiting ${Math.round(timeToWait / 1000)}s due to ${reason} limit`
+          );
         } else {
-          logger.debug(`[Document Processor] ⏳ Rate limiting: ${timeToWait}ms wait (${reason} limit)`);
+          logger.debug(
+            `[Document Processor] Rate limiting: ${timeToWait}ms wait (${reason} limit)`
+          );
         }
         await new Promise((resolve) => setTimeout(resolve, timeToWait));
       }
@@ -947,7 +968,7 @@ function logKnowledgeGenerationSummary({
   savedCount,
   failedCount,
   ctxEnabled,
-  providerLimits
+  providerLimits,
 }: {
   documentId: UUID;
   totalChunks: number;
@@ -959,11 +980,13 @@ function logKnowledgeGenerationSummary({
 }) {
   // Only show summary for failed processing or debug mode
   if (failedCount > 0 || process.env.NODE_ENV === 'development') {
-    const status = failedCount > 0 ? '⚠️ PARTIAL' : '✅ SUCCESS';
-    logger.info(`[Document Processor] ${status}: ${savedCount}/${totalChunks} chunks, CTX: ${ctxEnabled ? 'ON' : 'OFF'}, Provider: ${providerLimits.provider}`);
+    const status = failedCount > 0 ? 'PARTIAL' : 'SUCCESS';
+    logger.info(
+      `[Document Processor] ${status}: ${savedCount}/${totalChunks} chunks, CTX: ${ctxEnabled ? 'ON' : 'OFF'}, Provider: ${providerLimits.provider}`
+    );
   }
-  
+
   if (failedCount > 0) {
-    logger.warn(`[Document Processor] ⚠️ ${failedCount} chunks failed processing`);
+    logger.warn(`[Document Processor] ${failedCount} chunks failed processing`);
   }
 }

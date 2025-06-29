@@ -1,5 +1,5 @@
 import type { IAgentRuntime, Memory, Provider } from '@elizaos/core';
-import { addHeader } from '@elizaos/core';
+import { addHeader, logger } from '@elizaos/core';
 import { KnowledgeService } from './service.ts';
 
 /**
@@ -42,9 +42,12 @@ export const knowledgeProvider: Provider = {
     let ragMetadata = null;
     if (knowledgeData && knowledgeData.length > 0) {
       ragMetadata = {
-        retrievedFragments: knowledgeData.map(fragment => ({
+        retrievedFragments: knowledgeData.map((fragment) => ({
           fragmentId: fragment.id,
-          documentTitle: (fragment.metadata as any)?.filename || (fragment.metadata as any)?.title || 'Unknown Document',
+          documentTitle:
+            (fragment.metadata as any)?.filename ||
+            (fragment.metadata as any)?.title ||
+            'Unknown Document',
           similarityScore: (fragment as any).similarity,
           contentPreview: (fragment.content?.text || 'No content').substring(0, 100) + '...',
         })),
@@ -58,18 +61,18 @@ export const knowledgeProvider: Provider = {
     if (knowledgeData && knowledgeData.length > 0 && knowledgeService && ragMetadata) {
       try {
         knowledgeService.setPendingRAGMetadata(ragMetadata);
-        
+
         // Schedule enrichment check (with small delay to allow memory creation)
         setTimeout(async () => {
           try {
             await knowledgeService.enrichRecentMemoriesWithPendingRAG();
           } catch (error: any) {
-            console.warn('RAG memory enrichment failed:', error.message);
+            logger.warn('RAG memory enrichment failed:', error.message);
           }
         }, 2000); // 2 second delay
       } catch (error: any) {
         // Don't fail the provider if enrichment fails
-        console.warn('RAG memory enrichment failed:', error.message);
+        logger.warn('RAG memory enrichment failed:', error.message);
       }
     }
 

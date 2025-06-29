@@ -200,7 +200,8 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
           };
         } catch (fileError: any) {
           logger.error(
-            `[Document Processor] ❌ Error processing file ${file.originalname}:`, fileError
+            `[Document Processor] ❌ Error processing file ${file.originalname}:`,
+            fileError
           );
           cleanupFile(filePath);
           return {
@@ -439,14 +440,10 @@ async function deleteKnowledgeDocumentHandler(req: any, res: any, runtime: IAgen
   try {
     // Use type conversion with template string to ensure the typing is correct
     const typedKnowledgeId = knowledgeId as `${string}-${string}-${string}-${string}-${string}`;
-    logger.debug(
-      `[Document Processor] 🗑️ Deleting document: ${typedKnowledgeId}`
-    );
+    logger.debug(`[Document Processor] 🗑️ Deleting document: ${typedKnowledgeId}`);
 
     await service.deleteMemory(typedKnowledgeId);
-    logger.info(
-      `[Document Processor] ✅ Successfully deleted document: ${typedKnowledgeId}`
-    );
+    logger.info(`[Document Processor] ✅ Successfully deleted document: ${typedKnowledgeId}`);
     sendSuccess(res, null, 204);
   } catch (error: any) {
     logger.error(`[Document Processor] ❌ Error deleting document ${knowledgeId}:`, error);

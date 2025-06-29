@@ -149,7 +149,6 @@ export interface KnowledgeDocumentMetadata extends Record<string, any> {
   fileSize?: number;
 }
 
-
 export interface KnowledgeConfig {
   CTX_KNOWLEDGE_ENABLED: boolean;
   LOAD_DOCS_ON_STARTUP: boolean;
