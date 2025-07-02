@@ -630,7 +630,7 @@ async function generateContextsInBatch(
   );
 
   // Get active provider from validateModelConfig
-  const config = validateModelConfig();
+  const config = validateModelConfig(runtime);
   const isUsingOpenRouter = config.TEXT_PROVIDER === 'openrouter';
   const isUsingCacheCapableModel =
     isUsingOpenRouter &&
@@ -673,14 +673,14 @@ async function generateContextsInBatch(
             // Use custom LLM with caching support
             if (item.usesCaching) {
               // Use the newer caching approach with separate document
-              return await generateText(item.promptText!, item.systemPrompt, {
+              return await generateText(runtime, item.promptText!, item.systemPrompt, {
                 cacheDocument: item.fullDocumentTextForContext,
                 cacheOptions: { type: 'ephemeral' },
                 autoCacheContextualRetrieval: true,
               });
             } else {
               // Original approach - document embedded in prompt
-              return await generateText(item.prompt!);
+              return await generateText(runtime, item.prompt!);
             }
           } else {
             // Fall back to runtime.useModel (original behavior)

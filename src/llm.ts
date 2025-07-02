@@ -17,8 +17,8 @@ export type { ModelConfig, ProviderRateLimits } from './types';
  * @param text The text to embed
  * @returns The embedding vector
  */
-export async function generateTextEmbedding(text: string): Promise<{ embedding: number[] }> {
-  const config = validateModelConfig();
+export async function generateTextEmbedding(runtime, text: string): Promise<{ embedding: number[] }> {
+  const config = validateModelConfig(runtime);
   const dimensions = config.EMBEDDING_DIMENSION;
 
   try {
@@ -42,10 +42,11 @@ export async function generateTextEmbedding(text: string): Promise<{ embedding: 
  * @returns Array of embedding results with success indicators
  */
 export async function generateTextEmbeddingsBatch(
+  runtime,
   texts: string[],
   batchSize: number = 20
 ): Promise<Array<{ embedding: number[] | null; success: boolean; error?: any; index: number }>> {
-  const config = validateModelConfig();
+  const config = validateModelConfig(runtime);
   const results: Array<{
     embedding: number[] | null;
     success: boolean;
@@ -70,7 +71,7 @@ export async function generateTextEmbeddingsBatch(
     const batchPromises = batch.map(async (text, batchIndex) => {
       const globalIndex = batchStartIndex + batchIndex;
       try {
-        const result = await generateTextEmbedding(text);
+        const result = await generateTextEmbedding(runtime, text);
         return {
           embedding: result.embedding,
           success: true,
@@ -205,11 +206,12 @@ async function generateGoogleEmbedding(
  * );
  */
 export async function generateText(
+  runtime,
   prompt: string,
   system?: string,
   overrideConfig?: TextGenerationOptions
 ): Promise<GenerateTextResult<any, any>> {
-  const config = validateModelConfig();
+  const config = validateModelConfig(runtime);
   const provider = overrideConfig?.provider || config.TEXT_PROVIDER;
   const modelName = overrideConfig?.modelName || config.TEXT_MODEL;
   const maxTokens = overrideConfig?.maxTokens || config.MAX_OUTPUT_TOKENS;
@@ -220,11 +222,12 @@ export async function generateText(
   try {
     switch (provider) {
       case 'anthropic':
-        return await generateAnthropicText(prompt, system, modelName!, maxTokens);
+        return await generateAnthropicText(config, prompt, system, modelName!, maxTokens);
       case 'openai':
-        return await generateOpenAIText(prompt, system, modelName!, maxTokens);
+        return await generateOpenAIText(config, prompt, system, modelName!, maxTokens);
       case 'openrouter':
         return await generateOpenRouterText(
+          config,
           prompt,
           system,
           modelName!,
@@ -248,12 +251,12 @@ export async function generateText(
  * Generates text using the Anthropic API with exponential backoff retry
  */
 async function generateAnthropicText(
+  config,
   prompt: string,
   system: string | undefined,
   modelName: string,
   maxTokens: number
 ): Promise<GenerateTextResult<any, any>> {
-  const config = validateModelConfig();
   const anthropic = createAnthropic({
     apiKey: config.ANTHROPIC_API_KEY as string,
     baseURL: config.ANTHROPIC_BASE_URL,
@@ -308,12 +311,12 @@ async function generateAnthropicText(
  * Generates text using the OpenAI API
  */
 async function generateOpenAIText(
+  config,
   prompt: string,
   system: string | undefined,
   modelName: string,
   maxTokens: number
 ): Promise<GenerateTextResult<any, any>> {
-  const config = validateModelConfig();
   const openai = createOpenAI({
     apiKey: config.OPENAI_API_KEY as string,
     baseURL: config.OPENAI_BASE_URL,
@@ -392,6 +395,7 @@ async function generateGoogleText(
  * @private
  */
 async function generateOpenRouterText(
+  config,
   prompt: string,
   system: string | undefined,
   modelName: string,
@@ -400,7 +404,6 @@ async function generateOpenRouterText(
   cacheOptions?: { type: 'ephemeral' },
   autoCacheContextualRetrieval = true
 ): Promise<GenerateTextResult<any, any>> {
-  const config = validateModelConfig();
   const openrouter = createOpenRouter({
     apiKey: config.OPENROUTER_API_KEY as string,
     baseURL: config.OPENROUTER_BASE_URL,

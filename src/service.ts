@@ -20,10 +20,18 @@ import {
   extractTextFromDocument,
   processFragmentsSynchronously,
 } from './document-processor.ts';
+import { validateModelConfig } from './config';
 import { AddKnowledgeOptions } from './types.ts';
 import type { KnowledgeConfig, LoadResult } from './types';
 import { loadDocsFromPath } from './docs-loader';
 import { isBinaryContentType, looksLikeBase64, generateContentBasedId } from './utils.ts';
+
+const parseBooleanEnv = (value: any): boolean => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') return value.toLowerCase() === 'true';
+  return false; // Default to false if undefined or other type
+};
+
 
 /**
  * Knowledge Service - Provides retrieval augmented generation capabilities
@@ -44,43 +52,6 @@ export class KnowledgeService extends Service {
   constructor(runtime: IAgentRuntime, config?: Partial<KnowledgeConfig>) {
     super(runtime);
     this.knowledgeProcessingSemaphore = new Semaphore(10);
-
-    const parseBooleanEnv = (value: any): boolean => {
-      if (typeof value === 'boolean') return value;
-      if (typeof value === 'string') return value.toLowerCase() === 'true';
-      return false; // Default to false if undefined or other type
-    };
-
-    // Only enable LOAD_DOCS_ON_STARTUP if explicitly set to true
-    const loadDocsOnStartup =
-      parseBooleanEnv(config?.LOAD_DOCS_ON_STARTUP) || process.env.LOAD_DOCS_ON_STARTUP === 'true';
-
-    this.knowledgeConfig = {
-      CTX_KNOWLEDGE_ENABLED: parseBooleanEnv(config?.CTX_KNOWLEDGE_ENABLED),
-      LOAD_DOCS_ON_STARTUP: loadDocsOnStartup,
-      MAX_INPUT_TOKENS: config?.MAX_INPUT_TOKENS,
-      MAX_OUTPUT_TOKENS: config?.MAX_OUTPUT_TOKENS,
-      EMBEDDING_PROVIDER: config?.EMBEDDING_PROVIDER,
-      TEXT_PROVIDER: config?.TEXT_PROVIDER,
-      TEXT_EMBEDDING_MODEL: config?.TEXT_EMBEDDING_MODEL,
-    };
-
-    // Store config as Metadata for base class compatibility
-    this.config = { ...this.knowledgeConfig } as Metadata;
-
-    logger.info(
-      `KnowledgeService initialized for agent ${this.runtime.agentId} with config:`,
-      this.knowledgeConfig
-    );
-
-    if (this.knowledgeConfig.LOAD_DOCS_ON_STARTUP) {
-      logger.info('LOAD_DOCS_ON_STARTUP is enabled. Loading documents from docs folder...');
-      this.loadInitialDocuments().catch((error) => {
-        logger.error('Error during initial document loading in KnowledgeService:', error);
-      });
-    } else {
-      logger.info('LOAD_DOCS_ON_STARTUP is disabled. Skipping automatic document loading.');
-    }
   }
 
   private async loadInitialDocuments(): Promise<void> {
@@ -114,8 +85,97 @@ export class KnowledgeService extends Service {
    * @returns Initialized Knowledge service
    */
   static async start(runtime: IAgentRuntime): Promise<KnowledgeService> {
-    logger.info(`Starting Knowledge service for agent: ${runtime.agentId}`);
+    runtime.logger.info(`Starting Knowledge service for agent: ${runtime.agentId}`);
+
+    runtime.logger.info('Initializing Knowledge Plugin...');
+    let validatedConfig = {}
+    try {
+      // Validate the model configuration
+      runtime.logger.info('Validating model configuration for Knowledge plugin...');
+
+      runtime.logger.debug(`[Knowledge Plugin] INIT DEBUG:`);
+      runtime.logger.debug(
+        `[Knowledge Plugin] - process.env.CTX_KNOWLEDGE_ENABLED: '${process.env.CTX_KNOWLEDGE_ENABLED}'`
+      );
+
+      // just for debug/check
+      const config = {
+        CTX_KNOWLEDGE_ENABLED: parseBooleanEnv(runtime.getSetting('CTX_KNOWLEDGE_ENABLED')),
+      };
+
+      runtime.logger.debug(
+        `[Knowledge Plugin] - config.CTX_KNOWLEDGE_ENABLED: '${config.CTX_KNOWLEDGE_ENABLED}'`
+      );
+      runtime.logger.debug(
+        `[Knowledge Plugin] - runtime.getSetting('CTX_KNOWLEDGE_ENABLED'): '${runtime.getSetting('CTX_KNOWLEDGE_ENABLED')}'`
+      );
+
+      validatedConfig = validateModelConfig(runtime);
+
+      // Help inform how this was detected
+      const ctxEnabledFromEnv = parseBooleanEnv(process.env.CTX_KNOWLEDGE_ENABLED)
+      const ctxEnabledFromRuntime = parseBooleanEnv(runtime.getSetting('CTX_KNOWLEDGE_ENABLED'))
+      const ctxEnabledFromValidated = validatedConfig.CTX_KNOWLEDGE_ENABLED;
+
+      // Use the most permissive check during initialization
+      const finalCtxEnabled = ctxEnabledFromValidated
+
+      runtime.logger.debug(`[Knowledge Plugin] CTX_KNOWLEDGE_ENABLED sources:`);
+      runtime.logger.debug(`[Knowledge Plugin] - From env: ${ctxEnabledFromEnv}`);
+      runtime.logger.debug(`[Knowledge Plugin] - From runtime: ${ctxEnabledFromRuntime}`);
+      runtime.logger.debug(`[Knowledge Plugin] - FINAL RESULT: ${finalCtxEnabled}`);
+
+      // Log the operational mode
+      if (finalCtxEnabled) {
+        runtime.logger.info('Running in Contextual Knowledge mode with text generation capabilities.');
+        runtime.logger.info(
+          `Using ${validatedConfig.EMBEDDING_PROVIDER || 'auto-detected'} for embeddings and ${validatedConfig.TEXT_PROVIDER} for text generation.`
+        );
+        runtime.logger.info(`Text model: ${validatedConfig.TEXT_MODEL}`);
+      } else {
+        const usingPluginOpenAI = !process.env.EMBEDDING_PROVIDER;
+
+        runtime.logger.warn(
+          'Running in Basic Embedding mode - documents will NOT be enriched with context!'
+        );
+        runtime.logger.info('To enable contextual enrichment:');
+        runtime.logger.info('   - Set CTX_KNOWLEDGE_ENABLED=true');
+        runtime.logger.info('   - Configure TEXT_PROVIDER (anthropic/openai/openrouter/google)');
+        runtime.logger.info('   - Configure TEXT_MODEL and API key');
+
+        if (usingPluginOpenAI) {
+          runtime.logger.info('Using auto-detected configuration from plugin-openai for embeddings.');
+        } else {
+          runtime.logger.info(
+            `Using ${validatedConfig.EMBEDDING_PROVIDER} for embeddings with ${validatedConfig.TEXT_EMBEDDING_MODEL}.`
+          );
+        }
+      }
+
+      runtime.logger.success('Model configuration validated successfully.');
+      runtime.logger.success(`Knowledge Plugin initialized for agent: ${runtime.character.name}`);
+
+      runtime.logger.info(
+        'Knowledge Plugin initialized. Frontend panel should be discoverable via its public route.'
+      );
+    } catch (error) {
+      runtime.logger.error('Failed to initialize Knowledge plugin:', error);
+      throw error;
+    }
+
     const service = new KnowledgeService(runtime);
+    service.config = validatedConfig // as Metadata
+
+    if (service.config.LOAD_DOCS_ON_STARTUP) {
+      runtime.logger.info('LOAD_DOCS_ON_STARTUP is enabled. Loading documents from docs folder...');
+      service.loadInitialDocuments().catch((error) => {
+        runtime.logger.error('Error during initial document loading in KnowledgeService:', error);
+      });
+    } else {
+      runtime.logger.info('LOAD_DOCS_ON_STARTUP is disabled. Skipping automatic document loading.');
+    }
+
+
 
     // Process character knowledge AFTER service is initialized
     if (service.runtime.character?.knowledge && service.runtime.character.knowledge.length > 0) {
@@ -127,13 +187,13 @@ export class KnowledgeService extends Service {
       );
       // Run in background, don't await here to prevent blocking startup
       await service.processCharacterKnowledge(stringKnowledge).catch((err) => {
-        logger.error(
+        runtime.logger.error(
           `KnowledgeService: Error processing character knowledge during startup: ${err.message}`,
           err
         );
       });
     } else {
-      logger.info(
+      runtime.logger.info(
         `KnowledgeService: No character knowledge to process for agent ${runtime.agentId}.`
       );
     }
@@ -145,10 +205,10 @@ export class KnowledgeService extends Service {
    * @param runtime Agent runtime
    */
   static async stop(runtime: IAgentRuntime): Promise<void> {
-    logger.info(`Stopping Knowledge service for agent: ${runtime.agentId}`);
+    runtime.logger.info(`Stopping Knowledge service for agent: ${runtime.agentId}`);
     const service = runtime.getService(KnowledgeService.serviceType);
     if (!service) {
-      logger.warn(`KnowledgeService not found for agent ${runtime.agentId} during stop.`);
+      runtime.logger.warn(`KnowledgeService not found for agent ${runtime.agentId} during stop.`);
     }
     // If we need to perform specific cleanup on the KnowledgeService instance
     if (service instanceof KnowledgeService) {
@@ -160,7 +220,7 @@ export class KnowledgeService extends Service {
    * Stop the service
    */
   async stop(): Promise<void> {
-    logger.info(`Knowledge service stopping for agent: ${this.runtime.agentId}`);
+    this.runtime.logger.info(`Knowledge service stopping for agent: ${this.runtime.character?.name}`);
   }
 
   /**
