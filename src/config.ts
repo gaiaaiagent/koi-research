@@ -2,30 +2,33 @@ import { ModelConfig, ModelConfigSchema, ProviderRateLimits } from './types.ts';
 import z from 'zod';
 import { logger, IAgentRuntime } from '@elizaos/core';
 
+const parseBooleanEnv = (value: any): boolean => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') return value.toLowerCase() === 'true';
+  return false; // Default to false if undefined or other type
+};
+
 /**
  * Validates the model configuration using runtime settings
  * @param runtime The agent runtime to get settings from
  * @returns The validated configuration or throws an error
  */
-export function validateModelConfig(runtime?: IAgentRuntime): ModelConfig {
+export function validateModelConfig(runtime: IAgentRuntime): ModelConfig {
   try {
     // Helper function to get setting from runtime or fallback to process.env
     const getSetting = (key: string, defaultValue?: string) => {
       if (runtime) {
-        return runtime.getSetting(key) || defaultValue;
+        return runtime.getSetting(key) || process.env[key] || defaultValue;
       }
       return process.env[key] || defaultValue;
     };
 
     // Determine if contextual Knowledge is enabled
-    const ctxKnowledgeEnabledSetting = getSetting('CTX_KNOWLEDGE_ENABLED');
-    // CRITICAL FIX: Use robust string comparison with trim and lowercase
-    const cleanSetting = ctxKnowledgeEnabledSetting?.toString().trim().toLowerCase();
-    const ctxKnowledgeEnabled = cleanSetting === 'true';
+    const ctxKnowledgeEnabled = parseBooleanEnv(getSetting('CTX_KNOWLEDGE_ENABLED', false))
 
     // Log configuration once during validation (not per chunk)
     logger.debug(
-      `[Document Processor] CTX_KNOWLEDGE_ENABLED: '${ctxKnowledgeEnabledSetting}' → ${ctxKnowledgeEnabled} (runtime: ${!!runtime})`
+      `[Document Processor] CTX_KNOWLEDGE_ENABLED: '${ctxKnowledgeEnabled} (runtime: ${!!runtime})`
     );
 
     // If EMBEDDING_PROVIDER is not provided, assume we're using plugin-openai
@@ -83,9 +86,9 @@ export function validateModelConfig(runtime?: IAgentRuntime): ModelConfig {
 
       EMBEDDING_DIMENSION: embeddingDimension,
 
+      LOAD_DOCS_ON_STARTUP: parseBooleanEnv(getSetting('LOAD_DOCS_ON_STARTUP')),
       CTX_KNOWLEDGE_ENABLED: ctxKnowledgeEnabled,
     });
-
     validateConfigRequirements(config, assumePluginOpenAI);
     return config;
   } catch (error) {
