@@ -419,10 +419,26 @@ export async function fetchUrlContent(
 }
 
 export function looksLikeBase64(content?: string | null): boolean {
-  // const base64Regex = /^[A-Za-z0-9+/]+=*$/; // This is the old regex
-  // https://stackoverflow.com/questions/475074/regex-to-parse-or-validate-base64-data
-  const base64Regex = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
-  return (content && content.length > 0 && base64Regex.test(content.replace(/\s/g, ''))) || false;
+  if (!content || content.length === 0) return false;
+
+  const cleanContent = content.replace(/\s/g, '');
+
+  // Too short to be meaningful Base64
+  if (cleanContent.length < 16) return false;
+
+  // Must be divisible by 4
+  if (cleanContent.length % 4 !== 0) return false;
+
+  // Check for Base64 pattern with proper padding
+  const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+  if (!base64Regex.test(cleanContent)) return false;
+
+  // Additional heuristic: Base64 typically has a good mix of characters
+  const hasNumbers = /\d/.test(cleanContent);
+  const hasUpperCase = /[A-Z]/.test(cleanContent);
+  const hasLowerCase = /[a-z]/.test(cleanContent);
+
+  return (hasNumbers || hasUpperCase) && hasLowerCase;
 }
 
 /**
