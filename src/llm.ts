@@ -5,7 +5,7 @@ import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { google } from '@ai-sdk/google';
 import { ModelConfig, TextGenerationOptions } from './types';
 import { validateModelConfig } from './config';
-import { logger } from '@elizaos/core';
+import { logger, IAgentRuntime } from '@elizaos/core';
 
 // Re-export for backwards compatibility
 export { validateModelConfig } from './config';
@@ -17,7 +17,10 @@ export type { ModelConfig, ProviderRateLimits } from './types';
  * @param text The text to embed
  * @returns The embedding vector
  */
-export async function generateTextEmbedding(runtime, text: string): Promise<{ embedding: number[] }> {
+export async function generateTextEmbedding(
+  runtime: IAgentRuntime,
+  text: string
+): Promise<{ embedding: number[] }> {
   const config = validateModelConfig(runtime);
   const dimensions = config.EMBEDDING_DIMENSION;
 
@@ -42,7 +45,7 @@ export async function generateTextEmbedding(runtime, text: string): Promise<{ em
  * @returns Array of embedding results with success indicators
  */
 export async function generateTextEmbeddingsBatch(
-  runtime,
+  runtime: IAgentRuntime,
   texts: string[],
   batchSize: number = 20
 ): Promise<Array<{ embedding: number[] | null; success: boolean; error?: any; index: number }>> {
@@ -206,7 +209,7 @@ async function generateGoogleEmbedding(
  * );
  */
 export async function generateText(
-  runtime,
+  runtime: IAgentRuntime,
   prompt: string,
   system?: string,
   overrideConfig?: TextGenerationOptions
@@ -251,7 +254,7 @@ export async function generateText(
  * Generates text using the Anthropic API with exponential backoff retry
  */
 async function generateAnthropicText(
-  config,
+  config: ModelConfig,
   prompt: string,
   system: string | undefined,
   modelName: string,
@@ -311,7 +314,7 @@ async function generateAnthropicText(
  * Generates text using the OpenAI API
  */
 async function generateOpenAIText(
-  config,
+  config: ModelConfig,
   prompt: string,
   system: string | undefined,
   modelName: string,
@@ -395,7 +398,7 @@ async function generateGoogleText(
  * @private
  */
 async function generateOpenRouterText(
-  config,
+  config: ModelConfig,
   prompt: string,
   system: string | undefined,
   modelName: string,
