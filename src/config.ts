@@ -13,7 +13,7 @@ const parseBooleanEnv = (value: any): boolean => {
  * @param runtime The agent runtime to get settings from
  * @returns The validated configuration or throws an error
  */
-export function validateModelConfig(runtime: IAgentRuntime): ModelConfig {
+export function validateModelConfig(runtime?: IAgentRuntime): ModelConfig {
   try {
     // Helper function to get setting from runtime or fallback to process.env
     const getSetting = (key: string, defaultValue?: string) => {
@@ -24,7 +24,7 @@ export function validateModelConfig(runtime: IAgentRuntime): ModelConfig {
     };
 
     // Determine if contextual Knowledge is enabled
-    const ctxKnowledgeEnabled = parseBooleanEnv(getSetting('CTX_KNOWLEDGE_ENABLED', false))
+    const ctxKnowledgeEnabled = parseBooleanEnv(getSetting('CTX_KNOWLEDGE_ENABLED', 'false'));
 
     // Log configuration once during validation (not per chunk)
     logger.debug(

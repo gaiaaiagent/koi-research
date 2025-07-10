@@ -47,7 +47,7 @@ export const ModelConfigSchema = z.object({
     .transform((val) => (val ? (typeof val === 'string' ? parseInt(val, 10) : val) : 1536)),
 
   // config setting
-  LOAD_DOCS_ON_STARTUP:  z.boolean().default(false),
+  LOAD_DOCS_ON_STARTUP: z.boolean().default(false),
 
   // Contextual Knowledge settings
   CTX_KNOWLEDGE_ENABLED: z.boolean().default(false),
