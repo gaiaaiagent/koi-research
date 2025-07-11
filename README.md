@@ -69,7 +69,7 @@ The plugin can read almost any document:
 
 The plugin includes a web interface for managing documents!
 
-**Access it at:** `http://localhost:3000/api/agents/[your-agent-id]/plugins/knowledge/display`
+Click the Knowledge tab in the right panel.
 
 You can upload, view, and delete documents directly from your browser.
 
