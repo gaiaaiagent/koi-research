@@ -35,8 +35,8 @@ export function getKnowledgePath(runtimePath?: string): string {
 export async function loadDocsFromPath(
   service: KnowledgeService,
   agentId: UUID,
-  knowledgePath?: string,
-  worldId?: UUID
+  worldId?: UUID,
+  knowledgePath?: string
 ): Promise<{ total: number; successful: number; failed: number }> {
   const docsPath = getKnowledgePath(knowledgePath);
 

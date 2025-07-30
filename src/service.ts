@@ -67,6 +67,7 @@ export class KnowledgeService extends Service {
       const result: LoadResult = await loadDocsFromPath(
         this as any, 
         this.runtime.agentId,
+        undefined, // worldId
         knowledgePath
       );
       
