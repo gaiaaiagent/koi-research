@@ -6,34 +6,27 @@ import { AddKnowledgeOptions } from './types.ts';
 import { isBinaryContentType } from './utils.ts';
 
 /**
- * Get the knowledge path from environment or default to ./docs
+ * Get the knowledge path from runtime settings, environment, or default to ./docs
  */
-export function getKnowledgePath(): string {
-  const envPath = process.env.KNOWLEDGE_PATH;
+export function getKnowledgePath(runtimePath?: string): string {
+  // Priority: runtime setting > environment variable > default
+  const knowledgePath = runtimePath || process.env.KNOWLEDGE_PATH || path.join(process.cwd(), 'docs');
+  const resolvedPath = path.resolve(knowledgePath);
 
-  if (envPath) {
-    // Resolve relative paths from current working directory
-    const resolvedPath = path.resolve(envPath);
-
-    if (!fs.existsSync(resolvedPath)) {
-      logger.warn(`Knowledge path from environment variable does not exist: ${resolvedPath}`);
+  if (!fs.existsSync(resolvedPath)) {
+    logger.warn(`Knowledge path does not exist: ${resolvedPath}`);
+    if (runtimePath) {
+      logger.warn('Please create the directory or update KNOWLEDGE_PATH in agent settings');
+    } else if (process.env.KNOWLEDGE_PATH) {
       logger.warn('Please create the directory or update KNOWLEDGE_PATH environment variable');
+    } else {
+      logger.info('To use the knowledge plugin, either:');
+      logger.info('1. Create a "docs" folder in your project root');
+      logger.info('2. Set KNOWLEDGE_PATH in agent settings or environment variable');
     }
-
-    return resolvedPath;
   }
 
-  // Default to docs folder in current working directory
-  const defaultPath = path.join(process.cwd(), 'docs');
-
-  if (!fs.existsSync(defaultPath)) {
-    logger.info(`Default docs folder does not exist at: ${defaultPath}`);
-    logger.info('To use the knowledge plugin, either:');
-    logger.info('1. Create a "docs" folder in your project root');
-    logger.info('2. Set KNOWLEDGE_PATH environment variable to your documents folder');
-  }
-
-  return defaultPath;
+  return resolvedPath;
 }
 
 /**
@@ -42,9 +35,10 @@ export function getKnowledgePath(): string {
 export async function loadDocsFromPath(
   service: KnowledgeService,
   agentId: UUID,
-  worldId?: UUID
+  worldId?: UUID,
+  knowledgePath?: string
 ): Promise<{ total: number; successful: number; failed: number }> {
-  const docsPath = getKnowledgePath();
+  const docsPath = getKnowledgePath(knowledgePath);
 
   if (!fs.existsSync(docsPath)) {
     logger.warn(`Knowledge path does not exist: ${docsPath}`);

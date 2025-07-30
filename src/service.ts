@@ -60,7 +60,17 @@ export class KnowledgeService extends Service {
     try {
       // Use a small delay to ensure runtime is fully ready if needed, though constructor implies it should be.
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      const result: LoadResult = await loadDocsFromPath(this as any, this.runtime.agentId);
+      
+      // Get the agent-specific knowledge path from runtime settings
+      const knowledgePath = this.runtime.getSetting('KNOWLEDGE_PATH');
+      
+      const result: LoadResult = await loadDocsFromPath(
+        this as any, 
+        this.runtime.agentId,
+        undefined, // worldId
+        knowledgePath
+      );
+      
       if (result.successful > 0) {
         logger.info(
           `KnowledgeService: Loaded ${result.successful} documents from docs folder on startup for agent ${this.runtime.agentId}`
