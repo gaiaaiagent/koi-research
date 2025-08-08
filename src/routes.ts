@@ -74,7 +74,7 @@ const cleanupFile = (filePath: string) => {
     try {
       fs.unlinkSync(filePath);
     } catch (error) {
-      logger.error(`Error cleaning up file ${filePath}:`, error);
+      logger.error({ error }, `Error cleaning up file ${filePath}`);
     }
   }
 };
@@ -334,7 +334,7 @@ async function uploadKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
       sendSuccess(res, results);
     }
   } catch (error: any) {
-    logger.error('[Document Processor] ❌ Error processing knowledge:', error);
+    logger.error({ error }, '[Document Processor] ❌ Error processing knowledge');
     if (hasUploadedFiles) {
       cleanupFiles(req.files as MulterFile[]);
     }
@@ -411,7 +411,7 @@ async function getKnowledgeDocumentsHandler(req: any, res: any, runtime: IAgentR
       totalRequested: fileUrls ? fileUrls.length : 0,
     });
   } catch (error: any) {
-    logger.error('[Document Processor] ❌ Error retrieving documents:', error);
+    logger.error({ error }, '[Document Processor] ❌ Error retrieving documents');
     sendError(res, 500, 'RETRIEVAL_ERROR', 'Failed to retrieve documents', error.message);
   }
 }
@@ -446,7 +446,7 @@ async function deleteKnowledgeDocumentHandler(req: any, res: any, runtime: IAgen
     logger.info(`[Document Processor] ✅ Successfully deleted document: ${typedKnowledgeId}`);
     sendSuccess(res, null, 204);
   } catch (error: any) {
-    logger.error(`[Document Processor] ❌ Error deleting document ${knowledgeId}:`, error);
+    logger.error({ error }, `[Document Processor] ❌ Error deleting document ${knowledgeId}`);
     sendError(res, 500, 'DELETE_ERROR', 'Failed to delete document', error.message);
   }
 }
@@ -502,7 +502,7 @@ async function getKnowledgeByIdHandler(req: any, res: any, runtime: IAgentRuntim
 
     sendSuccess(res, { document: cleanDocument });
   } catch (error: any) {
-    logger.error(`[Document Processor] ❌ Error retrieving document ${knowledgeId}:`, error);
+    logger.error({ error }, `[Document Processor] ❌ Error retrieving document ${knowledgeId}`);
     sendError(res, 500, 'RETRIEVAL_ERROR', 'Failed to retrieve document', error.message);
   }
 }
@@ -560,7 +560,7 @@ async function knowledgePanelHandler(req: any, res: any, runtime: IAgentRuntime)
             }
           }
         } catch (manifestError) {
-          logger.error('[Document Processor] ❌ Error reading manifest:', manifestError);
+          logger.error({ error: manifestError }, '[Document Processor] ❌ Error reading manifest');
           // Continue with default filenames if manifest can't be read
         }
       }
@@ -600,7 +600,7 @@ async function knowledgePanelHandler(req: any, res: any, runtime: IAgentRuntime)
       res.end(html);
     }
   } catch (error: any) {
-    logger.error('[Document Processor] ❌ Error serving frontend:', error);
+    logger.error({ error }, '[Document Processor] ❌ Error serving frontend');
     sendError(res, 500, 'FRONTEND_ERROR', 'Failed to load knowledge panel', error.message);
   }
 }
@@ -647,7 +647,7 @@ async function frontendAssetHandler(req: any, res: any, runtime: IAgentRuntime) 
       sendError(res, 404, 'NOT_FOUND', `Asset not found: ${req.url}`);
     }
   } catch (error: any) {
-    logger.error(`[Document Processor] ❌ Error serving asset ${req.url}:`, error);
+    logger.error({ error }, `[Document Processor] ❌ Error serving asset ${req.url}`);
     sendError(res, 500, 'ASSET_ERROR', `Failed to load asset ${req.url}`, error.message);
   }
 }
@@ -722,7 +722,7 @@ async function getKnowledgeChunksHandler(req: any, res: any, runtime: IAgentRunt
       },
     });
   } catch (error: any) {
-    logger.error('[Document Processor] ❌ Error retrieving chunks:', error);
+    logger.error({ error }, '[Document Processor] ❌ Error retrieving chunks');
     sendError(res, 500, 'RETRIEVAL_ERROR', 'Failed to retrieve knowledge chunks', error.message);
   }
 }
@@ -838,7 +838,7 @@ async function searchKnowledgeHandler(req: any, res: any, runtime: IAgentRuntime
       count: enhancedResults.length,
     });
   } catch (error: any) {
-    logger.error('[Document Processor] ❌ Error searching knowledge:', error);
+    logger.error({ error }, '[Document Processor] ❌ Error searching knowledge');
     sendError(res, 500, 'SEARCH_ERROR', 'Failed to search knowledge', error.message);
   }
 }
@@ -854,7 +854,7 @@ async function uploadKnowledgeWithMulter(req: any, res: any, runtime: IAgentRunt
   // Apply multer middleware manually
   uploadArray(req, res, (err: any) => {
     if (err) {
-      logger.error('[Document Processor] ❌ File upload error:', err);
+      logger.error({ error: err }, '[Document Processor] ❌ File upload error');
       return sendError(res, 400, 'UPLOAD_ERROR', err.message);
     }
     // If multer succeeded, call the actual handler

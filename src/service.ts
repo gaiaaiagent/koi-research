@@ -60,17 +60,17 @@ export class KnowledgeService extends Service {
     try {
       // Use a small delay to ensure runtime is fully ready if needed, though constructor implies it should be.
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      
+
       // Get the agent-specific knowledge path from runtime settings
       const knowledgePath = this.runtime.getSetting('KNOWLEDGE_PATH');
-      
+
       const result: LoadResult = await loadDocsFromPath(
-        this as any, 
+        this as any,
         this.runtime.agentId,
         undefined, // worldId
         knowledgePath
       );
-      
+
       if (result.successful > 0) {
         logger.info(
           `KnowledgeService: Loaded ${result.successful} documents from docs folder on startup for agent ${this.runtime.agentId}`
@@ -82,8 +82,8 @@ export class KnowledgeService extends Service {
       }
     } catch (error) {
       logger.error(
-        `KnowledgeService: Error loading documents on startup for agent ${this.runtime.agentId}:`,
-        error
+        { error },
+        `KnowledgeService: Error loading documents on startup for agent ${this.runtime.agentId}`
       );
     }
   }
@@ -161,14 +161,14 @@ export class KnowledgeService extends Service {
         }
       }
 
-      logger.success('Model configuration validated successfully.');
-      logger.success(`Knowledge Plugin initialized for agent: ${runtime.character.name}`);
+      logger.info('Model configuration validated successfully.');
+      logger.info(`Knowledge Plugin initialized for agent: ${runtime.character.name}`);
 
       logger.info(
         'Knowledge Plugin initialized. Frontend panel should be discoverable via its public route.'
       );
     } catch (error) {
-      logger.error('Failed to initialize Knowledge plugin:', error);
+      logger.error({ error }, 'Failed to initialize Knowledge plugin');
       throw error;
     }
 
@@ -178,7 +178,7 @@ export class KnowledgeService extends Service {
     if (service.config.LOAD_DOCS_ON_STARTUP) {
       logger.info('LOAD_DOCS_ON_STARTUP is enabled. Loading documents from docs folder...');
       service.loadInitialDocuments().catch((error) => {
-        logger.error('Error during initial document loading in KnowledgeService:', error);
+        logger.error({ error }, 'Error during initial document loading in KnowledgeService');
       });
     } else {
       logger.info('LOAD_DOCS_ON_STARTUP is disabled. Skipping automatic document loading.');
@@ -195,8 +195,8 @@ export class KnowledgeService extends Service {
       // Run in background, don't await here to prevent blocking startup
       await service.processCharacterKnowledge(stringKnowledge).catch((err) => {
         logger.error(
-          `KnowledgeService: Error processing character knowledge during startup: ${err.message}`,
-          err
+          { error: err },
+          'KnowledgeService: Error processing character knowledge during startup'
         );
       });
     } else {
@@ -330,7 +330,8 @@ export class KnowledgeService extends Service {
           fileBuffer = Buffer.from(content, 'base64');
         } catch (e: any) {
           logger.error(
-            `KnowledgeService: Failed to convert base64 to buffer for ${originalFilename}: ${e.message}`
+            { error: e },
+            `KnowledgeService: Failed to convert base64 to buffer for ${originalFilename}`
           );
           throw new Error(`Invalid base64 content for PDF file ${originalFilename}`);
         }
@@ -342,7 +343,8 @@ export class KnowledgeService extends Service {
           fileBuffer = Buffer.from(content, 'base64');
         } catch (e: any) {
           logger.error(
-            `KnowledgeService: Failed to convert base64 to buffer for ${originalFilename}: ${e.message}`
+            { error: e },
+            `KnowledgeService: Failed to convert base64 to buffer for ${originalFilename}`
           );
           throw new Error(`Invalid base64 content for binary file ${originalFilename}`);
         }
@@ -373,9 +375,7 @@ export class KnowledgeService extends Service {
             extractedText = decodedText;
             documentContentToStore = decodedText;
           } catch (e) {
-            logger.error(
-              `Failed to decode base64 for ${originalFilename}: ${e instanceof Error ? e.message : String(e)}`
-            );
+            logger.error({ error: e as any }, `Failed to decode base64 for ${originalFilename}`);
             // If it looked like base64 but failed to decode properly, this is an error
             throw new Error(
               `File ${originalFilename} appears to be corrupted or incorrectly encoded`
@@ -452,8 +452,8 @@ export class KnowledgeService extends Service {
       };
     } catch (error: any) {
       logger.error(
-        `KnowledgeService: Error processing document ${originalFilename}: ${error.message}`,
-        error.stack
+        { error, stack: error.stack },
+        `KnowledgeService: Error processing document ${originalFilename}`
       );
       throw error;
     }
@@ -462,7 +462,7 @@ export class KnowledgeService extends Service {
   // --- Knowledge methods moved from AgentRuntime ---
 
   private async handleProcessingError(error: any, context: string) {
-    logger.error(`KnowledgeService: Error ${context}:`, error?.message || error || 'Unknown error');
+    logger.error({ error }, `KnowledgeService: Error ${context}`);
     throw error;
   }
 
@@ -797,8 +797,8 @@ export class KnowledgeService extends Service {
         fragmentsProcessed++;
       } catch (error) {
         logger.error(
-          `KnowledgeService: Error processing fragment ${fragment.id} for document ${item.id}:`,
-          error
+          { error },
+          `KnowledgeService: Error processing fragment ${fragment.id} for document ${item.id}`
         );
       }
     }
@@ -816,10 +816,7 @@ export class KnowledgeService extends Service {
       // Store the fragment in the knowledge table
       await this.runtime.createMemory(fragment, 'knowledge');
     } catch (error) {
-      logger.error(
-        `KnowledgeService: Error processing fragment ${fragment.id}:`,
-        error instanceof Error ? error.message : String(error)
-      );
+      logger.error({ error }, `KnowledgeService: Error processing fragment ${fragment.id}`);
       throw error;
     }
   }

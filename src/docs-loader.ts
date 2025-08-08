@@ -10,7 +10,8 @@ import { isBinaryContentType } from './utils.ts';
  */
 export function getKnowledgePath(runtimePath?: string): string {
   // Priority: runtime setting > environment variable > default
-  const knowledgePath = runtimePath || process.env.KNOWLEDGE_PATH || path.join(process.cwd(), 'docs');
+  const knowledgePath =
+    runtimePath || process.env.KNOWLEDGE_PATH || path.join(process.cwd(), 'docs');
   const resolvedPath = path.resolve(knowledgePath);
 
   if (!fs.existsSync(resolvedPath)) {
@@ -107,7 +108,7 @@ export async function loadDocsFromPath(
       logger.info(`✅ "${fileName}": ${result.fragmentCount} fragments created`);
       successful++;
     } catch (error) {
-      logger.error(`Failed to process file ${filePath}:`, error);
+      logger.error({ error }, `Failed to process file ${filePath}`);
       failed++;
     }
   }
@@ -143,7 +144,7 @@ function getAllFiles(dirPath: string, files: string[] = []): string[] {
       }
     }
   } catch (error) {
-    logger.error(`Error reading directory ${dirPath}:`, error);
+    logger.error({ error }, `Error reading directory ${dirPath}`);
   }
 
   return files;

@@ -197,7 +197,7 @@ export const processKnowledgeAction: Action = {
         await callback(response);
       }
     } catch (error) {
-      logger.error('Error in PROCESS_KNOWLEDGE action:', error);
+      logger.error({ error }, 'Error in PROCESS_KNOWLEDGE action');
 
       const errorResponse: Content = {
         text: `I encountered an error while processing the knowledge: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -327,7 +327,7 @@ export const searchKnowledgeAction: Action = {
         await callback(response);
       }
     } catch (error) {
-      logger.error('Error in SEARCH_KNOWLEDGE action:', error);
+      logger.error({ error }, 'Error in SEARCH_KNOWLEDGE action');
 
       const errorResponse: Content = {
         text: `I encountered an error while searching the knowledge base: ${error instanceof Error ? error.message : 'Unknown error'}`,

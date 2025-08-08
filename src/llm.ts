@@ -33,7 +33,7 @@ export async function generateTextEmbedding(
 
     throw new Error(`Unsupported embedding provider: ${config.EMBEDDING_PROVIDER}`);
   } catch (error) {
-    logger.error(`[Document Processor] ${config.EMBEDDING_PROVIDER} embedding error:`, error);
+    logger.error({ error }, `[Document Processor] ${config.EMBEDDING_PROVIDER} embedding error`);
     throw error;
   }
 }
@@ -81,7 +81,7 @@ export async function generateTextEmbeddingsBatch(
           index: globalIndex,
         };
       } catch (error) {
-        logger.error(`[Document Processor] Embedding error for item ${globalIndex}:`, error);
+        logger.error({ error }, `[Document Processor] Embedding error for item ${globalIndex}`);
         return {
           embedding: null,
           success: false,
@@ -245,7 +245,7 @@ export async function generateText(
         throw new Error(`Unsupported text provider: ${provider}`);
     }
   } catch (error) {
-    logger.error(`[Document Processor] ${provider} ${modelName} error:`, error);
+    logger.error({ error }, `[Document Processor] ${provider} ${modelName} error`);
     throw error;
   }
 }
