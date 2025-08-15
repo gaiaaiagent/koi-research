@@ -19,8 +19,26 @@ export const knowledgeProvider: Provider = {
     'Knowledge from the knowledge base that the agent knows, retrieved whenever the agent needs to answer a question about their expertise.',
   dynamic: true,
   get: async (runtime: IAgentRuntime, message: Memory) => {
+    console.log('[KNOWLEDGE-PROVIDER] get() called with message:', message.content?.text);
+    logger.debug('[KNOWLEDGE] Provider get() called');
+    logger.debug(`[KNOWLEDGE] Message: ${message.content?.text}`);
+    
+    console.log('[KNOWLEDGE-PROVIDER] Looking for knowledge service...');
     const knowledgeService = runtime.getService('knowledge') as KnowledgeService;
+    console.log('[KNOWLEDGE-PROVIDER] Service found:', !!knowledgeService);
+    
+    if (!knowledgeService) {
+      console.error('[KNOWLEDGE-PROVIDER] Knowledge service not found!');
+      logger.error('[KNOWLEDGE] Knowledge service not found!');
+      return {
+        text: '',
+        values: {},
+        data: null,
+      };
+    }
+    
     const knowledgeData = await knowledgeService?.getKnowledge(message);
+    logger.debug(`[KNOWLEDGE] Retrieved ${knowledgeData?.length || 0} knowledge items`);
 
     const firstFiveKnowledgeItems = knowledgeData?.slice(0, 5);
 

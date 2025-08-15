@@ -50,6 +50,11 @@ export class KnowledgeService extends Service {
    */
   constructor(runtime: IAgentRuntime, config?: Partial<KnowledgeConfig>) {
     super(runtime);
+    console.log('[KNOWLEDGE-SERVICE] Constructor called');
+    logger.info('[KNOWLEDGE] KnowledgeService constructor called');
+    logger.info(`[KNOWLEDGE] Agent ID: ${runtime.agentId}`);
+    logger.info(`[KNOWLEDGE] Service type: ${(this.constructor as any).serviceType}`);
+    console.log('[KNOWLEDGE-SERVICE] Service instance created with serviceType:', (this.constructor as any).serviceType);
     this.knowledgeProcessingSemaphore = new Semaphore(10);
   }
 

@@ -1,5 +1,4 @@
 import { Buffer } from 'node:buffer';
-import * as mammoth from 'mammoth';
 import { logger } from '@elizaos/core';
 import { getDocument, PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { TextItem, TextMarkedContent } from 'pdfjs-dist/types/src/display/api';
@@ -42,6 +41,8 @@ export async function extractTextFromFileBuffer(
   ) {
     logger.debug(`[TextUtil] Extracting text from DOCX ${originalFilename} via mammoth.`);
     try {
+      // Dynamic import to avoid breaking plugin load
+      const mammoth = await import('mammoth');
       const result = await mammoth.extractRawText({ buffer: fileBuffer });
       logger.debug(
         `[TextUtil] DOCX text extraction complete for ${originalFilename}. Text length: ${result.value.length}`

@@ -6,8 +6,14 @@ export default defineConfig({
   tsconfig: './tsconfig.build.json', // Use build-specific tsconfig
   sourcemap: true,
   clean: false,
-  format: ['esm'], // Ensure you're targeting CommonJS
+  format: ['esm'], // Build as ESM for ElizaOS compatibility
   dts: true,
+  outExtension({ format }) {
+    return {
+      js: '.js', // Always use .js extension
+      dts: '.d.ts'
+    }
+  },
   external: [
     'dotenv', // Externalize dotenv to prevent bundling
     'fs', // Externalize fs to use Node.js built-in module
