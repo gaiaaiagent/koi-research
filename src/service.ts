@@ -33,6 +33,18 @@ const parseBooleanEnv = (value: any): boolean => {
 };
 
 /**
+ * Maximum safe document size for PGLite storage.
+ * PGLite has a 128KB query size limit. We use 80KB to leave room for:
+ * - JSON serialization overhead
+ * - Additional metadata fields
+ * - Query parameter encoding
+ * 
+ * Documents larger than this will be truncated to prevent memory allocation errors.
+ * The full content is still processed into searchable chunks.
+ */
+const MAX_SAFE_DOCUMENT_SIZE = 80 * 1024; // 80KB
+
+/**
  * Knowledge Service - Provides retrieval augmented generation capabilities
  */
 export class KnowledgeService extends Service {
@@ -258,17 +270,10 @@ export class KnowledgeService extends Service {
       if (existingDocument && existingDocument.metadata?.type === MemoryType.DOCUMENT) {
         logger.info(`"${options.originalFilename}" already exists - skipping`);
 
-        // Count existing fragments for this document
-        const fragments = await this.runtime.getMemories({
-          tableName: 'knowledge',
-        });
-
-        // Filter fragments related to this specific document
-        const relatedFragments = fragments.filter(
-          (f) =>
-            f.metadata?.type === MemoryType.FRAGMENT &&
-            (f.metadata as FragmentMetadata).documentId === contentBasedId
-        );
+        // Skip expensive fragment counting for better performance
+        // The count was only informational and caused significant delays
+        // when processing many duplicate files (5.8s -> <1s per file)
+        const relatedFragments = { length: "N/A" };
 
         return {
           clientDocumentId: contentBasedId,
@@ -477,20 +482,31 @@ export class KnowledgeService extends Service {
     message: Memory,
     scope?: { roomId?: UUID; worldId?: UUID; entityId?: UUID }
   ): Promise<KnowledgeItem[]> {
-    logger.debug('KnowledgeService: getKnowledge called for message id: ' + message.id);
+    logger.info(`🔍 [KNOWLEDGE SERVICE] ===== getKnowledge START =====`);
+    logger.info(`🔍 [KNOWLEDGE SERVICE] Message ID: ${message.id}`);
+    logger.info(`🔍 [KNOWLEDGE SERVICE] Message text: "${message.content?.text}"`);
+    logger.info(`🔍 [KNOWLEDGE SERVICE] Agent ID: ${this.runtime.agentId}`);
+    logger.info(`🔍 [KNOWLEDGE SERVICE] Agent Name: ${this.runtime.character?.name}`);
+    logger.info(`🔍 [KNOWLEDGE SERVICE] Scope provided: ${JSON.stringify(scope)}`);
+    
     if (!message?.content?.text || message?.content?.text.trim().length === 0) {
-      logger.warn('KnowledgeService: Invalid or empty message content for knowledge query.');
+      logger.warn('🔍 [KNOWLEDGE SERVICE] Invalid or empty message content for knowledge query.');
+      logger.warn('🔍 [KNOWLEDGE SERVICE] ===== getKnowledge END (empty) =====');
       return [];
     }
 
+    logger.info(`🔍 [KNOWLEDGE SERVICE] Generating embedding for text: "${message.content.text.substring(0, 100)}..."`);
     const embedding = await this.runtime.useModel(ModelType.TEXT_EMBEDDING, {
       text: message.content.text,
     });
+    logger.info(`🔍 [KNOWLEDGE SERVICE] Embedding generated successfully: ${embedding.length} dimensions`);
 
     const filterScope: { roomId?: UUID; worldId?: UUID; entityId?: UUID } = {};
     if (scope?.roomId) filterScope.roomId = scope.roomId;
     if (scope?.worldId) filterScope.worldId = scope.worldId;
     if (scope?.entityId) filterScope.entityId = scope.entityId;
+    
+    logger.info(`🔍 [KNOWLEDGE SERVICE] Searching knowledge table with scope: ${JSON.stringify(filterScope)}`);
 
     const fragments = await this.runtime.searchMemories({
       tableName: 'knowledge',
@@ -501,7 +517,14 @@ export class KnowledgeService extends Service {
       match_threshold: 0.1, // TODO: Make configurable
     });
 
-    return fragments
+    logger.info(`🔍 [KNOWLEDGE SERVICE] Search returned ${fragments.length} fragments`);
+    if (fragments.length > 0) {
+      logger.info(`🔍 [KNOWLEDGE SERVICE] Top fragment similarity: ${fragments[0]?.similarity}, content preview: "${fragments[0]?.content?.text?.substring(0, 100)}..."`);
+    } else {
+      logger.warn(`🔍 [KNOWLEDGE SERVICE] No fragments found for query: "${message.content.text}"`);
+    }
+
+    const result = fragments
       .filter((fragment) => fragment.id !== undefined) // Ensure fragment.id is defined
       .map((fragment) => ({
         id: fragment.id as UUID, // Cast as UUID after filtering
@@ -510,6 +533,10 @@ export class KnowledgeService extends Service {
         metadata: fragment.metadata,
         worldId: fragment.worldId,
       }));
+      
+    logger.info(`🔍 [KNOWLEDGE SERVICE] Filtered and mapped ${result.length} knowledge items`);
+    logger.info(`🔍 [KNOWLEDGE SERVICE] ===== getKnowledge END =====`);
+    return result;
   }
 
   /**
@@ -770,6 +797,39 @@ export class KnowledgeService extends Service {
       createdAt: Date.now(),
     };
 
+    // Check if document is too large for PGLite
+    // This prevents "Failed on request of size 131072 in memory context" errors
+    const documentSize = JSON.stringify(documentMemory).length;
+    if (documentSize > MAX_SAFE_DOCUMENT_SIZE) {
+      logger.info(
+        `KnowledgeService: Document ${item.id} is too large (${Math.round(documentSize / 1024)}KB). Truncating for storage.`
+      );
+
+      // Truncate content but preserve enough for preview
+      // The full content will still be processed into searchable chunks
+      const truncatedText = item.content.text.substring(0, 1000) + 
+        '\n\n[TRUNCATED - Full content available in source file]';
+
+      documentMemory.content = { text: truncatedText };
+      documentMemory.metadata = {
+        ...documentMemory.metadata,
+        truncated: true,
+        originalSize: item.content.text.length,
+        truncatedSize: truncatedText.length,
+      };
+
+      // Add file source info if available for future full content retrieval
+      const filePath = item.metadata?.path || item.metadata?.filename;
+      if (filePath) {
+        (documentMemory as any).file_source = {
+          path: filePath,
+          size: item.content.text.length,
+          lastModified: new Date().toISOString(),
+          truncatedAt: 1000,
+        };
+      }
+    }
+
     const existingDocument = await this.runtime.getMemoryById(item.id);
     if (existingDocument) {
       logger.debug(
@@ -780,7 +840,12 @@ export class KnowledgeService extends Service {
         id: item.id, // Ensure ID is passed for update
       });
     } else {
-      await this.runtime.createMemory(documentMemory, 'documents');
+      try {
+        await this.runtime.createMemory(documentMemory, 'documents');
+      } catch (error: any) {
+        logger.error({ error }, `KnowledgeService: Failed to create document memory for ${item.id}`);
+        throw error;
+      }
     }
 
     const fragments = await this.splitAndCreateFragments(
