@@ -1,992 +1,412 @@
 import {
   IAgentRuntime,
-  Memory,
-  MemoryType,
   ModelType,
   UUID,
+  Memory,
+  MemoryType,
   logger,
-  splitChunks,
 } from '@elizaos/core';
-import { Buffer } from 'node:buffer';
-import { v4 as uuidv4 } from 'uuid';
-import { getProviderRateLimits, validateModelConfig } from './config.ts';
+import { v5 as uuidv5 } from 'uuid';
 import {
-  DEFAULT_CHARS_PER_TOKEN,
-  DEFAULT_CHUNK_OVERLAP_TOKENS,
-  DEFAULT_CHUNK_TOKEN_SIZE,
-  getCachingContextualizationPrompt,
-  getCachingPromptForMimeType,
-  getChunkWithContext,
-  getContextualizationPrompt,
-  getPromptForMimeType,
-} from './ctx-embeddings.ts';
-import { generateText } from './llm.ts';
-import { convertPdfToTextFromBuffer, extractTextFromFileBuffer } from './utils.ts';
+  DocumentMetadata,
+  FragmentMetadata,
+  KnowledgeItem,
+  ProcessingOptions,
+} from '../types';
+import { createDocumentMemory } from './utils/memory';
 
-/**
- * Estimates token count for a text string (rough approximation)
- * Uses the common 4 characters per token rule
- */
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
+const DEFAULT_CHUNK_SIZE = 500;
+const DEFAULT_CHUNK_OVERLAP = 100;
+const DEFAULT_BATCH_SIZE = 50;
+const DEFAULT_RATE_LIMIT_PAUSE = 500; // ms between batches
+const MAX_RETRIES = 6;
+const INITIAL_BACKOFF_DELAY = 1000; // 1 second
+
+// Rate limit tracking
+interface RateLimitState {
+  remainingRequests: number;
+  remainingTokens: number;
+  requestsResetTime: Date;
+  tokensResetTime: Date;
 }
 
-/**
- * Gets CTX_KNOWLEDGE_ENABLED setting from runtime or environment
- * Ensures consistency with config.ts validation
- */
-function getCtxKnowledgeEnabled(runtime?: IAgentRuntime): boolean {
-  let result: boolean;
-  let source: string;
-  let rawValue: string | undefined;
-
-  if (runtime) {
-    rawValue = runtime.getSetting('CTX_KNOWLEDGE_ENABLED');
-    // CRITICAL FIX: Use trim() and case-insensitive comparison
-    const cleanValue = rawValue?.toString().trim().toLowerCase();
-    result = cleanValue === 'true';
-    source = 'runtime.getSetting()';
-  } else {
-    rawValue = process.env.CTX_KNOWLEDGE_ENABLED;
-    const cleanValue = rawValue?.toString().trim().toLowerCase();
-    result = cleanValue === 'true';
-    source = 'process.env';
-  }
-
-  // Only log when there's a mismatch or for initial debugging
-  if (process.env.NODE_ENV === 'development' && rawValue && !result) {
-    logger.debug(`[Document Processor] CTX config mismatch - ${source}: '${rawValue}' → ${result}`);
-  }
-
-  return result;
-}
-
-/**
- * Check if custom LLM should be used based on environment variables
- * Custom LLM is enabled when all three key variables are set:
- * - TEXT_PROVIDER
- * - TEXT_MODEL
- * - OPENROUTER_API_KEY (or provider-specific API key)
- */
-function shouldUseCustomLLM(): boolean {
-  const textProvider = process.env.TEXT_PROVIDER;
-  const textModel = process.env.TEXT_MODEL;
-
-  if (!textProvider || !textModel) {
-    return false;
-  }
-
-  // Check for provider-specific API keys
-  switch (textProvider.toLowerCase()) {
-    case 'openrouter':
-      return !!process.env.OPENROUTER_API_KEY;
-    case 'openai':
-      return !!process.env.OPENAI_API_KEY;
-    case 'anthropic':
-      return !!process.env.ANTHROPIC_API_KEY;
-    case 'google':
-      return !!process.env.GOOGLE_API_KEY;
-    default:
-      return false;
-  }
-}
-
-const useCustomLLM = shouldUseCustomLLM();
-
-// =============================================================================
-// MAIN DOCUMENT PROCESSING FUNCTIONS
-// =============================================================================
-
-/**
- * Process document fragments synchronously
- * This function:
- * 1. Splits the document text into chunks
- * 2. Enriches chunks with context if contextual Knowledge is enabled
- * 3. Generates embeddings for each chunk
- * 4. Stores fragments with embeddings in the database
- *
- * @param params Fragment parameters
- * @returns Number of fragments processed
- */
-export async function processFragmentsSynchronously({
-  runtime,
-  documentId,
-  fullDocumentText,
-  agentId,
-  contentType,
-  roomId,
-  entityId,
-  worldId,
-  documentTitle,
-}: {
-  runtime: IAgentRuntime;
-  documentId: UUID;
-  fullDocumentText: string;
-  agentId: UUID;
-  contentType?: string;
-  roomId?: UUID;
-  entityId?: UUID;
-  worldId?: UUID;
-  documentTitle?: string;
-}): Promise<number> {
-  if (!fullDocumentText || fullDocumentText.trim() === '') {
-    logger.warn(`No text content available to chunk for document ${documentId}.`);
-    return 0;
-  }
-
-  // Split the text into chunks using standard parameters
-  const chunks = await splitDocumentIntoChunks(fullDocumentText);
-
-  if (chunks.length === 0) {
-    logger.warn(`No chunks generated from text for ${documentId}. No fragments to save.`);
-    return 0;
-  }
-
-  const docName = documentTitle || documentId.substring(0, 8);
-  logger.info(`[Document Processor] "${docName}": Split into ${chunks.length} chunks`);
-
-  // Get provider limits for rate limiting
-  const providerLimits = await getProviderRateLimits();
-  const CONCURRENCY_LIMIT = Math.min(30, providerLimits.maxConcurrentRequests || 30);
-  const rateLimiter = createRateLimiter(
-    providerLimits.requestsPerMinute || 60,
-    providerLimits.tokensPerMinute
-  );
-
-  logger.debug(
-    `[Document Processor] Rate limits: ${providerLimits.requestsPerMinute} RPM, ${providerLimits.tokensPerMinute} TPM (${providerLimits.provider}, concurrency: ${CONCURRENCY_LIMIT})`
-  );
-
-  // Process and save fragments
-  const { savedCount, failedCount } = await processAndSaveFragments({
-    runtime,
-    documentId,
-    chunks,
-    fullDocumentText,
-    contentType,
-    agentId,
-    roomId: roomId || agentId,
-    entityId: entityId || agentId,
-    worldId: worldId || agentId,
-    concurrencyLimit: CONCURRENCY_LIMIT,
-    rateLimiter,
-    documentTitle,
-  });
-
-  // Report results with summary
-  const successRate = ((savedCount / chunks.length) * 100).toFixed(1);
-
-  if (failedCount > 0) {
-    logger.warn(
-      `[Document Processor] "${docName}": ${failedCount}/${chunks.length} chunks failed processing`
-    );
-  }
-
-  logger.info(
-    `[Document Processor] "${docName}" complete: ${savedCount}/${chunks.length} fragments saved (${successRate}% success)`
-  );
-
-  // Provide comprehensive end summary
-  logKnowledgeGenerationSummary({
-    documentId,
-    totalChunks: chunks.length,
-    savedCount,
-    failedCount,
-    successRate: parseFloat(successRate),
-    ctxEnabled: getCtxKnowledgeEnabled(runtime),
-    providerLimits,
-  });
-
-  return savedCount;
-}
-
-// =============================================================================
-// DOCUMENT EXTRACTION & MEMORY FUNCTIONS
-// =============================================================================
-
-/**
- * Extract text from document buffer based on content type
- * @param fileBuffer Document buffer
- * @param contentType MIME type of the document
- * @param originalFilename Original filename
- * @returns Extracted text
- */
-export async function extractTextFromDocument(
-  fileBuffer: Buffer,
-  contentType: string,
-  originalFilename: string
-): Promise<string> {
-  // Validate buffer
-  if (!fileBuffer || fileBuffer.length === 0) {
-    throw new Error(`Empty file buffer provided for ${originalFilename}. Cannot extract text.`);
-  }
-
-  try {
-    if (contentType === 'application/pdf') {
-      logger.debug(`Extracting text from PDF: ${originalFilename}`);
-      return await convertPdfToTextFromBuffer(fileBuffer, originalFilename);
-    } else {
-      logger.debug(`Extracting text from non-PDF: ${originalFilename} (Type: ${contentType})`);
-
-      // For plain text files, try UTF-8 decoding first
-      if (
-        contentType.includes('text/') ||
-        contentType.includes('application/json') ||
-        contentType.includes('application/xml')
-      ) {
-        try {
-          return fileBuffer.toString('utf8');
-        } catch (textError) {
-          logger.warn(
-            `Failed to decode ${originalFilename} as UTF-8, falling back to binary extraction`
-          );
-        }
-      }
-
-      // For other files, use general extraction
-      return await extractTextFromFileBuffer(fileBuffer, contentType, originalFilename);
-    }
-  } catch (error: any) {
-    logger.error(`Error extracting text from ${originalFilename}: ${error.message}`);
-    throw new Error(`Failed to extract text from ${originalFilename}: ${error.message}`);
-  }
-}
-
-/**
- * Create a memory object for the main document
- * @param params Document parameters
- * @returns Memory object for the main document
- */
-export function createDocumentMemory({
-  text,
-  agentId,
-  clientDocumentId,
-  originalFilename,
-  contentType,
-  worldId,
-  fileSize,
-  documentId,
-  customMetadata,
-}: {
-  text: string;
-  agentId: UUID;
-  clientDocumentId: UUID;
-  originalFilename: string;
-  contentType: string;
-  worldId: UUID;
-  fileSize: number;
-  documentId?: UUID;
-  customMetadata?: Record<string, unknown>;
-}): Memory {
-  const fileExt = originalFilename.split('.').pop()?.toLowerCase() || '';
-  const title = originalFilename.replace(`.${fileExt}`, '');
-
-  // Use the provided documentId or generate a new one
-  const docId = documentId || (uuidv4() as UUID);
-
-  return {
-    id: docId,
-    agentId,
-    roomId: agentId,
-    worldId,
-    entityId: agentId,
-    content: { text },
-    metadata: {
-      type: MemoryType.DOCUMENT,
-      documentId: clientDocumentId,
-      originalFilename,
-      contentType,
-      title,
-      fileExt,
-      fileSize,
-      source: 'rag-service-main-upload',
-      timestamp: Date.now(),
-      // Merge custom metadata if provided
-      ...(customMetadata || {}),
-    },
+class RateLimitManager {
+  private state: RateLimitState = {
+    remainingRequests: 10000,
+    remainingTokens: 10000000,
+    requestsResetTime: new Date(),
+    tokensResetTime: new Date()
   };
-}
 
-// =============================================================================
-// CHUNKING AND FRAGMENT PROCESSING
-// =============================================================================
-
-/**
- * Split document text into chunks using standard parameters
- * @param documentText The full document text to split
- * @returns Array of text chunks
- */
-async function splitDocumentIntoChunks(documentText: string): Promise<string[]> {
-  // Use the standardized constants
-  const tokenChunkSize = DEFAULT_CHUNK_TOKEN_SIZE;
-  const tokenChunkOverlap = DEFAULT_CHUNK_OVERLAP_TOKENS;
-
-  // Calculate character-based chunking sizes from token sizes for compatibility with splitChunks
-  const targetCharChunkSize = Math.round(tokenChunkSize * DEFAULT_CHARS_PER_TOKEN);
-  const targetCharChunkOverlap = Math.round(tokenChunkOverlap * DEFAULT_CHARS_PER_TOKEN);
-
-  logger.debug(
-    `Using core splitChunks with settings: tokenChunkSize=${tokenChunkSize}, tokenChunkOverlap=${tokenChunkOverlap}, ` +
-      `charChunkSize=${targetCharChunkSize}, charChunkOverlap=${targetCharChunkOverlap}`
-  );
-
-  // Split the text into chunks
-  return await splitChunks(documentText, tokenChunkSize, tokenChunkOverlap);
-}
-
-/**
- * Process and save document fragments
- * @param params Processing parameters
- * @returns Object with counts of saved and failed fragments
- */
-async function processAndSaveFragments({
-  runtime,
-  documentId,
-  chunks,
-  fullDocumentText,
-  contentType,
-  agentId,
-  roomId,
-  entityId,
-  worldId,
-  concurrencyLimit,
-  rateLimiter,
-  documentTitle,
-}: {
-  runtime: IAgentRuntime;
-  documentId: UUID;
-  chunks: string[];
-  fullDocumentText: string;
-  contentType?: string;
-  agentId: UUID;
-  roomId?: UUID;
-  entityId?: UUID;
-  worldId?: UUID;
-  concurrencyLimit: number;
-  rateLimiter: (estimatedTokens?: number) => Promise<void>;
-  documentTitle?: string;
-}): Promise<{
-  savedCount: number;
-  failedCount: number;
-  failedChunks: number[];
-}> {
-  let savedCount = 0;
-  let failedCount = 0;
-  const failedChunks: number[] = [];
-
-  // Process chunks in batches to respect concurrency limits
-  for (let i = 0; i < chunks.length; i += concurrencyLimit) {
-    const batchChunks = chunks.slice(i, i + concurrencyLimit);
-    const batchOriginalIndices = Array.from({ length: batchChunks.length }, (_, k) => i + k);
-
-    logger.debug(
-      `[Document Processor] Batch ${Math.floor(i / concurrencyLimit) + 1}/${Math.ceil(chunks.length / concurrencyLimit)}: processing ${batchChunks.length} chunks (${batchOriginalIndices[0]}-${batchOriginalIndices[batchOriginalIndices.length - 1]})`
-    );
-
-    // Process context generation in an optimized batch
-    const contextualizedChunks = await getContextualizedChunks(
-      runtime,
-      fullDocumentText,
-      batchChunks,
-      contentType,
-      batchOriginalIndices,
-      documentTitle
-    );
-
-    // Generate embeddings with rate limiting
-    const embeddingResults = await generateEmbeddingsForChunks(
-      runtime,
-      contextualizedChunks,
-      rateLimiter
-    );
-
-    // Save fragments with embeddings
-    for (const result of embeddingResults) {
-      const originalChunkIndex = result.index;
-
-      if (!result.success) {
-        failedCount++;
-        failedChunks.push(originalChunkIndex);
-        logger.warn(`Failed to process chunk ${originalChunkIndex} for document ${documentId}`);
-        continue;
-      }
-
-      const contextualizedChunkText = result.text;
-      const embedding = result.embedding;
-
-      if (!embedding || embedding.length === 0) {
-        logger.warn(
-          `Zero vector detected for chunk ${originalChunkIndex} (document ${documentId}). Embedding: ${JSON.stringify(result.embedding)}`
-        );
-        failedCount++;
-        failedChunks.push(originalChunkIndex);
-        continue;
-      }
-
-      try {
-        const fragmentMemory: Memory = {
-          id: uuidv4() as UUID,
-          agentId,
-          roomId: roomId || agentId,
-          worldId: worldId || agentId,
-          entityId: entityId || agentId,
-          embedding,
-          content: { text: contextualizedChunkText },
-          metadata: {
-            type: MemoryType.FRAGMENT,
-            documentId,
-            position: originalChunkIndex,
-            timestamp: Date.now(),
-            source: 'rag-service-fragment-sync',
-          },
-        };
-
-        await runtime.createMemory(fragmentMemory, 'knowledge');
-        // Log when all chunks for this document are processed
-        if (originalChunkIndex === chunks.length - 1) {
-          const docName = documentTitle || documentId.substring(0, 8);
-          logger.info(
-            `[Document Processor] "${docName}": All ${chunks.length} chunks processed successfully`
-          );
-        }
-        savedCount++;
-      } catch (saveError: any) {
-        logger.error(
-          `Error saving chunk ${originalChunkIndex} to database: ${saveError.message}`,
-          saveError.stack
-        );
-        failedCount++;
-        failedChunks.push(originalChunkIndex);
-      }
+  updateFromHeaders(headers: Record<string, string>) {
+    if (headers['x-ratelimit-remaining-requests']) {
+      this.state.remainingRequests = parseInt(headers['x-ratelimit-remaining-requests']);
     }
-
-    // Add a small delay between batches to prevent overwhelming the API
-    if (i + concurrencyLimit < chunks.length) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+    if (headers['x-ratelimit-remaining-tokens']) {
+      this.state.remainingTokens = parseInt(headers['x-ratelimit-remaining-tokens']);
+    }
+    if (headers['x-ratelimit-reset-requests']) {
+      this.state.requestsResetTime = this.parseResetTime(headers['x-ratelimit-reset-requests']);
+    }
+    if (headers['x-ratelimit-reset-tokens']) {
+      this.state.tokensResetTime = this.parseResetTime(headers['x-ratelimit-reset-tokens']);
     }
   }
 
-  return { savedCount, failedCount, failedChunks };
-}
-
-/**
- * Generate embeddings for contextualized chunks
- * @param runtime IAgentRuntime
- * @param contextualizedChunks Array of contextualized chunks
- * @param rateLimiter Rate limiter function
- * @returns Array of embedding results
- */
-async function generateEmbeddingsForChunks(
-  runtime: IAgentRuntime,
-  contextualizedChunks: Array<{
-    contextualizedText: string;
-    index: number;
-    success: boolean;
-  }>,
-  rateLimiter: (estimatedTokens?: number) => Promise<void>
-): Promise<Array<any>> {
-  // Filter out failed chunks
-  const validChunks = contextualizedChunks.filter((chunk) => chunk.success);
-  const failedChunks = contextualizedChunks.filter((chunk) => !chunk.success);
-
-  if (validChunks.length === 0) {
-    return failedChunks.map((chunk) => ({
-      success: false,
-      index: chunk.index,
-      error: new Error('Chunk processing failed'),
-      text: chunk.contextualizedText,
-    }));
-  }
-
-  // Always use individual processing with ElizaOS runtime (keeping embeddings simple)
-  return await Promise.all(
-    contextualizedChunks.map(async (contextualizedChunk) => {
-      if (!contextualizedChunk.success) {
-        return {
-          success: false,
-          index: contextualizedChunk.index,
-          error: new Error('Chunk processing failed'),
-          text: contextualizedChunk.contextualizedText,
-        };
-      }
-
-      // Apply rate limiting before embedding generation
-      const embeddingTokens = estimateTokens(contextualizedChunk.contextualizedText);
-      await rateLimiter(embeddingTokens);
-
-      try {
-        const generateEmbeddingOperation = async () => {
-          return await generateEmbeddingWithValidation(
-            runtime,
-            contextualizedChunk.contextualizedText
-          );
-        };
-
-        const { embedding, success, error } = await withRateLimitRetry(
-          generateEmbeddingOperation,
-          `embedding generation for chunk ${contextualizedChunk.index}`
-        );
-
-        if (!success) {
-          return {
-            success: false,
-            index: contextualizedChunk.index,
-            error,
-            text: contextualizedChunk.contextualizedText,
-          };
-        }
-
-        return {
-          embedding,
-          success: true,
-          index: contextualizedChunk.index,
-          text: contextualizedChunk.contextualizedText,
-        };
-      } catch (error: any) {
-        logger.error(
-          `Error generating embedding for chunk ${contextualizedChunk.index}: ${error.message}`
-        );
-        return {
-          success: false,
-          index: contextualizedChunk.index,
-          error,
-          text: contextualizedChunk.contextualizedText,
-        };
-      }
-    })
-  );
-}
-
-// =============================================================================
-// CONTEXTUAL ENRICHMENT FUNCTIONS
-// =============================================================================
-
-/**
- * Generate contextual chunks if contextual Knowledge is enabled
- */
-async function getContextualizedChunks(
-  runtime: IAgentRuntime,
-  fullDocumentText: string | undefined,
-  chunks: string[],
-  contentType: string | undefined,
-  batchOriginalIndices: number[],
-  documentTitle?: string
-): Promise<Array<{ contextualizedText: string; index: number; success: boolean }>> {
-  const ctxEnabled = getCtxKnowledgeEnabled(runtime);
-
-  // Log configuration state once per document (not per batch)
-  if (batchOriginalIndices[0] === 0) {
-    const docName = documentTitle || 'Document';
-    const provider = runtime?.getSetting('TEXT_PROVIDER') || process.env.TEXT_PROVIDER;
-    const model = runtime?.getSetting('TEXT_MODEL') || process.env.TEXT_MODEL;
-    logger.info(
-      `[Document Processor] "${docName}": CTX enrichment ${ctxEnabled ? 'ENABLED' : 'DISABLED'}${ctxEnabled ? ` (${provider}/${model})` : ''}`
-    );
-  }
-
-  // Enhanced logging for contextual processing
-  if (ctxEnabled && fullDocumentText) {
-    return await generateContextsInBatch(
-      runtime,
-      fullDocumentText,
-      chunks,
-      contentType,
-      batchOriginalIndices,
-      documentTitle
-    );
-  } else if (!ctxEnabled && batchOriginalIndices[0] === 0) {
-    logger.debug(
-      `[Document Processor] To enable CTX: Set CTX_KNOWLEDGE_ENABLED=true and configure TEXT_PROVIDER/TEXT_MODEL`
-    );
-  }
-
-  // If contextual Knowledge is disabled, prepare the chunks without modification
-  return chunks.map((chunkText, idx) => ({
-    contextualizedText: chunkText,
-    index: batchOriginalIndices[idx],
-    success: true,
-  }));
-}
-
-/**
- * Generate contexts for multiple chunks in a single batch
- */
-async function generateContextsInBatch(
-  runtime: IAgentRuntime,
-  fullDocumentText: string,
-  chunks: string[],
-  contentType?: string,
-  batchIndices?: number[],
-  documentTitle?: string
-): Promise<Array<{ contextualizedText: string; success: boolean; index: number }>> {
-  if (!chunks || chunks.length === 0) {
-    return [];
-  }
-
-  const providerLimits = await getProviderRateLimits();
-  const rateLimiter = createRateLimiter(
-    providerLimits.requestsPerMinute || 60,
-    providerLimits.tokensPerMinute
-  );
-
-  // Get active provider from validateModelConfig
-  const config = validateModelConfig(runtime);
-  const isUsingOpenRouter = config.TEXT_PROVIDER === 'openrouter';
-  const isUsingCacheCapableModel =
-    isUsingOpenRouter &&
-    (config.TEXT_MODEL?.toLowerCase().includes('claude') ||
-      config.TEXT_MODEL?.toLowerCase().includes('gemini'));
-
-  logger.debug(
-    `[Document Processor] Contextualizing ${chunks.length} chunks with ${config.TEXT_PROVIDER}/${config.TEXT_MODEL} (cache: ${isUsingCacheCapableModel})`
-  );
-
-  // Prepare prompts or system messages in parallel
-  const promptConfigs = prepareContextPrompts(
-    chunks,
-    fullDocumentText,
-    contentType,
-    batchIndices,
-    isUsingCacheCapableModel
-  );
-
-  // Process valid prompts with rate limiting
-  const contextualizedChunks = await Promise.all(
-    promptConfigs.map(async (item) => {
-      if (!item.valid) {
-        return {
-          contextualizedText: item.chunkText,
-          success: false,
-          index: item.originalIndex,
-        };
-      }
-
-      // Apply rate limiting before making API call
-      const llmTokens = estimateTokens(item.chunkText + (item.prompt || ''));
-      await rateLimiter(llmTokens);
-
-      try {
-        let llmResponse;
-
-        const generateTextOperation = async () => {
-          if (useCustomLLM) {
-            // Use custom LLM with caching support
-            if (item.usesCaching) {
-              // Use the newer caching approach with separate document
-              return await generateText(runtime, item.promptText!, item.systemPrompt, {
-                cacheDocument: item.fullDocumentTextForContext,
-                cacheOptions: { type: 'ephemeral' },
-                autoCacheContextualRetrieval: true,
-              });
-            } else {
-              // Original approach - document embedded in prompt
-              return await generateText(runtime, item.prompt!);
-            }
-          } else {
-            // Fall back to runtime.useModel (original behavior)
-            if (item.usesCaching) {
-              // Use the newer caching approach with separate document
-              // Note: runtime.useModel doesn't support cacheDocument/cacheOptions
-              return await runtime.useModel(ModelType.TEXT_LARGE, {
-                prompt: item.promptText!,
-                system: item.systemPrompt,
-              });
-            } else {
-              // Original approach - document embedded in prompt
-              return await runtime.useModel(ModelType.TEXT_LARGE, {
-                prompt: item.prompt!,
-              });
-            }
-          }
-        };
-
-        llmResponse = await withRateLimitRetry(
-          generateTextOperation,
-          `context generation for chunk ${item.originalIndex}`
-        );
-
-        const generatedContext = typeof llmResponse === 'string' ? llmResponse : llmResponse.text;
-        const contextualizedText = getChunkWithContext(item.chunkText, generatedContext);
-
-        // Track context generation progress without spam
-        if (
-          (item.originalIndex + 1) % Math.max(1, Math.floor(chunks.length / 3)) === 0 ||
-          item.originalIndex === chunks.length - 1
-        ) {
-          const docName = documentTitle || 'Document';
-          logger.debug(
-            `[Document Processor] "${docName}": Context added for ${item.originalIndex + 1}/${chunks.length} chunks`
-          );
-        }
-
-        return {
-          contextualizedText,
-          success: true,
-          index: item.originalIndex,
-        };
-      } catch (error: any) {
-        logger.error(
-          `Error generating context for chunk ${item.originalIndex}: ${error.message}`,
-          error.stack
-        );
-        return {
-          contextualizedText: item.chunkText,
-          success: false,
-          index: item.originalIndex,
-        };
-      }
-    })
-  );
-
-  return contextualizedChunks;
-}
-
-/**
- * Prepare prompts for contextualization
- */
-function prepareContextPrompts(
-  chunks: string[],
-  fullDocumentText: string,
-  contentType?: string,
-  batchIndices?: number[],
-  isUsingCacheCapableModel = false
-): Array<any> {
-  return chunks.map((chunkText, idx) => {
-    const originalIndex = batchIndices ? batchIndices[idx] : idx;
-    try {
-      // If we're using OpenRouter with Claude/Gemini, use the newer caching approach
-      if (isUsingCacheCapableModel) {
-        // Get optimized caching prompt from ctx-embeddings.ts
-        const cachingPromptInfo = contentType
-          ? getCachingPromptForMimeType(contentType, chunkText)
-          : getCachingContextualizationPrompt(chunkText);
-
-        // If there was an error in prompt generation
-        if (cachingPromptInfo.prompt.startsWith('Error:')) {
-          logger.warn(
-            `Skipping contextualization for chunk ${originalIndex} due to: ${cachingPromptInfo.prompt}`
-          );
-          return {
-            originalIndex,
-            chunkText,
-            valid: false,
-            usesCaching: false,
-          };
-        }
-
-        return {
-          valid: true,
-          originalIndex,
-          chunkText,
-          usesCaching: true,
-          systemPrompt: cachingPromptInfo.systemPrompt,
-          promptText: cachingPromptInfo.prompt,
-          fullDocumentTextForContext: fullDocumentText,
-        };
-      } else {
-        // Original approach - embed document in the prompt
-        const prompt = contentType
-          ? getPromptForMimeType(contentType, fullDocumentText, chunkText)
-          : getContextualizationPrompt(fullDocumentText, chunkText);
-
-        if (prompt.startsWith('Error:')) {
-          logger.warn(`Skipping contextualization for chunk ${originalIndex} due to: ${prompt}`);
-          return {
-            prompt: null,
-            originalIndex,
-            chunkText,
-            valid: false,
-            usesCaching: false,
-          };
-        }
-
-        return {
-          prompt,
-          originalIndex,
-          chunkText,
-          valid: true,
-          usesCaching: false,
-        };
-      }
-    } catch (error: any) {
-      logger.error(
-        `Error preparing prompt for chunk ${originalIndex}: ${error.message}`,
-        error.stack
-      );
-      return {
-        prompt: null,
-        originalIndex,
-        chunkText,
-        valid: false,
-        usesCaching: false,
-      };
+  private parseResetTime(resetStr: string): Date {
+    // Parse format like "1s" or "6m0s"
+    const match = resetStr.match(/(\d+)([ms])/);
+    if (match) {
+      const value = parseInt(match[1]);
+      const unit = match[2];
+      const ms = unit === 's' ? value * 1000 : value * 60 * 1000;
+      return new Date(Date.now() + ms);
     }
-  });
-}
+    return new Date(Date.now() + 60000); // Default 1 minute
+  }
 
-// =============================================================================
-// UTILITY FUNCTIONS
-// =============================================================================
-
-/**
- * Helper to generate embedding with proper error handling and validation
- */
-async function generateEmbeddingWithValidation(
-  runtime: IAgentRuntime,
-  text: string
-): Promise<{
-  embedding: number[] | null;
-  success: boolean;
-  error?: any;
-}> {
-  try {
-    // Always use ElizaOS runtime for embeddings (keep it simple as requested)
-    const embeddingResult = await runtime.useModel(ModelType.TEXT_EMBEDDING, {
-      text,
-    });
-
-    // Handle different embedding result formats consistently
-    const embedding = Array.isArray(embeddingResult)
-      ? embeddingResult
-      : (embeddingResult as { embedding: number[] })?.embedding;
-
-    // Validate embedding
-    if (!embedding || embedding.length === 0) {
-      logger.warn(`Zero vector detected. Embedding result: ${JSON.stringify(embedding)}`);
-      return {
-        embedding: null,
-        success: false,
-        error: new Error('Zero vector detected'),
-      };
+  async waitIfNeeded() {
+    // If we're low on requests, wait until reset
+    if (this.state.remainingRequests < 100) {
+      const waitTime = this.state.requestsResetTime.getTime() - Date.now();
+      if (waitTime > 0) {
+        logger.info(`[Document Processor] Rate limit approaching, waiting ${Math.ceil(waitTime/1000)}s`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
     }
+  }
 
-    return { embedding, success: true };
-  } catch (error: any) {
-    return { embedding: null, success: false, error };
+  canProceed(): boolean {
+    return this.state.remainingRequests > 100;
   }
 }
 
-/**
- * Handle rate-limited API calls with automatic retry
- */
-async function withRateLimitRetry<T>(
-  operation: () => Promise<T>,
-  errorContext: string,
-  retryDelay?: number
+const rateLimitManager = new RateLimitManager();
+
+interface ProcessingResult {
+  storedDocumentId: UUID;
+  fragmentCount: number;
+  errors?: string[];
+}
+
+// Exponential backoff with jitter
+async function withExponentialBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = MAX_RETRIES
 ): Promise<T> {
-  try {
-    return await operation();
-  } catch (error: any) {
-    if (error.status === 429) {
-      // Handle rate limiting with exponential backoff
-      const delay = retryDelay || error.headers?.['retry-after'] || 5;
-      logger.warn(`Rate limit hit for ${errorContext}. Retrying after ${delay}s`);
-      await new Promise((resolve) => setTimeout(resolve, delay * 1000));
-
-      // Try one more time
-      try {
-        return await operation();
-      } catch (retryError: any) {
-        logger.error(`Failed after retry for ${errorContext}: ${retryError.message}`);
-        throw retryError;
+  let lastError: any;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      if (error.status === 429 || error.status === 503) {
+        const delay = Math.min(INITIAL_BACKOFF_DELAY * Math.pow(2, i), 60000) + Math.random() * 1000;
+        logger.info(`[Document Processor] Retry ${i + 1}/${maxRetries} after ${Math.ceil(delay/1000)}s delay`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        throw error;
       }
     }
-    throw error;
   }
+  throw lastError;
 }
 
-/**
- * Creates a comprehensive rate limiter that tracks both requests and tokens
- */
-function createRateLimiter(requestsPerMinute: number, tokensPerMinute?: number) {
-  const requestTimes: number[] = [];
-  const tokenUsage: Array<{ timestamp: number; tokens: number }> = [];
-  const intervalMs = 60 * 1000; // 1 minute in milliseconds
+export class DocumentProcessor {
+  private contextWindow: number;
+  private contextEnabled: boolean;
 
-  return async function rateLimiter(estimatedTokens: number = 1000) {
-    const now = Date.now();
+  constructor(config?: { contextWindow?: number; contextEnabled?: boolean }) {
+    this.contextWindow = config?.contextWindow || 2048;
+    this.contextEnabled = config?.contextEnabled !== false;
+  }
 
-    // Remove old timestamps
-    while (requestTimes.length > 0 && now - requestTimes[0] > intervalMs) {
-      requestTimes.shift();
-    }
-
-    // Remove old token usage
-    while (tokenUsage.length > 0 && now - tokenUsage[0].timestamp > intervalMs) {
-      tokenUsage.shift();
-    }
-
-    // Calculate current token usage
-    const currentTokens = tokenUsage.reduce((sum, usage) => sum + usage.tokens, 0);
-
-    // Check both request and token limits
-    const requestLimitExceeded = requestTimes.length >= requestsPerMinute;
-    const tokenLimitExceeded = tokensPerMinute && currentTokens + estimatedTokens > tokensPerMinute;
-
-    if (requestLimitExceeded || tokenLimitExceeded) {
-      let timeToWait = 0;
-
-      if (requestLimitExceeded) {
-        const oldestRequest = requestTimes[0];
-        timeToWait = Math.max(timeToWait, oldestRequest + intervalMs - now);
-      }
-
-      if (tokenLimitExceeded && tokenUsage.length > 0) {
-        const oldestTokenUsage = tokenUsage[0];
-        timeToWait = Math.max(timeToWait, oldestTokenUsage.timestamp + intervalMs - now);
-      }
-
-      if (timeToWait > 0) {
-        const reason = requestLimitExceeded ? 'request' : 'token';
-        // Only log significant waits to reduce spam
-        if (timeToWait > 5000) {
-          logger.info(
-            `[Document Processor] Rate limiting: waiting ${Math.round(timeToWait / 1000)}s due to ${reason} limit`
-          );
-        } else {
-          logger.debug(
-            `[Document Processor] Rate limiting: ${timeToWait}ms wait (${reason} limit)`
-          );
-        }
-        await new Promise((resolve) => setTimeout(resolve, timeToWait));
-      }
-    }
-
-    // Record this request
-    requestTimes.push(now);
-    if (tokensPerMinute) {
-      tokenUsage.push({ timestamp: now, tokens: estimatedTokens });
-    }
-  };
-}
-
-/**
- * Logs a comprehensive summary of the knowledge generation process
- */
-function logKnowledgeGenerationSummary({
-  totalChunks,
-  savedCount,
-  failedCount,
-  ctxEnabled,
-  providerLimits,
-}: {
-  documentId: UUID;
-  totalChunks: number;
-  savedCount: number;
-  failedCount: number;
-  successRate: number;
-  ctxEnabled: boolean;
-  providerLimits: any;
-}) {
-  // Only show summary for failed processing or debug mode
-  if (failedCount > 0 || process.env.NODE_ENV === 'development') {
-    const status = failedCount > 0 ? 'PARTIAL' : 'SUCCESS';
+  /**
+   * Process a knowledge item into document and fragment memories
+   */
+  async processDocument(
+    runtime: IAgentRuntime,
+    item: KnowledgeItem,
+    options?: ProcessingOptions
+  ): Promise<ProcessingResult> {
     logger.info(
-      `[Document Processor] ${status}: ${savedCount}/${totalChunks} chunks, CTX: ${ctxEnabled ? 'ON' : 'OFF'}, Provider: ${providerLimits.provider}`
+      `[Document Processor] Processing "${item.metadata?.filename || item.id}"`
     );
+
+    // Create and store document memory
+    const document = await this.createAndStoreDocument(runtime, item, options);
+
+    // Split into chunks and create fragments
+    const chunks = await this.splitIntoChunks(item.content.text, options);
+    logger.info(
+      `[Document Processor] "${
+        item.metadata?.filename || item.id
+      }": Split into ${chunks.length} chunks`
+    );
+
+    // Process chunks and create fragments with batching
+    return await this.processChunksWithBatching(runtime, document, chunks, item, options);
   }
 
-  if (failedCount > 0) {
-    logger.warn(`[Document Processor] ${failedCount} chunks failed processing`);
+  /**
+   * Create and store the document memory
+   */
+  private async createAndStoreDocument(
+    runtime: IAgentRuntime,
+    item: KnowledgeItem,
+    options?: ProcessingOptions
+  ): Promise<Memory> {
+    const document = createDocumentMemory(item, runtime, options);
+
+    // Store document
+    await runtime.createMemory(document, 'documents');
+    logger.debug(
+      `[Document Processor] Stored document with ID: ${document.id}`
+    );
+
+    return document;
+  }
+
+  /**
+   * Split text into chunks for processing
+   */
+  private async splitIntoChunks(
+    text: string,
+    options?: ProcessingOptions
+  ): Promise<Array<{ content: string; metadata?: any }>> {
+    const chunkSize = options?.chunkSize || DEFAULT_CHUNK_SIZE;
+    const chunkOverlap = options?.chunkOverlap || DEFAULT_CHUNK_OVERLAP;
+
+    // Simple token-based chunking
+    const words = text.split(/\s+/);
+    const chunks: Array<{ content: string; metadata?: any }> = [];
+
+    for (let i = 0; i < words.length; i += chunkSize - chunkOverlap) {
+      const chunkWords = words.slice(i, i + chunkSize);
+      if (chunkWords.length > 0) {
+        chunks.push({
+          content: chunkWords.join(' '),
+          metadata: {
+            startIndex: i,
+            endIndex: Math.min(i + chunkSize, words.length),
+          },
+        });
+      }
+    }
+
+    return chunks;
+  }
+
+  /**
+   * Process chunks with batching for efficient embedding generation
+   */
+  private async processChunksWithBatching(
+    runtime: IAgentRuntime,
+    document: Memory,
+    chunks: Array<{ content: string; metadata?: any }>,
+    item: KnowledgeItem,
+    options?: ProcessingOptions
+  ): Promise<ProcessingResult> {
+    const processingResult: ProcessingResult = {
+      storedDocumentId: document.id as UUID,
+      fragmentCount: 0,
+    };
+
+    // Batch processing for embeddings
+    const batchSize = options?.batchSize || DEFAULT_BATCH_SIZE;
+    const results: Array<{ success: boolean; error?: any }> = [];
+    
+    logger.info(`[Document Processor] Processing ${chunks.length} chunks in batches of ${batchSize}`);
+    
+    for (let i = 0; i < chunks.length; i += batchSize) {
+      const batch = chunks.slice(i, Math.min(i + batchSize, chunks.length));
+      const batchIndex = Math.floor(i / batchSize) + 1;
+      const totalBatches = Math.ceil(chunks.length / batchSize);
+      
+      logger.info(`[Document Processor] Processing batch ${batchIndex}/${totalBatches} (${batch.length} chunks)`);
+      
+      // Check rate limits before processing batch
+      await rateLimitManager.waitIfNeeded();
+      
+      try {
+        // Process batch with exponential backoff
+        const batchResults = await withExponentialBackoff(async () => {
+          // Create embeddings for all chunks in batch at once
+          const embeddings = await this.createBatchEmbeddings(runtime, batch.map(chunk => chunk.content));
+          
+          // Store fragments with their embeddings
+          return await Promise.all(
+            batch.map(async (chunk, idx) => {
+              try {
+                const embedding = embeddings[idx];
+                await this.storeFragmentWithEmbedding(
+                  runtime,
+                  document,
+                  chunk,
+                  i + idx,
+                  embedding,
+                  chunks.length,
+                  options
+                );
+                return { success: true };
+              } catch (error) {
+                logger.error({ error }, `Failed to store chunk ${i + idx}`);
+                return { success: false, error };
+              }
+            })
+          );
+        });
+        
+        results.push(...batchResults);
+        
+        // Pause between batches to respect rate limits
+        if (i + batchSize < chunks.length) {
+          await new Promise(resolve => setTimeout(resolve, DEFAULT_RATE_LIMIT_PAUSE));
+        }
+      } catch (error) {
+        // If batch fails after retries, mark all chunks as failed
+        logger.error({ error }, `Batch ${batchIndex} failed after retries`);
+        results.push(...batch.map(() => ({ success: false, error })));
+      }
+    }
+
+    const successfulChunks = results.filter((r) => r.success).length;
+    const errors = results.filter((r) => !r.success).map((r) => r.error);
+
+    processingResult.fragmentCount = successfulChunks;
+    if (errors.length > 0) {
+      processingResult.errors = errors;
+    }
+
+    logger.info(
+      `[Document Processor] "${item.metadata?.filename || item.id}" complete: ${successfulChunks}/${chunks.length} fragments saved (${(
+        (successfulChunks / chunks.length) *
+        100
+      ).toFixed(1)}% success)`
+    );
+
+    return processingResult;
+  }
+
+  /**
+   * Create embeddings for multiple texts in a single API call
+   */
+    private async createBatchEmbeddings(
+    runtime: IAgentRuntime,
+    texts: string[]
+  ): Promise<number[][]> {
+    try {
+      // Process embeddings sequentially with rate limit awareness
+      const embeddings: number[][] = [];
+      
+      for (let i = 0; i < texts.length; i++) {
+        try {
+          const embedding = await runtime.useModel(ModelType.TEXT_EMBEDDING, {
+            text: texts[i]
+          });
+          embeddings.push(embedding);
+          
+          // Add delay to respect rate limits (10 req/sec = 100ms between requests)
+          if (i < texts.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        } catch (error: any) {
+          if (error.headers) {
+            rateLimitManager.updateFromHeaders(error.headers);
+          }
+          // If we hit a rate limit, wait and retry
+          if (error.status === 429) {
+            const retryAfter = parseInt(error.headers?.['retry-after'] || '60');
+            logger.info(`[Document Processor] Rate limit hit, waiting ${retryAfter}s`);
+            await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+            i--; // Retry the same text
+            continue;
+          }
+          throw error;
+        }
+      }
+      
+      return embeddings;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Store a fragment with pre-computed embedding
+   */
+  private async storeFragmentWithEmbedding(
+    runtime: IAgentRuntime,
+    document: Memory,
+    chunk: { content: string; metadata?: any },
+    index: number,
+    embedding: number[],
+    totalChunks: number,
+    options?: ProcessingOptions
+  ): Promise<void> {
+    const fragmentId = this.generateFragmentId(document.id as UUID, index);
+    const fragmentMetadata: FragmentMetadata = {
+      type: MemoryType.FRAGMENT,
+      documentId: document.id as UUID,
+      chunkIndex: index,
+      totalChunks,
+      characterCount: chunk.content.length,
+      ...chunk.metadata,
+    };
+
+    const fragment: Memory = {
+      id: fragmentId,
+      userId: document.userId,
+      agentId: document.agentId,
+      roomId: document.roomId,
+      worldId: document.worldId,
+      content: { text: chunk.content },
+      metadata: fragmentMetadata,
+      type: MemoryType.FRAGMENT,
+      createdAt: Date.now(),
+      embedding, // Use pre-computed embedding
+    };
+
+    await runtime.createMemory(fragment, 'knowledge');
+  }
+
+  /**
+   * Generate deterministic fragment ID
+   */
+  private generateFragmentId(documentId: UUID, chunkIndex: number): UUID {
+    const FRAGMENT_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+    return uuidv5(`${documentId}-fragment-${chunkIndex}`, FRAGMENT_NAMESPACE) as UUID;
+  }
+
+  /**
+   * Create and store a single fragment (legacy method for compatibility)
+   */
+  private async createAndStoreFragment(
+    runtime: IAgentRuntime,
+    document: Memory,
+    chunk: { content: string; metadata?: any },
+    index: number,
+    options?: ProcessingOptions
+  ): Promise<{ success: boolean; error?: any }> {
+    try {
+      const embedding = await runtime.useModel(ModelType.TEXT_EMBEDDING, {
+        text: chunk.content,
+      });
+      
+      await this.storeFragmentWithEmbedding(
+        runtime,
+        document,
+        chunk,
+        index,
+        embedding,
+        1, // Total chunks not known in legacy method
+        options
+      );
+      
+      return { success: true };
+    } catch (error) {
+      logger.error({ error }, `Failed to process chunk ${index}`);
+      return { success: false, error };
+    }
   }
 }
