@@ -104,8 +104,13 @@ export async function loadDocsFromPath(
       // Process the document
       logger.debug(`Processing document: ${fileName}`);
       const result = await service.addKnowledge(knowledgeOptions);
-
-      logger.info(`✅ "${fileName}": ${result.fragmentCount} fragments created`);
+      
+      // Log appropriate message based on whether document was new or existing
+      if (result.fragmentCount > 0) {
+        logger.info(`✅ "${fileName}": ${result.fragmentCount} fragments (document loaded)`);
+      } else {
+        logger.info(`⏭️  "${fileName}": Skipped (already exists)`);
+      }
       successful++;
     } catch (error) {
       logger.error({ error }, `Failed to process file ${filePath}`);

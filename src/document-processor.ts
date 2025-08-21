@@ -13,7 +13,7 @@ import {
   KnowledgeItem,
   ProcessingOptions,
 } from '../types';
-import { createDocumentMemory } from './utils/memory';
+// createDocumentMemory is defined in this file
 
 const DEFAULT_CHUNK_SIZE = 500;
 const DEFAULT_CHUNK_OVERLAP = 100;
@@ -409,4 +409,76 @@ export class DocumentProcessor {
       return { success: false, error };
     }
   }
+}
+// =============================================================================
+// COMPATIBILITY EXPORTS FOR SERVICE.TS
+// =============================================================================
+
+// Create singleton instance for compatibility
+const processorInstance = new DocumentProcessor();
+
+export async function processFragmentsSynchronously(options: any) {
+  // This function is called by service.ts
+  // Delegate to the class method
+  return processorInstance.processFragments(
+    options.runtime,
+    options.documentId,
+    options.text,
+    options.metadata
+  );
+}
+
+export async function extractTextFromDocument(
+  contentBuffer: Buffer | string,
+  contentType: string,
+  originalFilename: string
+): Promise<string> {
+  // Static utility function - doesn't need instance
+  // Just extract text based on content type
+  if (contentType.includes('text/') || contentType.includes('application/json')) {
+    return typeof contentBuffer === 'string' ? contentBuffer : contentBuffer.toString('utf-8');
+  }
+  
+  // For other types, return empty or throw error
+  throw new Error(`Unsupported content type: ${contentType}`);
+}
+
+export function createDocumentMemory(options: any): any {
+  // This creates a memory object for storage
+  // Convert to the format expected by service.ts
+  const { 
+    text, 
+    agentId, 
+    clientDocumentId, 
+    originalFilename, 
+    contentType, 
+    worldId, 
+    fileSize,
+    documentId,
+    customMetadata 
+  } = options;
+  
+  const fileExt = originalFilename.split('.').pop()?.toLowerCase() || '';
+  const title = originalFilename.replace(`.${fileExt}`, '');
+  
+  return {
+    id: documentId || clientDocumentId,
+    agentId,
+    roomId: agentId,
+    worldId,
+    entityId: agentId,
+    content: { text },
+    metadata: {
+      type: 'document',
+      documentId: clientDocumentId,
+      originalFilename,
+      contentType,
+      title,
+      fileExt,
+      fileSize,
+      source: 'rag-service-main-upload',
+      timestamp: Date.now(),
+      ...(customMetadata || {})
+    }
+  };
 }
