@@ -28,3 +28,5 @@ export const knowledgePlugin: Plugin = {
 export default knowledgePlugin;
 
 export * from './types';
+export * from './koi-registry';
+export { KoiIntegration } from './koi-integration';

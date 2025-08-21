@@ -1,0 +1,341 @@
+{
+  "@context": {
+    "@vocab": "https://koi.regen.network/v1/",
+    "question": "koi:question",
+    "answer": "koi:answer"
+  },
+  "koi:queryResponses": [
+    {
+      "question": "What content is in the RegenAI agent's RAG system?",
+      "answer": {
+        "agentId": "regenai",
+        "totalDocuments": 12,
+        "totalFragments": 238,
+        "contentSources": {},
+        "contentTypes": {
+          "content": 12
+        },
+        "processingStatus": {
+          "processed": 12,
+          "pending": 0,
+          "failed": 0
+        }
+      }
+    },
+    {
+      "question": "What content is in the Facilitator agent's RAG system?",
+      "answer": {
+        "agentId": "facilitator",
+        "totalDocuments": 12,
+        "totalFragments": 350,
+        "contentSources": {},
+        "contentTypes": {
+          "content": 12
+        },
+        "processingStatus": {
+          "processed": 12,
+          "pending": 0,
+          "failed": 0
+        }
+      }
+    },
+    {
+      "question": "What content is in the Voice of Nature agent's RAG system?",
+      "answer": {
+        "agentId": "voiceofnature",
+        "totalDocuments": 12,
+        "totalFragments": 259,
+        "contentSources": {},
+        "contentTypes": {
+          "content": 12
+        },
+        "processingStatus": {
+          "processed": 12,
+          "pending": 0,
+          "failed": 0
+        }
+      }
+    },
+    {
+      "question": "What content is in the Governor agent's RAG system?",
+      "answer": {
+        "agentId": "governor",
+        "totalDocuments": 12,
+        "totalFragments": 305,
+        "contentSources": {},
+        "contentTypes": {
+          "content": 12
+        },
+        "processingStatus": {
+          "processed": 12,
+          "pending": 0,
+          "failed": 0
+        }
+      }
+    },
+    {
+      "question": "What content is in the Narrative agent's RAG system?",
+      "answer": {
+        "agentId": "narrative",
+        "totalDocuments": 12,
+        "totalFragments": 271,
+        "contentSources": {},
+        "contentTypes": {
+          "content": 12
+        },
+        "processingStatus": {
+          "processed": 12,
+          "pending": 0,
+          "failed": 0
+        }
+      }
+    },
+    {
+      "question": "How many documents are indexed in total?",
+      "answer": {
+        "total": 12,
+        "processed": 60,
+        "pending": 12,
+        "failed": 0
+      }
+    },
+    {
+      "question": "What are the content sources?",
+      "answer": [
+        {
+          "name": "Regen Network Twitter",
+          "type": "twitter",
+          "rid": "core.source.twitter-regen-network-twitter.v1.0.0",
+          "url": "https://twitter.com/regen_network"
+        },
+        {
+          "name": "Regen Network Medium",
+          "type": "medium",
+          "rid": "core.source.medium-regen-network-medium.v1.0.0",
+          "url": "https://medium.com/regen-network"
+        },
+        {
+          "name": "Regen Network Podcast",
+          "type": "podcast",
+          "rid": "core.source.podcast-regen-network-podcast.v1.0.0",
+          "url": "https://soundcloud.com/planetary-regeneration-podcast"
+        },
+        {
+          "name": "Regen Network Website",
+          "type": "website",
+          "rid": "core.source.website-regen-network-website.v1.0.0",
+          "url": "https://regen.network"
+        },
+        {
+          "name": "Regen Network Gitlab",
+          "type": "gitlab",
+          "rid": "core.source.gitlab-regen-network-gitlab.v1.0.0",
+          "url": "https://gitlab.com/regen-network"
+        },
+        {
+          "name": "Regen Network Github",
+          "type": "github",
+          "rid": "core.source.github-regen-network-github.v1.0.0",
+          "url": "https://github.com/regen-network"
+        },
+        {
+          "name": "regen-discord",
+          "type": "discord",
+          "rid": "core.source.discord-regen-discord.v1.0.0",
+          "url": null
+        },
+        {
+          "name": "regennetwork",
+          "type": "twitter",
+          "rid": "core.source.twitter-regennetwork.v1.0.0",
+          "url": "https://twitter.com/regennetwork"
+        },
+        {
+          "name": "regen-network-blog",
+          "type": "medium",
+          "rid": "core.source.medium-regen-network-blog.v1.0.0",
+          "url": "https://medium.com/regen-network"
+        },
+        {
+          "name": "registry-regen-network",
+          "type": "website",
+          "rid": "core.source.website-registry-regen-network.v1.0.0",
+          "url": "https://registry.regen.network"
+        },
+        {
+          "name": "regen-network-notion",
+          "type": "notion",
+          "rid": "core.source.notion-regen-network-notion.v1.0.0",
+          "url": null
+        }
+      ]
+    }
+  ],
+  "koi:contentBySource": {
+    "twitter": {
+      "sourceName": "regennetwork",
+      "sourceRid": "core.source.twitter-regennetwork.v1.0.0",
+      "contentCount": 0,
+      "contentItems": []
+    },
+    "medium": {
+      "sourceName": "regen-network-blog",
+      "sourceRid": "core.source.medium-regen-network-blog.v1.0.0",
+      "contentCount": 0,
+      "contentItems": []
+    },
+    "podcast": {
+      "sourceName": "Regen Network Podcast",
+      "sourceRid": "core.source.podcast-regen-network-podcast.v1.0.0",
+      "contentCount": 1,
+      "contentItems": [
+        {
+          "rid": "relevant.content.podcast-239de77099e491b1.v1.0.0",
+          "title": "Planetary Regeneration Podcast Transcripts",
+          "url": null
+        }
+      ]
+    },
+    "website": {
+      "sourceName": "registry-regen-network",
+      "sourceRid": "core.source.website-registry-regen-network.v1.0.0",
+      "contentCount": 0,
+      "contentItems": []
+    },
+    "gitlab": {
+      "sourceName": "Regen Network Gitlab",
+      "sourceRid": "core.source.gitlab-regen-network-gitlab.v1.0.0",
+      "contentCount": 1,
+      "contentItems": [
+        {
+          "rid": "relevant.content.gitlab-0218721face2c04d.v1.0.0",
+          "title": "gitlab Content Collection",
+          "url": null
+        }
+      ]
+    },
+    "github": {
+      "sourceName": "Regen Network Github",
+      "sourceRid": "core.source.github-regen-network-github.v1.0.0",
+      "contentCount": 1,
+      "contentItems": [
+        {
+          "rid": "relevant.content.github-e0d1ecbc23e305e8.v1.0.0",
+          "title": "github Content Collection",
+          "url": null
+        }
+      ]
+    },
+    "discord": {
+      "sourceName": "regen-discord",
+      "sourceRid": "core.source.discord-regen-discord.v1.0.0",
+      "contentCount": 0,
+      "contentItems": []
+    },
+    "notion": {
+      "sourceName": "regen-network-notion",
+      "sourceRid": "core.source.notion-regen-network-notion.v1.0.0",
+      "contentCount": 6,
+      "contentItems": [
+        {
+          "rid": "relevant.content.notion-086c9303b4d7b5ee.v1.0.0",
+          "title": "Notion Database: Other_databases",
+          "url": null
+        },
+        {
+          "rid": "relevant.content.notion-699e747c6ea1aaea.v1.0.0",
+          "title": "Notion Database: Science_Sprint_Board",
+          "url": null
+        },
+        {
+          "rid": "relevant.content.notion-7a7911b20f24d82e.v1.0.0",
+          "title": "Notion Database: Research_Library",
+          "url": null
+        },
+        {
+          "rid": "relevant.content.notion-8aca578617fa5cef.v1.0.0",
+          "title": "Notion Database: Podcast_Management",
+          "url": null
+        },
+        {
+          "rid": "relevant.content.notion-3c77834a5dfed096.v1.0.0",
+          "title": "Notion Database: PRP_Episodes",
+          "url": null
+        },
+        {
+          "rid": "relevant.content.notion-022eae4ce0ce3ca6.v1.0.0",
+          "title": "Notion Database: KOI_Repo",
+          "url": null
+        }
+      ]
+    }
+  },
+  "koi:contentByRelevance": {
+    "core": [],
+    "relevant": [
+      {
+        "rid": "relevant.content.notion-086c9303b4d7b5ee.v1.0.0",
+        "title": "Notion Database: Other_databases",
+        "url": null
+      },
+      {
+        "rid": "relevant.content.notion-699e747c6ea1aaea.v1.0.0",
+        "title": "Notion Database: Science_Sprint_Board",
+        "url": null
+      },
+      {
+        "rid": "relevant.content.notion-7a7911b20f24d82e.v1.0.0",
+        "title": "Notion Database: Research_Library",
+        "url": null
+      },
+      {
+        "rid": "relevant.content.notion-8aca578617fa5cef.v1.0.0",
+        "title": "Notion Database: Podcast_Management",
+        "url": null
+      },
+      {
+        "rid": "relevant.content.notion-3c77834a5dfed096.v1.0.0",
+        "title": "Notion Database: PRP_Episodes",
+        "url": null
+      },
+      {
+        "rid": "relevant.content.notion-022eae4ce0ce3ca6.v1.0.0",
+        "title": "Notion Database: KOI_Repo",
+        "url": null
+      },
+      {
+        "rid": "relevant.content.twitter-fa3c52cbc3d020d8.v1.0.0",
+        "title": "Twitter Archive Collection",
+        "url": "https://twitter.com/regen_network"
+      },
+      {
+        "rid": "relevant.content.medium-323def2091f14f1b.v1.0.0",
+        "title": "medium Content Collection",
+        "url": null
+      },
+      {
+        "rid": "relevant.content.podcast-239de77099e491b1.v1.0.0",
+        "title": "Planetary Regeneration Podcast Transcripts",
+        "url": null
+      },
+      {
+        "rid": "relevant.content.website-ea37157ed05ecadc.v1.0.0",
+        "title": "website Content Collection",
+        "url": null
+      },
+      {
+        "rid": "relevant.content.gitlab-0218721face2c04d.v1.0.0",
+        "title": "gitlab Content Collection",
+        "url": null
+      },
+      {
+        "rid": "relevant.content.github-e0d1ecbc23e305e8.v1.0.0",
+        "title": "github Content Collection",
+        "url": null
+      }
+    ],
+    "background": [],
+    "unknown": []
+  },
+  "koi:generatedAt": "2025-08-21T01:56:45.902Z"
+}

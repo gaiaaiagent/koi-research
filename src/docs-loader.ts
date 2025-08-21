@@ -4,6 +4,7 @@ import * as path from 'path';
 import { KnowledgeService } from './service.ts';
 import { AddKnowledgeOptions } from './types.ts';
 import { isBinaryContentType } from './utils.ts';
+import { ReportGenerator } from './report-generator.ts';
 
 /**
  * Get the knowledge path from runtime settings, environment, or default to ./docs
@@ -48,6 +49,9 @@ export async function loadDocsFromPath(
 
   logger.info(`Loading documents from: ${docsPath}`);
 
+  // Initialize report generator
+  const reportGenerator = new ReportGenerator(docsPath);
+
   // Get all files recursively
   const files = getAllFiles(docsPath);
 
@@ -57,6 +61,7 @@ export async function loadDocsFromPath(
   }
 
   logger.info(`Found ${files.length} files to process`);
+  reportGenerator.report.stats.totalFiles = files.length;
 
   let successful = 0;
   let failed = 0;
@@ -77,6 +82,7 @@ export async function loadDocsFromPath(
       // Skip unsupported file types
       if (!contentType) {
         logger.debug(`Skipping unsupported file type: ${filePath}`);
+        reportGenerator.recordUnsupported(filePath);
         continue;
       }
 
@@ -108,12 +114,15 @@ export async function loadDocsFromPath(
       // Log appropriate message based on whether document was new or existing
       if (result.fragmentCount > 0) {
         logger.info(`✅ "${fileName}": ${result.fragmentCount} fragments (document loaded)`);
+        reportGenerator.recordProcessed(filePath, result.fragmentCount);
       } else {
         logger.info(`⏭️  "${fileName}": Skipped (already exists)`);
+        reportGenerator.recordSkipped(filePath, 'exact');
       }
       successful++;
     } catch (error) {
       logger.error({ error }, `Failed to process file ${filePath}`);
+      reportGenerator.recordFailed(filePath, error);
       failed++;
     }
   }
@@ -121,6 +130,10 @@ export async function loadDocsFromPath(
   logger.info(
     `Document loading complete: ${successful} successful, ${failed} failed out of ${files.length} total`
   );
+
+  // Generate and save the processing report
+  const reportPath = await reportGenerator.finalize();
+  logger.info(`📊 Processing report saved: ${reportPath}`);
 
   return {
     total: files.length,

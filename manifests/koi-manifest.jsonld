@@ -1,0 +1,1110 @@
+{
+  "@context": {
+    "@vocab": "https://koi.regen.network/v1/",
+    "koi": "https://koi.regen.network/v1/",
+    "regen": "https://regen.network/ontology/",
+    "schema": "https://schema.org/",
+    "dc": "http://purl.org/dc/elements/1.1/",
+    "foaf": "http://xmlns.com/foaf/0.1/"
+  },
+  "@graph": [
+    {
+      "@id": "koi:source/core.source.twitter-regen-network-twitter.v1.0.0",
+      "@type": "koi:ContentSource",
+      "dc:title": "Regen Network Twitter",
+      "schema:url": "https://twitter.com/regen_network",
+      "koi:rid": "core.source.twitter-regen-network-twitter.v1.0.0",
+      "koi:sourceType": "twitter",
+      "koi:contentItems": [
+        "koi:content/relevant.content.twitter-fa3c52cbc3d020d8.v1.0.0"
+      ],
+      "schema:dateCreated": "2025-08-21T01:56:45.380Z",
+      "regen:metadata": {
+        "totalItems": 0,
+        "description": "Twitter/X archive with historical tweets"
+      }
+    },
+    {
+      "@id": "koi:source/core.source.medium-regen-network-medium.v1.0.0",
+      "@type": "koi:ContentSource",
+      "dc:title": "Regen Network Medium",
+      "schema:url": "https://medium.com/regen-network",
+      "koi:rid": "core.source.medium-regen-network-medium.v1.0.0",
+      "koi:sourceType": "medium",
+      "koi:contentItems": [
+        "koi:content/relevant.content.medium-323def2091f14f1b.v1.0.0"
+      ],
+      "schema:dateCreated": "2025-08-21T01:56:45.380Z",
+      "regen:metadata": {
+        "totalItems": 0,
+        "description": "Blog posts from Regen Network Medium"
+      }
+    },
+    {
+      "@id": "koi:source/core.source.podcast-regen-network-podcast.v1.0.0",
+      "@type": "koi:ContentSource",
+      "dc:title": "Regen Network Podcast",
+      "schema:url": "https://soundcloud.com/planetary-regeneration-podcast",
+      "koi:rid": "core.source.podcast-regen-network-podcast.v1.0.0",
+      "koi:sourceType": "podcast",
+      "koi:contentItems": [
+        "koi:content/relevant.content.podcast-239de77099e491b1.v1.0.0"
+      ],
+      "schema:dateCreated": "2025-08-21T01:56:45.381Z",
+      "regen:metadata": {
+        "totalItems": 0,
+        "description": "Planetary Regeneration Podcast transcripts"
+      }
+    },
+    {
+      "@id": "koi:source/core.source.website-regen-network-website.v1.0.0",
+      "@type": "koi:ContentSource",
+      "dc:title": "Regen Network Website",
+      "schema:url": "https://regen.network",
+      "koi:rid": "core.source.website-regen-network-website.v1.0.0",
+      "koi:sourceType": "website",
+      "koi:contentItems": [
+        "koi:content/relevant.content.website-ea37157ed05ecadc.v1.0.0"
+      ],
+      "schema:dateCreated": "2025-08-21T01:56:45.381Z",
+      "regen:metadata": {
+        "totalItems": 0,
+        "description": "Content from various Regen Network websites"
+      }
+    },
+    {
+      "@id": "koi:source/core.source.gitlab-regen-network-gitlab.v1.0.0",
+      "@type": "koi:ContentSource",
+      "dc:title": "Regen Network Gitlab",
+      "schema:url": "https://gitlab.com/regen-network",
+      "koi:rid": "core.source.gitlab-regen-network-gitlab.v1.0.0",
+      "koi:sourceType": "gitlab",
+      "koi:contentItems": [
+        "koi:content/relevant.content.gitlab-0218721face2c04d.v1.0.0"
+      ],
+      "schema:dateCreated": "2025-08-21T01:56:45.383Z",
+      "regen:metadata": {
+        "totalItems": 0,
+        "description": "Historical whitepapers from GitLab"
+      }
+    },
+    {
+      "@id": "koi:source/core.source.github-regen-network-github.v1.0.0",
+      "@type": "koi:ContentSource",
+      "dc:title": "Regen Network Github",
+      "schema:url": "https://github.com/regen-network",
+      "koi:rid": "core.source.github-regen-network-github.v1.0.0",
+      "koi:sourceType": "github",
+      "koi:contentItems": [
+        "koi:content/relevant.content.github-e0d1ecbc23e305e8.v1.0.0"
+      ],
+      "schema:dateCreated": "2025-08-21T01:56:45.384Z",
+      "regen:metadata": {
+        "totalItems": 0,
+        "description": "Technical documentation from GitHub repositories"
+      }
+    },
+    {
+      "@id": "koi:source/core.source.discord-regen-discord.v1.0.0",
+      "@type": "koi:ContentSource",
+      "dc:title": "regen-discord",
+      "schema:url": null,
+      "koi:rid": "core.source.discord-regen-discord.v1.0.0",
+      "koi:sourceType": "discord",
+      "koi:contentItems": [],
+      "schema:dateCreated": "2025-08-21T01:56:45.384Z",
+      "regen:metadata": {
+        "totalItems": 0,
+        "description": "Regen Network Discord server",
+        "fetchFrequency": "manual"
+      }
+    },
+    {
+      "@id": "koi:source/core.source.twitter-regennetwork.v1.0.0",
+      "@type": "koi:ContentSource",
+      "dc:title": "regennetwork",
+      "schema:url": "https://twitter.com/regennetwork",
+      "koi:rid": "core.source.twitter-regennetwork.v1.0.0",
+      "koi:sourceType": "twitter",
+      "koi:contentItems": [],
+      "schema:dateCreated": "2025-08-21T01:56:45.388Z",
+      "regen:metadata": {
+        "totalItems": 0,
+        "description": "Regen Network Twitter account",
+        "fetchFrequency": "daily"
+      }
+    },
+    {
+      "@id": "koi:source/core.source.medium-regen-network-blog.v1.0.0",
+      "@type": "koi:ContentSource",
+      "dc:title": "regen-network-blog",
+      "schema:url": "https://medium.com/regen-network",
+      "koi:rid": "core.source.medium-regen-network-blog.v1.0.0",
+      "koi:sourceType": "medium",
+      "koi:contentItems": [],
+      "schema:dateCreated": "2025-08-21T01:56:45.389Z",
+      "regen:metadata": {
+        "totalItems": 0,
+        "description": "Regen Network Medium blog",
+        "fetchFrequency": "weekly"
+      }
+    },
+    {
+      "@id": "koi:source/core.source.website-registry-regen-network.v1.0.0",
+      "@type": "koi:ContentSource",
+      "dc:title": "registry-regen-network",
+      "schema:url": "https://registry.regen.network",
+      "koi:rid": "core.source.website-registry-regen-network.v1.0.0",
+      "koi:sourceType": "website",
+      "koi:contentItems": [],
+      "schema:dateCreated": "2025-08-21T01:56:45.389Z",
+      "regen:metadata": {
+        "totalItems": 0,
+        "description": "Regen Registry website",
+        "fetchFrequency": "daily"
+      }
+    },
+    {
+      "@id": "koi:source/core.source.notion-regen-network-notion.v1.0.0",
+      "@type": "koi:ContentSource",
+      "dc:title": "regen-network-notion",
+      "schema:url": null,
+      "koi:rid": "core.source.notion-regen-network-notion.v1.0.0",
+      "koi:sourceType": "notion",
+      "koi:contentItems": [
+        "koi:content/relevant.content.notion-086c9303b4d7b5ee.v1.0.0",
+        "koi:content/relevant.content.notion-699e747c6ea1aaea.v1.0.0",
+        "koi:content/relevant.content.notion-7a7911b20f24d82e.v1.0.0",
+        "koi:content/relevant.content.notion-8aca578617fa5cef.v1.0.0",
+        "koi:content/relevant.content.notion-3c77834a5dfed096.v1.0.0",
+        "koi:content/relevant.content.notion-022eae4ce0ce3ca6.v1.0.0"
+      ],
+      "schema:dateCreated": "2025-08-21T01:56:45.390Z",
+      "regen:metadata": {
+        "totalItems": 0,
+        "description": "Regen Network Notion workspace export",
+        "fetchFrequency": "weekly"
+      }
+    },
+    {
+      "@id": "koi:content/relevant.content.notion-086c9303b4d7b5ee.v1.0.0",
+      "@type": "koi:ContentItem",
+      "dc:title": "Notion Database: Other_databases",
+      "dc:source": "koi:source/undefined",
+      "koi:rid": "relevant.content.notion-086c9303b4d7b5ee.v1.0.0",
+      "koi:processingStatus": {
+        "voice-of-nature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "pending",
+          "koi:fragmentCount": null,
+          "koi:documentId": null
+        },
+        "governor": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 11,
+          "koi:processedAt": "2025-08-21T01:56:45.326Z",
+          "koi:documentId": "doc-086c9303"
+        },
+        "narrative": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 22,
+          "koi:processedAt": "2025-08-21T01:56:45.335Z",
+          "koi:documentId": "doc-086c9303"
+        },
+        "voiceofnature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 9,
+          "koi:processedAt": "2025-08-21T01:56:15.592Z",
+          "koi:documentId": "doc-086c9303"
+        },
+        "regenai": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 19,
+          "koi:processedAt": "2025-08-21T01:56:45.312Z",
+          "koi:documentId": "doc-086c9303"
+        },
+        "facilitator": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 24,
+          "koi:processedAt": "2025-08-21T01:56:45.323Z",
+          "koi:documentId": "doc-086c9303"
+        }
+      },
+      "schema:url": null,
+      "schema:dateCreated": "2025-08-21T01:56:45.392Z",
+      "schema:dateModified": "2025-08-21T01:56:45.392Z",
+      "regen:metadata": {
+        "size": 99,
+        "entries": 79,
+        "database": "Other_databases",
+        "originalId": "086c9303b4d7b5ee",
+        "contentType": "notion"
+      },
+      "regen:relevance": "relevant",
+      "regen:objectType": "content"
+    },
+    {
+      "@id": "koi:content/relevant.content.notion-699e747c6ea1aaea.v1.0.0",
+      "@type": "koi:ContentItem",
+      "dc:title": "Notion Database: Science_Sprint_Board",
+      "dc:source": "koi:source/undefined",
+      "koi:rid": "relevant.content.notion-699e747c6ea1aaea.v1.0.0",
+      "koi:processingStatus": {
+        "voice-of-nature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "pending",
+          "koi:fragmentCount": null,
+          "koi:documentId": null
+        },
+        "facilitator": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 20,
+          "koi:processedAt": "2025-08-21T01:56:15.539Z",
+          "koi:documentId": "doc-699e747c"
+        },
+        "regenai": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 33,
+          "koi:processedAt": "2025-08-21T01:56:45.290Z",
+          "koi:documentId": "doc-699e747c"
+        },
+        "voiceofnature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 28,
+          "koi:processedAt": "2025-08-21T01:56:45.295Z",
+          "koi:documentId": "doc-699e747c"
+        },
+        "governor": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 3,
+          "koi:processedAt": "2025-08-21T01:56:45.305Z",
+          "koi:documentId": "doc-699e747c"
+        },
+        "narrative": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 49,
+          "koi:processedAt": "2025-08-21T01:56:45.309Z",
+          "koi:documentId": "doc-699e747c"
+        }
+      },
+      "schema:url": null,
+      "schema:dateCreated": "2025-08-21T01:56:45.393Z",
+      "schema:dateModified": "2025-08-21T01:56:45.393Z",
+      "regen:metadata": {
+        "size": 110,
+        "entries": 195,
+        "database": "Science_Sprint_Board",
+        "originalId": "699e747c6ea1aaea",
+        "contentType": "notion"
+      },
+      "regen:relevance": "relevant",
+      "regen:objectType": "content"
+    },
+    {
+      "@id": "koi:content/relevant.content.notion-7a7911b20f24d82e.v1.0.0",
+      "@type": "koi:ContentItem",
+      "dc:title": "Notion Database: Research_Library",
+      "dc:source": "koi:source/undefined",
+      "koi:rid": "relevant.content.notion-7a7911b20f24d82e.v1.0.0",
+      "koi:processingStatus": {
+        "voice-of-nature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "pending",
+          "koi:fragmentCount": null,
+          "koi:documentId": null
+        },
+        "facilitator": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 28,
+          "koi:processedAt": "2025-08-21T01:56:45.269Z",
+          "koi:documentId": "doc-7a7911b2"
+        },
+        "regenai": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 46,
+          "koi:processedAt": "2025-08-21T01:56:45.264Z",
+          "koi:documentId": "doc-7a7911b2"
+        },
+        "voiceofnature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 3,
+          "koi:processedAt": "2025-08-21T01:56:45.273Z",
+          "koi:documentId": "doc-7a7911b2"
+        },
+        "governor": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 3,
+          "koi:processedAt": "2025-08-21T01:56:45.280Z",
+          "koi:documentId": "doc-7a7911b2"
+        },
+        "narrative": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 35,
+          "koi:processedAt": "2025-08-21T01:56:45.287Z",
+          "koi:documentId": "doc-7a7911b2"
+        }
+      },
+      "schema:url": null,
+      "schema:dateCreated": "2025-08-21T01:56:45.393Z",
+      "schema:dateModified": "2025-08-21T01:56:45.393Z",
+      "regen:metadata": {
+        "size": 101,
+        "entries": 17,
+        "database": "Research_Library",
+        "originalId": "7a7911b20f24d82e",
+        "contentType": "notion"
+      },
+      "regen:relevance": "relevant",
+      "regen:objectType": "content"
+    },
+    {
+      "@id": "koi:content/relevant.content.notion-8aca578617fa5cef.v1.0.0",
+      "@type": "koi:ContentItem",
+      "dc:title": "Notion Database: Podcast_Management",
+      "dc:source": "koi:source/undefined",
+      "koi:rid": "relevant.content.notion-8aca578617fa5cef.v1.0.0",
+      "koi:processingStatus": {
+        "voice-of-nature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "pending",
+          "koi:fragmentCount": null,
+          "koi:documentId": null
+        },
+        "regenai": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 16,
+          "koi:processedAt": "2025-08-21T01:56:45.233Z",
+          "koi:documentId": "doc-8aca5786"
+        },
+        "facilitator": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 5,
+          "koi:processedAt": "2025-08-21T01:56:15.480Z",
+          "koi:documentId": "doc-8aca5786"
+        },
+        "voiceofnature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 50,
+          "koi:processedAt": "2025-08-21T01:56:45.236Z",
+          "koi:documentId": "doc-8aca5786"
+        },
+        "governor": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 15,
+          "koi:processedAt": "2025-08-21T01:56:45.240Z",
+          "koi:documentId": "doc-8aca5786"
+        },
+        "narrative": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 24,
+          "koi:processedAt": "2025-08-21T01:56:45.247Z",
+          "koi:documentId": "doc-8aca5786"
+        }
+      },
+      "schema:url": null,
+      "schema:dateCreated": "2025-08-21T01:56:45.394Z",
+      "schema:dateModified": "2025-08-21T01:56:45.394Z",
+      "regen:metadata": {
+        "size": 105,
+        "entries": 35,
+        "database": "Podcast_Management",
+        "originalId": "8aca578617fa5cef",
+        "contentType": "notion"
+      },
+      "regen:relevance": "relevant",
+      "regen:objectType": "content"
+    },
+    {
+      "@id": "koi:content/relevant.content.notion-3c77834a5dfed096.v1.0.0",
+      "@type": "koi:ContentItem",
+      "dc:title": "Notion Database: PRP_Episodes",
+      "dc:source": "koi:source/undefined",
+      "koi:rid": "relevant.content.notion-3c77834a5dfed096.v1.0.0",
+      "koi:processingStatus": {
+        "voice-of-nature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "pending",
+          "koi:fragmentCount": null,
+          "koi:documentId": null
+        },
+        "voiceofnature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 19,
+          "koi:processedAt": "2025-08-21T01:55:47.829Z",
+          "koi:documentId": "doc-3c77834a"
+        },
+        "facilitator": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 50,
+          "koi:processedAt": "2025-08-21T01:56:45.219Z",
+          "koi:documentId": "doc-3c77834a"
+        },
+        "regenai": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 7,
+          "koi:processedAt": "2025-08-21T01:56:15.441Z",
+          "koi:documentId": "doc-3c77834a"
+        },
+        "governor": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 6,
+          "koi:processedAt": "2025-08-21T01:56:45.223Z",
+          "koi:documentId": "doc-3c77834a"
+        },
+        "narrative": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 4,
+          "koi:processedAt": "2025-08-21T01:56:45.225Z",
+          "koi:documentId": "doc-3c77834a"
+        }
+      },
+      "schema:url": null,
+      "schema:dateCreated": "2025-08-21T01:56:45.396Z",
+      "schema:dateModified": "2025-08-21T01:56:45.396Z",
+      "regen:metadata": {
+        "size": 92,
+        "entries": 7,
+        "database": "PRP_Episodes",
+        "originalId": "3c77834a5dfed096",
+        "contentType": "notion"
+      },
+      "regen:relevance": "relevant",
+      "regen:objectType": "content"
+    },
+    {
+      "@id": "koi:content/relevant.content.notion-022eae4ce0ce3ca6.v1.0.0",
+      "@type": "koi:ContentItem",
+      "dc:title": "Notion Database: KOI_Repo",
+      "dc:source": "koi:source/undefined",
+      "koi:rid": "relevant.content.notion-022eae4ce0ce3ca6.v1.0.0",
+      "koi:processingStatus": {
+        "voice-of-nature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "pending",
+          "koi:fragmentCount": null,
+          "koi:documentId": null
+        },
+        "regenai": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 10,
+          "koi:processedAt": "2025-08-21T01:56:45.189Z",
+          "koi:documentId": "doc-022eae4c"
+        },
+        "facilitator": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 9,
+          "koi:processedAt": "2025-08-21T01:56:45.196Z",
+          "koi:documentId": "doc-022eae4c"
+        },
+        "narrative": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 23,
+          "koi:processedAt": "2025-08-21T01:56:15.421Z",
+          "koi:documentId": "doc-022eae4c"
+        },
+        "governor": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 25,
+          "koi:processedAt": "2025-08-21T01:56:45.207Z",
+          "koi:documentId": "doc-022eae4c"
+        },
+        "voiceofnature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 3,
+          "koi:processedAt": "2025-08-21T01:56:45.203Z",
+          "koi:documentId": "doc-022eae4c"
+        }
+      },
+      "schema:url": null,
+      "schema:dateCreated": "2025-08-21T01:56:45.403Z",
+      "schema:dateModified": "2025-08-21T01:56:45.403Z",
+      "regen:metadata": {
+        "size": 86,
+        "entries": 202,
+        "database": "KOI_Repo",
+        "originalId": "022eae4ce0ce3ca6",
+        "contentType": "notion"
+      },
+      "regen:relevance": "relevant",
+      "regen:objectType": "content"
+    },
+    {
+      "@id": "koi:content/relevant.content.twitter-fa3c52cbc3d020d8.v1.0.0",
+      "@type": "koi:ContentItem",
+      "dc:title": "Twitter Archive Collection",
+      "dc:source": "koi:source/undefined",
+      "koi:rid": "relevant.content.twitter-fa3c52cbc3d020d8.v1.0.0",
+      "koi:processingStatus": {
+        "voice-of-nature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "pending",
+          "koi:fragmentCount": null,
+          "koi:documentId": null
+        },
+        "regenai": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 2,
+          "koi:processedAt": "2025-08-21T01:56:45.164Z",
+          "koi:documentId": "doc-fa3c52cb"
+        },
+        "facilitator": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 24,
+          "koi:processedAt": "2025-08-21T01:56:45.167Z",
+          "koi:documentId": "doc-fa3c52cb"
+        },
+        "narrative": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 12,
+          "koi:processedAt": "2025-08-21T01:56:15.384Z",
+          "koi:documentId": "doc-fa3c52cb"
+        },
+        "voiceofnature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 29,
+          "koi:processedAt": "2025-08-21T01:56:15.371Z",
+          "koi:documentId": "doc-fa3c52cb"
+        },
+        "governor": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 50,
+          "koi:processedAt": "2025-08-21T01:56:45.170Z",
+          "koi:documentId": "doc-fa3c52cb"
+        }
+      },
+      "schema:url": "https://twitter.com/regen_network",
+      "schema:dateCreated": "2025-08-21T01:56:45.404Z",
+      "schema:dateModified": "2025-08-21T01:56:45.404Z",
+      "regen:metadata": {
+        "size": 108,
+        "tweets": 11483,
+        "originalId": "fa3c52cbc3d020d8",
+        "contentType": "twitter"
+      },
+      "regen:relevance": "relevant",
+      "regen:objectType": "content"
+    },
+    {
+      "@id": "koi:content/relevant.content.medium-323def2091f14f1b.v1.0.0",
+      "@type": "koi:ContentItem",
+      "dc:title": "medium Content Collection",
+      "dc:source": "koi:source/undefined",
+      "koi:rid": "relevant.content.medium-323def2091f14f1b.v1.0.0",
+      "koi:processingStatus": {
+        "voice-of-nature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "pending",
+          "koi:fragmentCount": null,
+          "koi:documentId": null
+        },
+        "narrative": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 41,
+          "koi:processedAt": "2025-08-21T01:56:45.157Z",
+          "koi:documentId": "doc-323def20"
+        },
+        "governor": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 46,
+          "koi:processedAt": "2025-08-21T01:56:15.347Z",
+          "koi:documentId": "doc-323def20"
+        },
+        "facilitator": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 50,
+          "koi:processedAt": "2025-08-21T01:56:45.111Z",
+          "koi:documentId": "doc-323def20"
+        },
+        "regenai": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 15,
+          "koi:processedAt": "2025-08-21T01:56:45.097Z",
+          "koi:documentId": "doc-323def20"
+        },
+        "voiceofnature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 18,
+          "koi:processedAt": "2025-08-21T01:56:45.143Z",
+          "koi:documentId": "doc-323def20"
+        }
+      },
+      "schema:url": null,
+      "schema:dateCreated": "2025-08-21T01:56:45.404Z",
+      "schema:dateModified": "2025-08-21T01:56:45.404Z",
+      "regen:metadata": {
+        "size": 109,
+        "count": 160,
+        "location": "indexing/medium/storage/articles/",
+        "originalId": "323def2091f14f1b",
+        "contentType": "medium"
+      },
+      "regen:relevance": "relevant",
+      "regen:objectType": "content"
+    },
+    {
+      "@id": "koi:content/relevant.content.podcast-239de77099e491b1.v1.0.0",
+      "@type": "koi:ContentItem",
+      "dc:title": "Planetary Regeneration Podcast Transcripts",
+      "dc:source": "koi:source/undefined",
+      "koi:rid": "relevant.content.podcast-239de77099e491b1.v1.0.0",
+      "koi:processingStatus": {
+        "voice-of-nature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "pending",
+          "koi:fragmentCount": null,
+          "koi:documentId": null
+        },
+        "facilitator": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 32,
+          "koi:processedAt": "2025-08-21T01:56:15.301Z",
+          "koi:documentId": "doc-239de770"
+        },
+        "narrative": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 7,
+          "koi:processedAt": "2025-08-21T01:56:15.308Z",
+          "koi:documentId": "doc-239de770"
+        },
+        "regenai": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 39,
+          "koi:processedAt": "2025-08-21T01:56:45.062Z",
+          "koi:documentId": "doc-239de770"
+        },
+        "governor": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 20,
+          "koi:processedAt": "2025-08-21T01:56:45.082Z",
+          "koi:documentId": "doc-239de770"
+        },
+        "voiceofnature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 46,
+          "koi:processedAt": "2025-08-21T01:56:45.071Z",
+          "koi:documentId": "doc-239de770"
+        }
+      },
+      "schema:url": null,
+      "schema:dateCreated": "2025-08-21T01:56:45.405Z",
+      "schema:dateModified": "2025-08-21T01:56:45.405Z",
+      "regen:metadata": {
+        "size": 101,
+        "episodes": 70,
+        "originalId": "239de77099e491b1",
+        "contentType": "podcast",
+        "metadata_files": 50
+      },
+      "regen:relevance": "relevant",
+      "regen:objectType": "content"
+    },
+    {
+      "@id": "koi:content/relevant.content.website-ea37157ed05ecadc.v1.0.0",
+      "@type": "koi:ContentItem",
+      "dc:title": "website Content Collection",
+      "dc:source": "koi:source/undefined",
+      "koi:rid": "relevant.content.website-ea37157ed05ecadc.v1.0.0",
+      "koi:processingStatus": {
+        "voice-of-nature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "pending",
+          "koi:fragmentCount": null,
+          "koi:documentId": null
+        },
+        "regenai": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 4,
+          "koi:processedAt": "2025-08-21T01:56:44.993Z",
+          "koi:documentId": "doc-ea37157e"
+        },
+        "governor": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 47,
+          "koi:processedAt": "2025-08-21T01:56:45.031Z",
+          "koi:documentId": "doc-ea37157e"
+        },
+        "narrative": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 37,
+          "koi:processedAt": "2025-08-21T01:56:45.034Z",
+          "koi:documentId": "doc-ea37157e"
+        },
+        "facilitator": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 50,
+          "koi:processedAt": "2025-08-21T01:56:45.014Z",
+          "koi:documentId": "doc-ea37157e"
+        },
+        "voiceofnature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 6,
+          "koi:processedAt": "2025-08-21T01:56:45.027Z",
+          "koi:documentId": "doc-ea37157e"
+        }
+      },
+      "schema:url": null,
+      "schema:dateCreated": "2025-08-21T01:56:45.405Z",
+      "schema:dateModified": "2025-08-21T01:56:45.405Z",
+      "regen:metadata": {
+        "size": 117,
+        "count": 64,
+        "location": "indexing/storage/documents/website_*.json",
+        "originalId": "ea37157ed05ecadc",
+        "contentType": "website"
+      },
+      "regen:relevance": "relevant",
+      "regen:objectType": "content"
+    },
+    {
+      "@id": "koi:content/relevant.content.gitlab-0218721face2c04d.v1.0.0",
+      "@type": "koi:ContentItem",
+      "dc:title": "gitlab Content Collection",
+      "dc:source": "koi:source/undefined",
+      "koi:rid": "relevant.content.gitlab-0218721face2c04d.v1.0.0",
+      "koi:processingStatus": {
+        "voice-of-nature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "pending",
+          "koi:fragmentCount": null,
+          "koi:documentId": null
+        },
+        "facilitator": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 45,
+          "koi:processedAt": "2025-08-21T01:56:44.951Z",
+          "koi:documentId": "doc-0218721f"
+        },
+        "regenai": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 1,
+          "koi:processedAt": "2025-08-21T01:56:44.913Z",
+          "koi:documentId": "doc-0218721f"
+        },
+        "narrative": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 14,
+          "koi:processedAt": "2025-08-21T01:56:44.978Z",
+          "koi:documentId": "doc-0218721f"
+        },
+        "voiceofnature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 24,
+          "koi:processedAt": "2025-08-21T01:56:44.963Z",
+          "koi:documentId": "doc-0218721f"
+        },
+        "governor": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 38,
+          "koi:processedAt": "2025-08-21T01:56:44.966Z",
+          "koi:documentId": "doc-0218721f"
+        }
+      },
+      "schema:url": null,
+      "schema:dateCreated": "2025-08-21T01:56:45.406Z",
+      "schema:dateModified": "2025-08-21T01:56:45.406Z",
+      "regen:metadata": {
+        "size": 114,
+        "count": 3,
+        "location": "indexing/storage/documents/gitlab_*.json",
+        "originalId": "0218721face2c04d",
+        "contentType": "gitlab"
+      },
+      "regen:relevance": "relevant",
+      "regen:objectType": "content"
+    },
+    {
+      "@id": "koi:content/relevant.content.github-e0d1ecbc23e305e8.v1.0.0",
+      "@type": "koi:ContentItem",
+      "dc:title": "github Content Collection",
+      "dc:source": "koi:source/undefined",
+      "koi:rid": "relevant.content.github-e0d1ecbc23e305e8.v1.0.0",
+      "koi:processingStatus": {
+        "voice-of-nature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "pending",
+          "koi:fragmentCount": null,
+          "koi:documentId": null
+        },
+        "voiceofnature": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 24,
+          "koi:processedAt": "2025-08-21T01:55:47.410Z",
+          "koi:documentId": "doc-e0d1ecbc"
+        },
+        "governor": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 41,
+          "koi:processedAt": "2025-08-21T01:56:15.162Z",
+          "koi:documentId": "doc-e0d1ecbc"
+        },
+        "regenai": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 46,
+          "koi:processedAt": "2025-08-21T01:56:44.889Z",
+          "koi:documentId": "doc-e0d1ecbc"
+        },
+        "narrative": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 3,
+          "koi:processedAt": "2025-08-21T01:56:44.903Z",
+          "koi:documentId": "doc-e0d1ecbc"
+        },
+        "facilitator": {
+          "@type": "koi:ProcessingStatus",
+          "koi:status": "processed",
+          "koi:fragmentCount": 13,
+          "koi:processedAt": "2025-08-21T01:56:15.143Z",
+          "koi:documentId": "doc-e0d1ecbc"
+        }
+      },
+      "schema:url": null,
+      "schema:dateCreated": "2025-08-21T01:56:45.408Z",
+      "schema:dateModified": "2025-08-21T01:56:45.408Z",
+      "regen:metadata": {
+        "size": 115,
+        "count": 66,
+        "location": "indexing/storage/documents/github_*.json",
+        "originalId": "e0d1ecbc23e305e8",
+        "contentType": "github"
+      },
+      "regen:relevance": "relevant",
+      "regen:objectType": "content"
+    },
+    {
+      "@id": "koi:agent/voice-of-nature",
+      "@type": "koi:Agent",
+      "foaf:name": "voice-of-nature",
+      "koi:processedContent": [],
+      "koi:statistics": {
+        "koi:totalProcessed": 0,
+        "koi:totalFragments": 0
+      }
+    },
+    {
+      "@id": "koi:agent/governor",
+      "@type": "koi:Agent",
+      "foaf:name": "governor",
+      "koi:processedContent": [
+        "koi:content/relevant.content.notion-086c9303b4d7b5ee.v1.0.0",
+        "koi:content/relevant.content.notion-699e747c6ea1aaea.v1.0.0",
+        "koi:content/relevant.content.notion-7a7911b20f24d82e.v1.0.0",
+        "koi:content/relevant.content.notion-8aca578617fa5cef.v1.0.0",
+        "koi:content/relevant.content.notion-3c77834a5dfed096.v1.0.0",
+        "koi:content/relevant.content.notion-022eae4ce0ce3ca6.v1.0.0",
+        "koi:content/relevant.content.twitter-fa3c52cbc3d020d8.v1.0.0",
+        "koi:content/relevant.content.medium-323def2091f14f1b.v1.0.0",
+        "koi:content/relevant.content.podcast-239de77099e491b1.v1.0.0",
+        "koi:content/relevant.content.website-ea37157ed05ecadc.v1.0.0",
+        "koi:content/relevant.content.gitlab-0218721face2c04d.v1.0.0",
+        "koi:content/relevant.content.github-e0d1ecbc23e305e8.v1.0.0"
+      ],
+      "koi:statistics": {
+        "koi:totalProcessed": 12,
+        "koi:totalFragments": 0,
+        "koi:averageProcessingTime": 3481.9166666666665
+      }
+    },
+    {
+      "@id": "koi:agent/narrative",
+      "@type": "koi:Agent",
+      "foaf:name": "narrative",
+      "koi:processedContent": [
+        "koi:content/relevant.content.notion-086c9303b4d7b5ee.v1.0.0",
+        "koi:content/relevant.content.notion-699e747c6ea1aaea.v1.0.0",
+        "koi:content/relevant.content.notion-7a7911b20f24d82e.v1.0.0",
+        "koi:content/relevant.content.notion-8aca578617fa5cef.v1.0.0",
+        "koi:content/relevant.content.notion-3c77834a5dfed096.v1.0.0",
+        "koi:content/relevant.content.notion-022eae4ce0ce3ca6.v1.0.0",
+        "koi:content/relevant.content.twitter-fa3c52cbc3d020d8.v1.0.0",
+        "koi:content/relevant.content.medium-323def2091f14f1b.v1.0.0",
+        "koi:content/relevant.content.podcast-239de77099e491b1.v1.0.0",
+        "koi:content/relevant.content.website-ea37157ed05ecadc.v1.0.0",
+        "koi:content/relevant.content.gitlab-0218721face2c04d.v1.0.0",
+        "koi:content/relevant.content.github-e0d1ecbc23e305e8.v1.0.0"
+      ],
+      "koi:statistics": {
+        "koi:totalProcessed": 12,
+        "koi:totalFragments": 0,
+        "koi:averageProcessingTime": 3435.75
+      }
+    },
+    {
+      "@id": "koi:agent/voiceofnature",
+      "@type": "koi:Agent",
+      "foaf:name": "voiceofnature",
+      "koi:processedContent": [
+        "koi:content/relevant.content.notion-086c9303b4d7b5ee.v1.0.0",
+        "koi:content/relevant.content.notion-699e747c6ea1aaea.v1.0.0",
+        "koi:content/relevant.content.notion-7a7911b20f24d82e.v1.0.0",
+        "koi:content/relevant.content.notion-8aca578617fa5cef.v1.0.0",
+        "koi:content/relevant.content.notion-3c77834a5dfed096.v1.0.0",
+        "koi:content/relevant.content.notion-022eae4ce0ce3ca6.v1.0.0",
+        "koi:content/relevant.content.twitter-fa3c52cbc3d020d8.v1.0.0",
+        "koi:content/relevant.content.medium-323def2091f14f1b.v1.0.0",
+        "koi:content/relevant.content.podcast-239de77099e491b1.v1.0.0",
+        "koi:content/relevant.content.website-ea37157ed05ecadc.v1.0.0",
+        "koi:content/relevant.content.gitlab-0218721face2c04d.v1.0.0",
+        "koi:content/relevant.content.github-e0d1ecbc23e305e8.v1.0.0"
+      ],
+      "koi:statistics": {
+        "koi:totalProcessed": 12,
+        "koi:totalFragments": 0,
+        "koi:averageProcessingTime": 3715.0833333333335
+      }
+    },
+    {
+      "@id": "koi:agent/regenai",
+      "@type": "koi:Agent",
+      "foaf:name": "regenai",
+      "koi:processedContent": [
+        "koi:content/relevant.content.notion-086c9303b4d7b5ee.v1.0.0",
+        "koi:content/relevant.content.notion-699e747c6ea1aaea.v1.0.0",
+        "koi:content/relevant.content.notion-7a7911b20f24d82e.v1.0.0",
+        "koi:content/relevant.content.notion-8aca578617fa5cef.v1.0.0",
+        "koi:content/relevant.content.notion-3c77834a5dfed096.v1.0.0",
+        "koi:content/relevant.content.notion-022eae4ce0ce3ca6.v1.0.0",
+        "koi:content/relevant.content.twitter-fa3c52cbc3d020d8.v1.0.0",
+        "koi:content/relevant.content.medium-323def2091f14f1b.v1.0.0",
+        "koi:content/relevant.content.podcast-239de77099e491b1.v1.0.0",
+        "koi:content/relevant.content.website-ea37157ed05ecadc.v1.0.0",
+        "koi:content/relevant.content.gitlab-0218721face2c04d.v1.0.0",
+        "koi:content/relevant.content.github-e0d1ecbc23e305e8.v1.0.0"
+      ],
+      "koi:statistics": {
+        "koi:totalProcessed": 12,
+        "koi:totalFragments": 0,
+        "koi:averageProcessingTime": 3829.75
+      }
+    },
+    {
+      "@id": "koi:agent/facilitator",
+      "@type": "koi:Agent",
+      "foaf:name": "facilitator",
+      "koi:processedContent": [
+        "koi:content/relevant.content.notion-086c9303b4d7b5ee.v1.0.0",
+        "koi:content/relevant.content.notion-699e747c6ea1aaea.v1.0.0",
+        "koi:content/relevant.content.notion-7a7911b20f24d82e.v1.0.0",
+        "koi:content/relevant.content.notion-8aca578617fa5cef.v1.0.0",
+        "koi:content/relevant.content.notion-3c77834a5dfed096.v1.0.0",
+        "koi:content/relevant.content.notion-022eae4ce0ce3ca6.v1.0.0",
+        "koi:content/relevant.content.twitter-fa3c52cbc3d020d8.v1.0.0",
+        "koi:content/relevant.content.medium-323def2091f14f1b.v1.0.0",
+        "koi:content/relevant.content.podcast-239de77099e491b1.v1.0.0",
+        "koi:content/relevant.content.website-ea37157ed05ecadc.v1.0.0",
+        "koi:content/relevant.content.gitlab-0218721face2c04d.v1.0.0",
+        "koi:content/relevant.content.github-e0d1ecbc23e305e8.v1.0.0"
+      ],
+      "koi:statistics": {
+        "koi:totalProcessed": 12,
+        "koi:totalFragments": 0,
+        "koi:averageProcessingTime": 3813.75
+      }
+    }
+  ],
+  "koi:statistics": {
+    "koi:totalSources": 11,
+    "koi:totalContent": 12,
+    "koi:totalProcessed": 60,
+    "koi:totalPending": 12,
+    "koi:totalFailed": 0,
+    "koi:agentStatistics": {
+      "voice-of-nature": {
+        "koi:processed": 0,
+        "koi:pending": 12,
+        "koi:failed": 0,
+        "koi:totalFragments": 0
+      },
+      "voiceofnature": {
+        "koi:processed": 12,
+        "koi:pending": 0,
+        "koi:failed": 0,
+        "koi:totalFragments": 0
+      },
+      "governor": {
+        "koi:processed": 12,
+        "koi:pending": 0,
+        "koi:failed": 0,
+        "koi:totalFragments": 0
+      },
+      "facilitator": {
+        "koi:processed": 12,
+        "koi:pending": 0,
+        "koi:failed": 0,
+        "koi:totalFragments": 0
+      },
+      "regenai": {
+        "koi:processed": 12,
+        "koi:pending": 0,
+        "koi:failed": 0,
+        "koi:totalFragments": 0
+      },
+      "narrative": {
+        "koi:processed": 12,
+        "koi:pending": 0,
+        "koi:failed": 0,
+        "koi:totalFragments": 0
+      }
+    }
+  },
+  "koi:generatedAt": "2025-08-21T01:56:45.576Z",
+  "koi:version": "1.0.0"
+}

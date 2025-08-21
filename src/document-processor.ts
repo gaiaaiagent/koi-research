@@ -409,6 +409,56 @@ export class DocumentProcessor {
       return { success: false, error };
     }
   }
+
+  /**
+   * Process fragments from text (for KOI integration and compatibility)
+   * This method processes fragments without creating a document memory
+   */
+  async processFragments(
+    runtime: IAgentRuntime,
+    documentId: string,
+    text: string,
+    metadata?: any
+  ): Promise<number> {
+    logger.info(`[DEBUG] processFragments called for documentId: ${documentId}`);
+    
+    try {
+      // Split text into chunks
+      const chunks = await this.splitIntoChunks(text);
+      logger.info(`[DEBUG] Split text into ${chunks.length} chunks for ${documentId}`);
+      
+      // Create a minimal document memory for fragment linking
+      const documentMemory: Memory = {
+        id: documentId as UUID,
+        userId: runtime.entityId,
+        agentId: runtime.agentId,
+        type: 'documents' as MemoryType,
+        content: {
+          text: text.substring(0, 500) + (text.length > 500 ? '...' : ''), // Truncated for memory
+          metadata: metadata
+        },
+        roomId: runtime.roomId,
+        worldId: runtime.worldId,
+        createdAt: Date.now(),
+        similarity: 1.0,
+        unique: true
+      };
+
+      // Process chunks with batching
+      const result = await this.processChunksWithBatching(runtime, documentMemory, chunks, {
+        id: documentId,
+        content: { text },
+        metadata
+      } as KnowledgeItem);
+      
+      logger.info(`[DEBUG] processFragments completed for ${documentId}, created ${result.totalFragments} fragments`);
+      return result.totalFragments;
+      
+    } catch (error) {
+      logger.error({ error }, `Failed to process fragments for ${documentId}`);
+      throw error;
+    }
+  }
 }
 // =============================================================================
 // COMPATIBILITY EXPORTS FOR SERVICE.TS

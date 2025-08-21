@@ -254,6 +254,47 @@ const searchResults = await knowledgeService.searchKnowledge({
 
 </details>
 
+## 🌿 KOI Integration (Knowledge Organization Infrastructure)
+
+The plugin includes a KOI system for querying what content is in each agent's RAG system.
+
+### KOI Quick Start
+
+```bash
+# Start the KOI query server
+bun run scripts/koi-query-server.ts
+
+# Query agent content
+curl -X POST http://localhost:8100/query \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What content is in RegenAI RAG?"}'
+
+# View statistics
+curl http://localhost:8100/stats
+```
+
+### KOI Features
+
+- **Natural Language Queries**: Ask questions like "What content is in each agent's RAG?"
+- **JSON-LD Knowledge Graph**: Semantic representation of all content
+- **Shared Embeddings Cache**: Prevents duplicate embedding generation
+- **Production Data Support**: Works with real agent data (14,863 documents)
+
+### Using Production Data
+
+The KOI system can work with:
+- **Test Data** (default): 12 sample documents for testing
+- **Production Data**: 14,863 real documents from the `memories` table
+
+To use production data, see `docs/KOI-PRODUCTION-DATA.md`.
+
+### KOI Documentation
+
+- `docs/KOI-NODE-USAGE.md` - Complete usage guide
+- `docs/KOI-PRODUCTION-DATA.md` - Using real production data
+- `scripts/generate-koi-manifest.ts` - Generate test manifest
+- `scripts/koi-query-server.ts` - Query server
+
 ## 📝 License
 
 MIT License - See the main ElizaOS license for details.
