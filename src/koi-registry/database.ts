@@ -8,7 +8,7 @@ import {
 } from './types';
 
 export class KoiDatabase {
-  private pool: Pool;
+  public pool: Pool;
 
   constructor(connectionString: string) {
     this.pool = new Pool({

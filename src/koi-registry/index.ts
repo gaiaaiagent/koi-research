@@ -27,7 +27,7 @@ export { EmbeddingsCache } from './embeddings-cache';
  * Main KOI Registry class that combines all functionality
  */
 export class KoiRegistry {
-  private db: KoiDatabase;
+  public db: KoiDatabase;
   public sources: ContentSourceManager;
   public content: ContentTracker;
   public processing: ProcessingStatusTracker;
