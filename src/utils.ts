@@ -1,5 +1,4 @@
 import { Buffer } from 'node:buffer';
-import * as mammoth from 'mammoth';
 import { logger } from '@elizaos/core';
 import { getDocument, PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { TextItem, TextMarkedContent } from 'pdfjs-dist/types/src/display/api';
@@ -42,6 +41,8 @@ export async function extractTextFromFileBuffer(
   ) {
     logger.debug(`[TextUtil] Extracting text from DOCX ${originalFilename} via mammoth.`);
     try {
+      // Dynamic import to avoid breaking plugin load
+      const mammoth = await import('mammoth');
       const result = await mammoth.extractRawText({ buffer: fileBuffer });
       logger.debug(
         `[TextUtil] DOCX text extraction complete for ${originalFilename}. Text length: ${result.value.length}`
@@ -497,13 +498,17 @@ export function generateContentBasedId(
     .trim();
 
   // Create a deterministic string that includes all relevant factors
+  // NOTE: Removing agentId to enable proper deduplication across agents
+  // All agents should be able to access the same knowledge base content
   const componentsToHash = [
-    agentId, // Namespace by agent
+    // agentId, // REMOVED - was causing duplicate processing per agent
     contentForHashing, // The actual content
     includeFilename || '', // Optional filename for additional uniqueness
   ]
     .filter(Boolean)
     .join('::');
+
+  logger.debug(`[generateContentBasedId] Creating content-based ID WITHOUT agent specificity for proper deduplication`);
 
   // Create SHA-256 hash
   const hash = createHash('sha256').update(componentsToHash).digest('hex');
