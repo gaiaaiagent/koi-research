@@ -290,7 +290,6 @@ export class KnowledgeService extends Service {
           tableName: 'knowledge',
           count: 20000,  // High enough to get all current fragments (14k) with room for growth
         });
-        });
 
         // Filter fragments related to this specific document
         const relatedFragments = fragments.filter(
@@ -303,66 +302,79 @@ export class KnowledgeService extends Service {
 
         // CRITICAL FIX: If document exists but has no fragments, it was incompletely processed
         if (relatedFragments.length === 0) {
-          logger.warn(`[INCOMPLETE DOC] Document "${options.originalFilename}" has NO fragments - skipping for now`);
-          return { success: false, error: "Document incomplete", documentId: contentBasedId };
-        }
-        
-        // Create agent-scoped fragment references for RAG access
-        let createdFragmentRefs = 0;
-        for (const originalFragment of relatedFragments) {
+          logger.warn(`[INCOMPLETE DOC] Document "${options.originalFilename}" has NO fragments - needs reprocessing`);
+          
+          // Delete the incomplete document record
           try {
-            // Check if this agent already has a reference to this fragment
-            const existingRef = await this.runtime.getMemories({
-              tableName: 'knowledge',
-              agentId: agentId,
-              count: 100,  // Limit query
-              roomId: roomId || agentId,
-              // Use a deterministic ID for the agent-scoped reference
-              // This ensures we don't create duplicate references if the agent processes the same file multiple times
-            });
-            
-            // Check if reference already exists by looking for fragments with same documentId and current agent's roomId
-            const hasExistingRef = existingRef.some(ref => 
-              ref.metadata?.type === MemoryType.FRAGMENT &&
-              (ref.metadata as FragmentMetadata).documentId === contentBasedId &&
-              ref.roomId === (roomId || agentId)
-            );
-            
-            if (!hasExistingRef) {
-              // Create agent-scoped reference to the shared fragment
-              const agentFragmentRef: Memory = {
-                id: createUniqueUuid(this.runtime, originalFragment.id) as UUID, // New unique ID for the agent-scoped reference
-                agentId: agentId,
-                roomId: roomId || agentId, // Agent's scope
-                entityId: entityId || agentId,
-                worldId: worldId || agentId,
-                content: originalFragment.content, // Same content
-                embedding: originalFragment.embedding, // Reuse existing embedding!
-                metadata: {
-                  ...originalFragment.metadata,
-                  // Keep the same documentId to maintain relationship
-                  // But this fragment reference is scoped to the current agent
-                },
-                createdAt: Date.now(),
-              };
-              
-              // Store the agent-scoped fragment reference
-              await this.runtime.createMemory(agentFragmentRef, 'knowledge');
-              createdFragmentRefs++;
-              logger.debug(`[DEDUPLICATION] Agent ${agentId}: Created agent-scoped reference for fragment ${originalFragment.id}`);
-            }
-          } catch (error) {
-            logger.error(`[DEDUPLICATION] Agent ${agentId}: Error creating fragment reference:`, error);
+            await this.runtime.adapter.removeMemory(contentBasedId);
+            logger.info(`[INCOMPLETE DOC] Deleted incomplete document record for "${options.originalFilename}" - will reprocess`);
+          } catch (err) {
+            logger.error(`[INCOMPLETE DOC] Failed to delete incomplete document: ${err}`);
+            return { success: false, error: "Failed to delete incomplete document", documentId: contentBasedId };
           }
-        }
+          
+          // Continue with normal processing by NOT returning early
+          // The document will be recreated with proper fragments
+        } else {
+          // Document has fragments, proceed with creating agent references
+          
+          // Create agent-scoped fragment references for RAG access
+          let createdFragmentRefs = 0;
+          for (const originalFragment of relatedFragments) {
+            try {
+              // Check if this agent already has a reference to this fragment
+              const existingRef = await this.runtime.getMemories({
+                tableName: 'knowledge',
+                agentId: agentId,
+                count: 100,  // Limit query
+                roomId: roomId || agentId,
+                // Use a deterministic ID for the agent-scoped reference
+                // This ensures we don't create duplicate references if the agent processes the same file multiple times
+              });
+              
+              // Check if reference already exists by looking for fragments with same documentId and current agent's roomId
+              const hasExistingRef = existingRef.some(ref => 
+                ref.metadata?.type === MemoryType.FRAGMENT &&
+                (ref.metadata as FragmentMetadata).documentId === contentBasedId &&
+                ref.roomId === (roomId || agentId)
+              );
+              
+              if (!hasExistingRef) {
+                // Create agent-scoped reference to the shared fragment
+                const agentFragmentRef: Memory = {
+                  id: createUniqueUuid(this.runtime, originalFragment.id) as UUID, // New unique ID for the agent-scoped reference
+                  agentId: agentId,
+                  roomId: roomId || agentId, // Agent's scope
+                  entityId: entityId || agentId,
+                  worldId: worldId || agentId,
+                  content: originalFragment.content, // Same content
+                  embedding: originalFragment.embedding, // Reuse existing embedding!
+                  metadata: {
+                    ...originalFragment.metadata,
+                    // Keep the same documentId to maintain relationship
+                    // But this fragment reference is scoped to the current agent
+                  },
+                  createdAt: Date.now(),
+                };
+                
+                // Store the agent-scoped fragment reference
+                await this.runtime.createMemory(agentFragmentRef, 'knowledge');
+                createdFragmentRefs++;
+                logger.debug(`[DEDUPLICATION] Agent ${agentId}: Created agent-scoped reference for fragment ${originalFragment.id}`);
+              }
+            } catch (error) {
+              logger.error(`[DEDUPLICATION] Agent ${agentId}: Error creating fragment reference:`, error);
+            }
+          }
         
-        logger.info(`[DEDUPLICATION] 🔗 Agent ${agentId}: Created ${createdFragmentRefs} agent-scoped references for "${options.originalFilename}" (reusing ${relatedFragments.length} existing embeddings)`);
-        
-        return {
-          clientDocumentId: contentBasedId,
-          storedDocumentMemoryId: existingDocument.id as UUID,
-          fragmentCount: createdFragmentRefs, // Return count of references created
-        };
+          logger.info(`[DEDUPLICATION] 🔗 Agent ${agentId}: Created ${createdFragmentRefs} agent-scoped references for "${options.originalFilename}" (reusing ${relatedFragments.length} existing embeddings)`);
+          
+          return {
+            clientDocumentId: contentBasedId,
+            storedDocumentMemoryId: existingDocument.id as UUID,
+            fragmentCount: createdFragmentRefs, // Return count of references created
+          };
+        } // End of else block for documents with fragments
       } else {
         logger.debug(`[DEDUPLICATION] ❌ Agent ${agentId}: Document "${options.originalFilename}" not found - will process new document`);
       }
