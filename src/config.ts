@@ -77,6 +77,7 @@ export function validateModelConfig(runtime?: IAgentRuntime): ModelConfig {
       ANTHROPIC_BASE_URL: getSetting('ANTHROPIC_BASE_URL'),
       OPENROUTER_BASE_URL: getSetting('OPENROUTER_BASE_URL'),
       GOOGLE_BASE_URL: getSetting('GOOGLE_BASE_URL'),
+      OLLAMA_BASE_URL: getSetting('OLLAMA_BASE_URL', 'http://localhost:11434'),
 
       TEXT_EMBEDDING_MODEL: textEmbeddingModel,
       TEXT_MODEL: getSetting('TEXT_MODEL'),

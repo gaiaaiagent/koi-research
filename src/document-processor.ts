@@ -177,6 +177,12 @@ export class DocumentProcessor {
     const chunkSize = options?.chunkSize || DEFAULT_CHUNK_SIZE;
     const chunkOverlap = options?.chunkOverlap || DEFAULT_CHUNK_OVERLAP;
 
+    // Handle undefined or empty text
+    if (!text || typeof text !== 'string') {
+      logger.warn(`[splitIntoChunks] Received invalid text: ${typeof text}`);
+      return [];
+    }
+
     // Simple token-based chunking
     const words = text.split(/\s+/);
     const chunks: Array<{ content: string; metadata?: any }> = [];
@@ -470,10 +476,13 @@ const processorInstance = new DocumentProcessor();
 export async function processFragmentsSynchronously(options: any) {
   // This function is called by service.ts
   // Delegate to the class method
+  // Support both 'text' and 'fullDocumentText' property names
+  const textContent = options.fullDocumentText || options.text;
+  
   return processorInstance.processFragments(
     options.runtime,
     options.documentId,
-    options.text,
+    textContent,
     options.metadata
   );
 }

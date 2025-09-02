@@ -54,7 +54,10 @@ export class ReportGenerator {
   private reportPath: string;
 
   constructor(knowledgePath: string) {
-    this.reportPath = path.join(knowledgePath, '.processing-reports');
+    // Save reports in the logs directory, NOT in the knowledge folder
+    // This prevents the system from trying to process reports as knowledge documents
+    const projectRoot = process.cwd();
+    this.reportPath = path.join(projectRoot, 'logs', 'knowledge-processing-reports');
     
     // Ensure report directory exists
     if (!fs.existsSync(this.reportPath)) {

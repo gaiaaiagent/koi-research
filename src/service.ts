@@ -249,9 +249,13 @@ export class KnowledgeService extends Service {
   }> {
     // Use agentId from options if provided (from frontend), otherwise fall back to runtime
     const agentId = options.agentId || (this.runtime.agentId as UUID);
+    // Extract other IDs from options, using agentId as fallback
+    const roomId = options.roomId || agentId;
+    const entityId = options.entityId || agentId;
+    const worldId = options.worldId || agentId;
 
     // Generate content-based ID to ensure consistency
-    const contentBasedId = generateContentBasedId(options.content, agentId, {
+    const contentBasedId = generateContentBasedId(options.content, {
       includeFilename: options.originalFilename,
       contentType: options.contentType,
       maxChars: 2000, // Use first 2KB of content for ID generation
@@ -261,7 +265,7 @@ export class KnowledgeService extends Service {
 
     // Initialize deduplication logging
     const dedupLogPath = path.join(
-      process.env.KNOWLEDGE_PATH || '/opt/projects/GAIA/knowledge',
+      process.env.KNOWLEDGE_PATH || path.join(process.cwd(), 'knowledge'),
       '.deduplication'
     );
     if (!fs.existsSync(dedupLogPath)) {
@@ -291,10 +295,60 @@ export class KnowledgeService extends Service {
         );
 
         logger.debug(`[DEDUPLICATION] Agent ${agentId}: Found ${relatedFragments.length} existing fragments for document "${options.originalFilename}"`);
+        
+        // Create agent-scoped fragment references for RAG access
+        let createdFragmentRefs = 0;
+        for (const originalFragment of relatedFragments) {
+          try {
+            // Check if this agent already has a reference to this fragment
+            const existingRef = await this.runtime.getMemories({
+              tableName: 'knowledge',
+              roomId: roomId || agentId,
+              // Use a deterministic ID for the agent-scoped reference
+              // This ensures we don't create duplicate references if the agent processes the same file multiple times
+            });
+            
+            // Check if reference already exists by looking for fragments with same documentId and current agent's roomId
+            const hasExistingRef = existingRef.some(ref => 
+              ref.metadata?.type === MemoryType.FRAGMENT &&
+              (ref.metadata as FragmentMetadata).documentId === contentBasedId &&
+              ref.roomId === (roomId || agentId)
+            );
+            
+            if (!hasExistingRef) {
+              // Create agent-scoped reference to the shared fragment
+              const agentFragmentRef: Memory = {
+                id: createUniqueUuid(this.runtime, originalFragment.id) as UUID, // New unique ID for the agent-scoped reference
+                agentId: agentId,
+                roomId: roomId || agentId, // Agent's scope
+                entityId: entityId || agentId,
+                worldId: worldId || agentId,
+                content: originalFragment.content, // Same content
+                embedding: originalFragment.embedding, // Reuse existing embedding!
+                metadata: {
+                  ...originalFragment.metadata,
+                  // Keep the same documentId to maintain relationship
+                  // But this fragment reference is scoped to the current agent
+                },
+                createdAt: Date.now(),
+              };
+              
+              // Store the agent-scoped fragment reference
+              await this.runtime.createMemory(agentFragmentRef, 'knowledge');
+              createdFragmentRefs++;
+              logger.debug(`[DEDUPLICATION] Agent ${agentId}: Created agent-scoped reference for fragment ${originalFragment.id}`);
+            }
+          } catch (error) {
+            logger.error(`[DEDUPLICATION] Agent ${agentId}: Error creating fragment reference:`, error);
+          }
+        }
+        
+        logger.info(`[DEDUPLICATION] 🔗 Agent ${agentId}: Created ${createdFragmentRefs} agent-scoped references for "${options.originalFilename}" (reusing ${relatedFragments.length} existing embeddings)`);
+        
         return {
           clientDocumentId: contentBasedId,
           storedDocumentMemoryId: existingDocument.id as UUID,
-          fragmentCount: 0, // Skip counting for performance
+          fragmentCount: createdFragmentRefs, // Return count of references created
         };
       } else {
         logger.debug(`[DEDUPLICATION] ❌ Agent ${agentId}: Document "${options.originalFilename}" not found - will process new document`);
@@ -759,7 +813,7 @@ export class KnowledgeService extends Service {
       await this.knowledgeProcessingSemaphore.acquire();
       try {
         // Generate content-based ID for character knowledge
-        const knowledgeId = generateContentBasedId(item, this.runtime.agentId, {
+        const knowledgeId = generateContentBasedId(item, {
           maxChars: 2000, // Use first 2KB of content
           includeFilename: 'character-knowledge', // A constant identifier for character knowledge
         }) as UUID;

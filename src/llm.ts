@@ -3,6 +3,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { google } from '@ai-sdk/google';
+import { ollama } from 'ollama-ai-provider';
 import { ModelConfig, TextGenerationOptions } from './types';
 import { validateModelConfig } from './config';
 import { logger, IAgentRuntime } from '@elizaos/core';
@@ -29,6 +30,8 @@ export async function generateTextEmbedding(
       return await generateOpenAIEmbedding(text, config, dimensions);
     } else if (config.EMBEDDING_PROVIDER === 'google') {
       return await generateGoogleEmbedding(text, config);
+    } else if (config.EMBEDDING_PROVIDER === 'ollama') {
+      return await generateOllamaEmbedding(text, config);
     }
 
     throw new Error(`Unsupported embedding provider: ${config.EMBEDDING_PROVIDER}`);
@@ -173,6 +176,33 @@ async function generateGoogleEmbedding(
   const usageMessage = totalTokens ? `${totalTokens} total tokens` : 'Usage details N/A';
   logger.debug(
     `[Document Processor] Google embedding ${config.TEXT_EMBEDDING_MODEL}: ${usageMessage}`
+  );
+
+  return { embedding };
+}
+
+/**
+ * Generates an embedding using Ollama
+ */
+async function generateOllamaEmbedding(
+  text: string,
+  config: ModelConfig
+): Promise<{ embedding: number[] }> {
+  const ollamaProvider = ollama({
+    baseURL: config.OLLAMA_BASE_URL || 'http://localhost:11434',
+  });
+
+  const modelInstance = ollamaProvider.textEmbeddingModel(config.TEXT_EMBEDDING_MODEL);
+
+  const { embedding, usage } = await embed({
+    model: modelInstance,
+    value: text,
+  });
+
+  const totalTokens = (usage as { totalTokens?: number })?.totalTokens;
+  const usageMessage = totalTokens ? `${totalTokens} total tokens` : 'Usage details N/A';
+  logger.debug(
+    `[Document Processor] Ollama embedding ${config.TEXT_EMBEDDING_MODEL}: ${usageMessage}`
   );
 
   return { embedding };

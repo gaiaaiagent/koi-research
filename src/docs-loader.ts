@@ -154,11 +154,26 @@ function getAllFiles(dirPath: string, files: string[] = []): string[] {
 
       if (entry.isDirectory()) {
         // Skip node_modules and other common directories
-        if (!['node_modules', '.git', '.vscode', 'dist', 'build'].includes(entry.name)) {
+        if (!['node_modules', '.git', '.vscode', 'dist', 'build', '.processing-reports', 'logs'].includes(entry.name)) {
           getAllFiles(fullPath, files);
         }
       } else if (entry.isFile()) {
         files.push(fullPath);
+      } else if (entry.isSymbolicLink()) {
+        // Follow symlinks and check what they point to
+        try {
+          const stats = fs.statSync(fullPath);
+          if (stats.isDirectory()) {
+            // Skip node_modules and other common directories for symlinked dirs too
+            if (!['node_modules', '.git', '.vscode', 'dist', 'build'].includes(entry.name)) {
+              getAllFiles(fullPath, files);
+            }
+          } else if (stats.isFile()) {
+            files.push(fullPath);
+          }
+        } catch (symlinkError) {
+          logger.warn({ error: symlinkError }, `Broken symlink encountered: ${fullPath}`);
+        }
       }
     }
   } catch (error) {

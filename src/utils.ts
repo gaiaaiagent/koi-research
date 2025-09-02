@@ -448,13 +448,11 @@ export function looksLikeBase64(content?: string | null): boolean {
  * This ensures the same document always gets the same ID, preventing duplicates.
  *
  * @param content The document content (text or base64)
- * @param agentId The agent ID to namespace the document
  * @param options Optional configuration for ID generation
  * @returns A deterministic UUID based on the content
  */
 export function generateContentBasedId(
   content: string,
-  agentId: string,
   options?: {
     maxChars?: number;
     includeFilename?: string;
