@@ -498,13 +498,17 @@ export function generateContentBasedId(
     .trim();
 
   // Create a deterministic string that includes all relevant factors
+  // NOTE: Removing agentId to enable proper deduplication across agents
+  // All agents should be able to access the same knowledge base content
   const componentsToHash = [
-    agentId, // Namespace by agent
+    // agentId, // REMOVED - was causing duplicate processing per agent
     contentForHashing, // The actual content
     includeFilename || '', // Optional filename for additional uniqueness
   ]
     .filter(Boolean)
     .join('::');
+
+  logger.debug(`[generateContentBasedId] Creating content-based ID WITHOUT agent specificity for proper deduplication`);
 
   // Create SHA-256 hash
   const hash = createHash('sha256').update(componentsToHash).digest('hex');

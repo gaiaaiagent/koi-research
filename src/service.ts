@@ -258,10 +258,11 @@ export class KnowledgeService extends Service {
     logger.info(`Processing "${options.originalFilename}" (${options.contentType})`);
 
     // Check if document already exists in database using content-based ID
+    logger.debug(`[DEDUPLICATION] Agent ${agentId}: Checking if document "${options.originalFilename}" with ID ${contentBasedId} already exists`);
     try {
       const existingDocument = await this.runtime.getMemoryById(contentBasedId);
       if (existingDocument && existingDocument.metadata?.type === MemoryType.DOCUMENT) {
-        logger.info(`"${options.originalFilename}" already exists - skipping`);
+        logger.info(`[DEDUPLICATION] ✅ Agent ${agentId}: "${options.originalFilename}" already exists - skipping processing (reusing existing document)`);
 
         // Count existing fragments for this document
         const fragments = await this.runtime.getMemories({
@@ -275,11 +276,15 @@ export class KnowledgeService extends Service {
             (f.metadata as FragmentMetadata).documentId === contentBasedId
         );
 
+        logger.debug(`[DEDUPLICATION] Agent ${agentId}: Found ${relatedFragments.length} existing fragments for document "${options.originalFilename}"`);
+
         return {
           clientDocumentId: contentBasedId,
           storedDocumentMemoryId: existingDocument.id as UUID,
           fragmentCount: relatedFragments.length,
         };
+      } else {
+        logger.debug(`[DEDUPLICATION] ❌ Agent ${agentId}: Document "${options.originalFilename}" not found - will process new document`);
       }
     } catch (error) {
       // Document doesn't exist or other error, continue with processing
