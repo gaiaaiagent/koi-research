@@ -209,3 +209,51 @@ These optimizations are available in PR: [pending]
 ---
 
 These optimizations enable ElizaOS to handle production-scale knowledge bases with thousands of documents reliably and efficiently.
+## Pending Optimizations
+
+### 4. Query Optimization for Deduplication Check (September 2, 2025)
+
+**Problem**: The deduplication check in `src/service.ts` (line 286-289) fetches up to 1000 knowledge records and filters them in memory to find fragments for a specific document. This could miss fragments if an agent has >1000 total fragments.
+
+**Current Implementation**:
+```typescript
+// Line 286-289 in src/service.ts
+const fragments = await this.runtime.getMemories({
+  tableName: 'knowledge',
+  count: 1000,  // Gets ANY 1000 records
+});
+// Then filters in memory for specific document
+const relatedFragments = fragments.filter(
+  (f) => f.metadata?.type === MemoryType.FRAGMENT &&
+         (f.metadata as FragmentMetadata).documentId === contentBasedId
+);
+```
+
+**Impact**:
+- RAG functionality is NOT affected (uses searchMemories with vector search)
+- May cause unnecessary document reprocessing if agent has >1000 fragments
+- Database performs inefficient queries fetching unneeded records
+
+**Proposed Solution**:
+```typescript
+// Query directly for fragments of this specific document
+const fragments = await this.runtime.getMemories({
+  tableName: 'knowledge',
+  count: 1000,  // Still have a safety limit
+  // Add metadata filtering to the query itself
+  where: {
+    "metadata.documentId": contentBasedId,
+    "metadata.type": MemoryType.FRAGMENT
+  }
+});
+```
+
+**Benefits**:
+- Eliminates risk of missing fragments during deduplication
+- More efficient database query using indexes
+- Scales better as knowledge base grows
+- Ensures 100% reliability for document deduplication
+
+**Priority**: Low-Medium (system works correctly, this is an optimization)
+
+**Note**: This was discovered during production deployment with 13,000+ documents and 6 agents. The temporary fix (adding count: 1000 limit) improved performance from 8-17 second queries to <100ms, but the proper fix would add query-level filtering.
