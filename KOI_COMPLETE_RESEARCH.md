@@ -6,14 +6,17 @@ After extensive research into KOI (Knowledge Organization Infrastructure) and it
 
 **Migration Integration:** This plan now includes a complete strategy for integrating the existing regen-ai repository with its 18,824 successfully scraped documents into the KOI architecture through a three-repository structure: koi-sensors (transformed regen-ai), koi-processor (new), and GAIA (existing agents).
 
+**Critical Insight:** The artifact chains we create (source → raw → normalized → markdown → enriched → embedding) ARE the knowledge graph foundation. This graph must be explicit from the start using Graphiti, not added later.
+
 **Key Recommendations:**
 1. **Dual Identification**: Use RIDs for semantic identity + CIDs for content deduplication
 2. **Transformation Provenance**: Track every operation with Content-Addressable Transformations (CATs)
-3. **Temporal Knowledge Graph**: Implement Graphiti (built on Neo4j) with RDF export capability
-4. **Separation of Concerns**: Standalone KOI Processor Node separate from ElizaOS agents
-5. **Cost-Aware Processing**: Smart optimization with local models where possible
-6. **Phased Implementation**: Start simple (2 weeks MVP), evolve to full capabilities (12 weeks total)
-7. **Migration First**: Begin by transforming existing infrastructure, preserving all scraped content
+3. **Explicit Knowledge Graph**: Every RID creates a graph node, every transformation creates an edge (via Graphiti)
+4. **Temporal Tracking**: Graphiti provides time-aware queries ("what did we know when?")
+5. **Separation of Concerns**: KOI NetworkGraph for infrastructure, Knowledge Graph for content
+6. **Cost-Aware Processing**: Smart optimization with local models where possible
+7. **Phased Implementation**: Start simple (2 weeks MVP), evolve to full capabilities (12 weeks total)
+8. **Migration First**: Begin by transforming existing infrastructure, preserving all scraped content
 
 ## 1. Understanding KOI
 
@@ -468,31 +471,34 @@ class KOIEnhancedAgent {
 }
 ```
 
-## 6. Implementation Roadmap (With Migration)
+## 6. Implementation Roadmap (With Migration & Knowledge Graph)
 
-### Phase 1: MVP Foundation + Repository Setup (Weeks 1-2)
-**Goal:** Basic KOI infrastructure with dual identification + migrate existing repos
+### Phase 1: MVP Foundation + Graph Infrastructure (Weeks 1-2)
+**Goal:** Basic KOI infrastructure with dual identification + knowledge graph foundation
 
 ```bash
 Week 1:
 ✅ Transform regen-ai → koi-sensors repository
-✅ Set up KOI Processor Node (port 8100)
-✅ Implement RID + CID generation
-✅ Create transformation receipt system (CATs)
+✅ Set up Neo4j database instance
+✅ Install and configure Graphiti
+✅ Implement RID + CID generation with graph node creation
+✅ Create transformation receipt system (CATs) as graph edges
 ✅ Wrap existing scrapers as sensor nodes
 
 Week 2:
 ✅ Process 18,824 existing documents through KOI
+✅ Populate knowledge graph with artifact chains
+✅ Create retroactive CAT receipts in graph
+✅ Test graph queries for transformation chains
 ✅ Create lightweight KOI plugin for ElizaOS
-✅ Test with one agent (RegenAI)
-✅ Deploy to production with migrated content
+✅ Deploy to production with migrated content + graph
 ```
 
 **Success Metrics:**
-- All 18,824 documents migrated: Day 10
-- First agent using KOI: Day 7
-- Processing latency < 5 seconds
-- Zero document reprocessing
+- All 18,824 documents migrated with graph nodes: Day 10
+- Complete artifact chains in Neo4j: Day 12
+- Graph query latency < 100ms
+- First agent using KOI + graph: Day 7
 
 ### Phase 2: Processing Pipeline + Incremental Updates (Weeks 3-4)
 **Goal:** Modular pipeline with cost optimization + file watchers
@@ -517,25 +523,28 @@ Week 4:
 - Incremental updates < 1 minute
 - Zero duplicate processing
 
-### Phase 3: Knowledge Graph (Weeks 5-6)
-**Goal:** Graphiti temporal knowledge graph
+### Phase 3: Entity Extraction & Graph Enhancement (Weeks 5-6)
+**Goal:** Extract entities and relationships from content
 
 ```bash
 Week 5:
-✅ Deploy Neo4j + Graphiti
-✅ Create temporal schema
-✅ Import existing knowledge
+✅ Configure Graphiti entity extraction
+✅ Process markdown artifacts for entities
+✅ Deduplicate entities across documents
+✅ Create entity relationship graph
 
 Week 6:
-✅ Connect to processing pipeline
-✅ Build query interface
-✅ Agent integration
+✅ Build GraphQL query interface
+✅ Implement temporal queries
+✅ Connect agents to graph queries
+✅ Create graph visualization dashboard
 ```
 
 **Success Metrics:**
-- 10,000+ entities in graph
-- Query latency < 100ms
-- Temporal queries working
+- 10,000+ entities extracted and linked
+- Entity deduplication >90% accurate
+- Temporal queries working ("what did we know when?")
+- GraphQL API response < 50ms
 
 ### Phase 4: Sensor Network (Weeks 7-8)
 **Goal:** Real-time content monitoring
@@ -1049,6 +1058,556 @@ export class DeduplicationService {
 - ✅ All 5 agents successfully using KOI
 - ✅ Incremental updates processing in <1 minute
 
+## 14. Knowledge Graph Architecture
+
+### Critical Distinction: Two Graphs
+
+KOI provides a **NetworkGraph** for infrastructure topology, but we need a separate **Knowledge Graph** for content:
+
+```
+KOI NetworkGraph (Infrastructure):
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│Twitter Node │----->│ Coordinator │----->│  Processor  │
+└─────────────┘      └─────────────┘      └─────────────┘
+
+Knowledge Graph (Content):
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│Tweet Source │-FETCH->│Raw Artifact│-NORM->│  Markdown  │
+└─────────────┘      └─────────────┘      └─────────────┘
+                            │
+                        CONTAINS
+                            ↓
+                     ┌─────────────┐
+                     │Person:Greg L│
+                     └─────────────┘
+```
+
+### Graphiti as Our Knowledge Graph
+
+Graphiti provides temporal knowledge graph capabilities perfect for KOI:
+
+1. **Temporal Nodes**: Every artifact has valid_from/valid_to timestamps
+2. **Transformation Edges**: CAT receipts become graph relationships
+3. **Entity Extraction**: Automatic identification of people, orgs, concepts
+4. **Episode Tracking**: Each transformation is a trackable episode
+5. **Importance Scoring**: Prioritize high-value transformations
+
+### Graph Schema
+
+```cypher
+// Core Artifact Nodes
+(:Source {
+  rid: String,        // orn:regen.source:twitter.com/status/123
+  url: String,        // https://twitter.com/status/123
+  type: String,       // 'url' | 'api' | 'database'
+  accessible: Boolean,
+  last_verified: DateTime
+})
+
+(:Artifact {
+  rid: String,        // orn:regen.raw:twitter/123
+  cid: String,        // cid:sha256:abc123...
+  format: String,     // 'json' | 'markdown' | 'html'
+  stage: String,      // 'raw' | 'normalized' | 'enriched'
+  size_bytes: Integer,
+  created_at: DateTime,
+  valid_from: DateTime,
+  valid_to: DateTime   // null if current
+})
+
+// Transformation Relationships
+(:Artifact)-[:TRANSFORMED {
+  cat: String,         // cat:normalize:abc123
+  operation: String,   // 'fetch' | 'normalize' | 'convert'
+  timestamp: DateTime,
+  agent: String,       // 'twitter-sensor-v1'
+  cost_tokens: Integer,
+  cost_compute: Float,
+  retroactive: Boolean,
+  input_cid: String,
+  output_cid: String
+}]->(:Artifact)
+
+// Entity Nodes (extracted by Graphiti)
+(:Entity {
+  type: String,        // 'Person' | 'Organization' | 'Concept'
+  name: String,
+  aliases: [String],
+  first_seen: DateTime,
+  importance_score: Float
+})
+
+// Content Relationships
+(:Artifact)-[:CONTAINS]->(:Entity)
+(:Artifact)-[:MENTIONS]->(:Entity)
+(:Entity)-[:RELATED_TO {weight: Float}]->(:Entity)
+```
+
+### Artifact Chain as Graph
+
+Complete transformation chain for a tweet:
+
+```cypher
+// Level 0: Source Reference
+(source:Source {
+  rid: 'orn:regen.source:twitter.com/RegenNetwork/status/123',
+  url: 'https://twitter.com/RegenNetwork/status/123',
+  type: 'url'
+})
+
+// Level 1: Raw Capture
+(raw:Artifact {
+  rid: 'orn:regen.raw:twitter/123',
+  cid: 'cid:sha256:raw123...',
+  format: 'json',
+  stage: 'raw'
+})
+
+// Level 2: Normalized
+(norm:Artifact {
+  rid: 'orn:regen.normalized:twitter/123',
+  cid: 'cid:sha256:norm456...',
+  format: 'json',
+  stage: 'normalized'
+})
+
+// Level 3: Markdown
+(md:Artifact {
+  rid: 'orn:regen.markdown:twitter/123',
+  cid: 'cid:sha256:md789...',
+  format: 'markdown',
+  stage: 'markdown'
+})
+
+// Transformation Chain
+(source)-[:FETCHED {cat: 'cat:fetch:001'}]->(raw)
+(raw)-[:NORMALIZED {cat: 'cat:norm:002'}]->(norm)
+(norm)-[:CONVERTED {cat: 'cat:md:003'}]->(md)
+
+// Extracted Entities
+(person:Entity {type: 'Person', name: 'Gregory Landua'})
+(org:Entity {type: 'Organization', name: 'Regen Network'})
+
+(md)-[:MENTIONS]->(person)
+(md)-[:MENTIONS]->(org)
+(person)-[:AFFILIATED_WITH]->(org)
+```
+
+## 15. Artifact Chain Implementation
+
+### Complete Chain Structure
+
+Every piece of content follows this 6-level transformation chain:
+
+#### Level 0: Source Reference
+- **Purpose**: Point to the actual external resource
+- **RID Pattern**: `orn:regen.source:{domain}/{path}`
+- **Storage**: Reference only (no content)
+- **Examples**:
+  - `orn:regen.source:twitter.com/RegenNetwork/status/123`
+  - `orn:regen.source:notion.so/page-abc-def`
+  - `orn:regen.source:github.com/regen-network/regen-ledger`
+
+#### Level 1: Raw Artifact
+- **Purpose**: First capture of external content
+- **RID Pattern**: `orn:regen.raw:{source}/{id}`
+- **Storage**: Original API response or HTML
+- **CID**: Hash of raw response
+- **Examples**:
+  - Twitter API JSON response
+  - Notion API page object
+  - GitHub repository metadata
+
+#### Level 2: Normalized Artifact
+- **Purpose**: Standardized structure across sources
+- **RID Pattern**: `orn:regen.normalized:{source}/{id}`
+- **Storage**: Clean JSON with consistent fields
+- **CID**: Hash of normalized JSON
+- **Standard Fields**:
+  ```json
+  {
+    "id": "string",
+    "content": "string",
+    "author": "string",
+    "timestamp": "ISO8601",
+    "source": "string",
+    "metadata": {}
+  }
+  ```
+
+#### Level 3: Markdown Artifact
+- **Purpose**: Human and agent-readable format
+- **RID Pattern**: `orn:regen.markdown:{source}/{id}`
+- **Storage**: Markdown text
+- **CID**: Hash of markdown
+- **Features**: Headers, lists, links, code blocks
+
+#### Level 4: Enriched Artifact
+- **Purpose**: Add analytical insights
+- **RID Pattern**: `orn:regen.enriched:{source}/{id}`
+- **Storage**: Original + enrichments
+- **CID**: Hash of enriched content
+- **Enrichments**:
+  - Sentiment analysis
+  - Topic extraction
+  - Entity recognition
+  - Summary generation
+
+#### Level 5: Embedding Artifact
+- **Purpose**: Enable semantic search
+- **RID Pattern**: `orn:regen.embedding:{source}/{id}`
+- **Storage**: Vector array
+- **CID**: Hash of embedding vector
+- **Specifications**:
+  - Model: text-embedding-3-small
+  - Dimensions: 1536
+  - Format: Float32 array
+
+### CAT Receipt Chain
+
+Each transformation generates a CAT receipt:
+
+```typescript
+interface CATReceipt {
+  cat: string;           // Unique CAT ID
+  operation: string;     // What transformation
+  timestamp: number;     // When it happened
+  
+  input: {
+    rid: string;         // Input artifact RID
+    cid: string;         // Input content hash
+  };
+  
+  output: {
+    rid: string;         // Output artifact RID
+    cid: string;         // Output content hash
+  };
+  
+  agent: string;         // Who performed it
+  cost?: {
+    tokens?: number;     // LLM tokens used
+    compute?: number;    // CPU/GPU seconds
+    storage?: number;    // Bytes stored
+  };
+  
+  retroactive: boolean;  // Was this reconstructed?
+  verified: boolean;     // Has this been validated?
+}
+```
+
+### Implementation for Each Source
+
+#### Twitter Implementation
+```typescript
+// Source reference
+sourceRID: "orn:regen.source:twitter.com/RegenNetwork/status/{id}"
+
+// Transformation chain
+fetch    → "orn:regen.raw:twitter/{id}"        // API response
+normalize → "orn:regen.normalized:twitter/{id}" // Clean JSON
+markdown  → "orn:regen.markdown:twitter/{id}"   // Tweet as MD
+enrich    → "orn:regen.enriched:twitter/{id}"   // + sentiment
+embed     → "orn:regen.embedding:twitter/{id}"  // Vector
+```
+
+#### Notion Implementation
+```typescript
+// Source reference
+sourceRID: "orn:regen.source:notion.so/{page-id}"
+
+// Transformation chain
+fetch    → "orn:regen.raw:notion/{page-id}"        // API response
+normalize → "orn:regen.normalized:notion/{page-id}" // Blocks→JSON
+markdown  → "orn:regen.markdown:notion/{page-id}"   // Blocks→MD
+enrich    → "orn:regen.enriched:notion/{page-id}"   // + topics
+embed     → "orn:regen.embedding:notion/{page-id}"  // Vector
+```
+
+## 16. Graphiti Integration Checklist
+
+### Phase 1: Infrastructure Setup
+- [ ] **Install Neo4j Database**
+  ```bash
+  docker run -d \
+    --name neo4j \
+    -p 7474:7474 -p 7687:7687 \
+    -e NEO4J_AUTH=neo4j/password \
+    -v $PWD/neo4j/data:/data \
+    neo4j:latest
+  ```
+
+- [ ] **Install Graphiti**
+  ```bash
+  pip install graphiti-core
+  ```
+
+- [ ] **Configure Graphiti Connection**
+  ```python
+  from graphiti_core import Graphiti
+  
+  graphiti = Graphiti(
+    neo4j_uri="bolt://localhost:7687",
+    neo4j_user="neo4j",
+    neo4j_password="password"
+  )
+  ```
+
+### Phase 2: Schema Creation
+- [ ] **Create Artifact Node Types**
+  - Source nodes (external references)
+  - Artifact nodes (our copies)
+  - Entity nodes (extracted concepts)
+
+- [ ] **Create Transformation Relationships**
+  - FETCHED (source → raw)
+  - NORMALIZED (raw → normalized)
+  - CONVERTED (normalized → markdown)
+  - ENRICHED (markdown → enriched)
+  - EMBEDDED (enriched → embedding)
+
+- [ ] **Create Entity Relationships**
+  - CONTAINS (artifact → entity)
+  - MENTIONS (artifact → entity)
+  - RELATED_TO (entity → entity)
+
+### Phase 3: Migration Integration
+- [ ] **Modify Migration Script**
+  - Add Graphiti client initialization
+  - Create graph node for each RID
+  - Create graph edge for each transformation
+  - Store CAT receipts as edge properties
+
+- [ ] **Implement Batch Processing**
+  ```python
+  # Process in batches of 100
+  for batch in chunks(artifacts, 100):
+    with graphiti.batch() as batch_writer:
+      for artifact in batch:
+        batch_writer.add_node(artifact)
+        batch_writer.add_edges(transformations)
+  ```
+
+- [ ] **Add Progress Tracking**
+  - Log nodes created
+  - Log edges created
+  - Track failed operations
+  - Generate summary report
+
+### Phase 4: Entity Extraction
+- [ ] **Configure Graphiti Entity Extraction**
+  ```python
+  graphiti.configure_extraction({
+    'extract_entities': True,
+    'entity_types': ['Person', 'Organization', 'Location', 'Concept'],
+    'extract_relationships': True,
+    'confidence_threshold': 0.7
+  })
+  ```
+
+- [ ] **Process Documents for Entities**
+  - Run extraction on markdown artifacts
+  - Deduplicate entities across documents
+  - Create entity relationships
+
+### Phase 5: Temporal Features
+- [ ] **Enable Temporal Tracking**
+  ```python
+  graphiti.enable_temporal({
+    'track_changes': True,
+    'maintain_history': True,
+    'episodic_memory': True
+  })
+  ```
+
+- [ ] **Implement Time-Based Queries**
+  ```cypher
+  // What did we know about climate on date X?
+  MATCH (a:Artifact)-[:CONTAINS]->(e:Entity)
+  WHERE e.name = 'climate change'
+  AND a.valid_from <= datetime('2024-01-01')
+  AND (a.valid_to IS NULL OR a.valid_to > datetime('2024-01-01'))
+  RETURN a, e
+  ```
+
+### Phase 6: Query Interface
+- [ ] **Create Common Queries**
+  - Find transformation chain for document
+  - Get all artifacts mentioning entity
+  - Track document through pipeline
+  - Find related entities
+
+- [ ] **Build GraphQL API**
+  ```graphql
+  query GetArtifactChain($sourceRid: String!) {
+    artifactChain(sourceRid: $sourceRid) {
+      source { rid, url }
+      transformations {
+        operation
+        timestamp
+        input { rid, cid }
+        output { rid, cid }
+      }
+    }
+  }
+  ```
+
+### Phase 7: Monitoring & Optimization
+- [ ] **Create Dashboard**
+  - Total nodes by type
+  - Transformations per day
+  - Entity extraction statistics
+  - Query performance metrics
+
+- [ ] **Optimize Indices**
+  ```cypher
+  CREATE INDEX artifact_rid FOR (a:Artifact) ON (a.rid);
+  CREATE INDEX artifact_cid FOR (a:Artifact) ON (a.cid);
+  CREATE INDEX entity_name FOR (e:Entity) ON (e.name);
+  ```
+
+### Phase 8: RDF Export
+- [ ] **Implement RDF Mapping**
+  ```python
+  def artifact_to_rdf(artifact):
+    return {
+      '@id': artifact.rid,
+      '@type': 'koi:Artifact',
+      'koi:contentHash': artifact.cid,
+      'dc:format': artifact.format,
+      'dc:created': artifact.created_at
+    }
+  ```
+
+- [ ] **Create SPARQL Endpoint**
+  - Export graph to RDF
+  - Set up Fuseki or similar
+  - Enable federated queries
+
+## 17. Data Flow Architecture
+
+### Real-Time Flow (New Content)
+
+```
+1. DETECTION
+   ┌─────────────┐
+   │Sensor Detects│ (Twitter API, Notion webhook, etc.)
+   │ New Content  │
+   └──────┬──────┘
+          │
+2. CAPTURE & IDENTIFY
+   ┌──────▼──────┐
+   │Create Source │ RID: orn:regen.source:twitter.com/status/123
+   │  Reference   │ (No content, just pointer)
+   └──────┬──────┘
+          │
+   ┌──────▼──────┐
+   │ Fetch Raw    │ RID: orn:regen.raw:twitter/123
+   │   Content    │ CID: cid:sha256:abc... (hash of API response)
+   └──────┬──────┘
+          │
+3. GRAPH CREATION (Parallel)
+   ┌──────┴──────┬──────────┐
+   │             │          │
+   ▼             ▼          ▼
+[Neo4j Node] [CAT Receipt] [Event to KOI]
+   │             │          │
+   └──────┬──────┴──────────┘
+          │
+4. TRANSFORMATION PIPELINE
+   ┌──────▼──────┐
+   │  Normalize   │ RID: orn:regen.normalized:twitter/123
+   │   Content    │ CID: cid:sha256:def...
+   └──────┬──────┘
+          │ → Graph Edge + CAT
+   ┌──────▼──────┐
+   │ Convert to   │ RID: orn:regen.markdown:twitter/123
+   │   Markdown   │ CID: cid:sha256:ghi...
+   └──────┬──────┘
+          │ → Graph Edge + CAT
+   ┌──────▼──────┐
+   │   Enrich     │ RID: orn:regen.enriched:twitter/123
+   │   Content    │ CID: cid:sha256:jkl...
+   └──────┬──────┘
+          │ → Graph Edge + CAT
+   ┌──────▼──────┐
+   │  Generate    │ RID: orn:regen.embedding:twitter/123
+   │  Embedding   │ CID: cid:sha256:mno...
+   └──────┬──────┘
+          │
+5. KNOWLEDGE READY
+   ┌──────▼──────┐
+   │Available for │ Query via Graphiti API
+   │   Agents     │ Traverse transformation chain
+   └─────────────┘
+```
+
+### Retroactive Flow (Existing 18,824 Documents)
+
+```
+1. INVENTORY
+   ┌─────────────┐
+   │Scan Existing │ /data/twitter/*.json
+   │   Files      │ /data/notion/*.md
+   └──────┬──────┘
+          │
+2. RECONSTRUCT CHAIN
+   ┌──────▼──────┐
+   │Create Source │ RID: orn:regen.source:twitter.com/status/123
+   │  Reference   │ (Retroactive, based on file metadata)
+   └──────┬──────┘
+          │
+   ┌──────▼──────┐
+   │ Find/Create  │ If have: Use actual CID
+   │Raw Artifact  │ If not: Use "cid:unknown:retroactive"
+   └──────┬──────┘
+          │
+3. GRAPH POPULATION
+   ┌──────▼──────┐
+   │Create Nodes  │ Batch insert to Neo4j
+   │Create Edges  │ Mark as retroactive=true
+   │  Add CATs    │ Approximate timestamps
+   └──────┬──────┘
+          │
+4. FILL GAPS
+   ┌──────▼──────┐
+   │  Identify    │ What artifacts are missing?
+   │Missing Steps │ Can we regenerate them?
+   └─────────────┘
+```
+
+### Parallel Infrastructure vs Content Graphs
+
+```
+INFRASTRUCTURE GRAPH (KOI NetworkGraph)
+========================================
+TwitterSensor ──connected──> Coordinator
+Coordinator ──connected──> Processor
+Processor ──connected──> AgentNode
+
+Purpose: Track which nodes can talk to which
+Query: "What sensors feed this processor?"
+
+
+CONTENT GRAPH (Graphiti Knowledge Graph)
+========================================
+Tweet123 ──FETCHED──> RawJSON ──NORMALIZED──> CleanJSON
+CleanJSON ──CONVERTED──> Markdown ──ENRICHED──> Enhanced
+Enhanced ──EMBEDDED──> Vector
+
+Purpose: Track content transformations
+Query: "Show me all transformations of this tweet"
+```
+
+### Event Flow Integration
+
+```
+Sensor Event → KOI Processor → Graph Writer
+     │              │              │
+     │              │              └─> Neo4j
+     │              └─> PostgreSQL
+     └─> Event Bus → Agents
+```
+
 ## Conclusion
 
 This KOI-enhanced architecture transforms GAIA from a basic RAG system into a sophisticated knowledge infrastructure that:
@@ -1065,10 +1624,14 @@ By combining KOI's distributed architecture with practical optimizations (cost m
 
 ---
 
-*Version: 4.0 - Complete with Migration Strategy*
+*Version: 5.0 - Complete with Knowledge Graph Architecture*
 *Date: 2024*
 *Status: Ready for Implementation*
-*Key Addition: Integration strategy for 18,824 existing documents from regen-ai repository*
+*Key Additions:*
+- *Explicit knowledge graph architecture using Graphiti*
+- *Complete artifact chain model (source → raw → normalized → markdown → enriched → embedding)*
+- *Integration strategy for 18,824 existing documents*
+- *Detailed implementation checklists with graph integration*
 
 ## Appendix: Quick Reference
 
