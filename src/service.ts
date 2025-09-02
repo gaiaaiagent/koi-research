@@ -283,8 +283,13 @@ export class KnowledgeService extends Service {
         logger.info(`[DEDUPLICATION] ✅ Agent ${agentId}: "${options.originalFilename}" already exists - skipping processing (reusing existing document)`);
 
         // Count existing fragments for this document
+        // Get fragments - using a high enough limit to cover all fragments
+        // With 13k docs @ avg 4 fragments = ~52k fragments max expected
+        // Using 20k limit provides good performance while ensuring we get all fragments for any document
         const fragments = await this.runtime.getMemories({
           tableName: 'knowledge',
+          count: 20000,  // High enough to get all current fragments (14k) with room for growth
+        });
         });
 
         // Filter fragments related to this specific document
@@ -295,6 +300,12 @@ export class KnowledgeService extends Service {
         );
 
         logger.debug(`[DEDUPLICATION] Agent ${agentId}: Found ${relatedFragments.length} existing fragments for document "${options.originalFilename}"`);
+
+        // CRITICAL FIX: If document exists but has no fragments, it was incompletely processed
+        if (relatedFragments.length === 0) {
+          logger.warn(`[INCOMPLETE DOC] Document "${options.originalFilename}" has NO fragments - skipping for now`);
+          return { success: false, error: "Document incomplete", documentId: contentBasedId };
+        }
         
         // Create agent-scoped fragment references for RAG access
         let createdFragmentRefs = 0;
@@ -303,6 +314,8 @@ export class KnowledgeService extends Service {
             // Check if this agent already has a reference to this fragment
             const existingRef = await this.runtime.getMemories({
               tableName: 'knowledge',
+              agentId: agentId,
+              count: 100,  // Limit query
               roomId: roomId || agentId,
               // Use a deterministic ID for the agent-scoped reference
               // This ensures we don't create duplicate references if the agent processes the same file multiple times
