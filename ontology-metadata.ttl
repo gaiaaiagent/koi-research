@@ -1,0 +1,117 @@
+@prefix regen: <https://regen.network/ontology#> .
+@prefix koi: <https://regen.network/koi#> .
+@prefix schema: <http://schema.org/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# ============================================
+# ONTOLOGIES AS FIRST-CLASS SEMANTIC ASSETS
+# Treating our ontology files as knowledge graph entities
+# with RIDs, CIDs, and transformation provenance
+# ============================================
+
+# Original Metabolic Ontology (Historical Artifact)
+orn:regen.ontology:metabolic-v1 a regen:SemanticAsset ;
+    schema:name "Regen Metabolic Ontology v1.0" ;
+    schema:description "Foundational living systems ontology for Regen Network knowledge metabolism" ;
+    schema:author "Regen Network Development Team" ;
+    schema:dateCreated "2025-09-02"^^xsd:date ;
+    
+    # Content identification
+    koi:cid "cid:sha256:5cadd6f4375d9bbcb56cbdf2420754c3e44104c78fa9e610547f594e44f300a8" ;
+    koi:filePath "./regen-metabolic-ontology.ttl" ;
+    koi:format "text/turtle" ;
+    koi:sizeBytes "7973"^^xsd:integer ;
+    
+    # Essence alignment
+    regen:alignsWith "Re-Whole Value", "Nest Caring", "Harmonize Agency" ;
+    
+    # Ontological scope
+    schema:about "Living systems metaphors, metabolic processes, agent orchestration" ;
+    rdfs:comment "Establishes core classes: System, Organ, MetabolicFlow, Agent, plus metabolic processes (Anchor, Attest, Issue, Circulate, Govern, Retire)" .
+
+# Discourse Ontology Extension Attempt (Problematic - has duplications)  
+orn:regen.ontology:discourse-v1 a regen:SemanticAsset ;
+    schema:name "Regen Discourse Ontology v1.0" ;
+    schema:description "Attempted extension adding discourse graph elements" ;
+    schema:author "Regen Network Development Team" ;
+    schema:dateCreated "2025-09-02"^^xsd:date ;
+    
+    # Content identification
+    koi:cid "cid:sha256:408e70dfb797afd9f54d76207657555e250439f1e5a5abe14ced5489dca80ef3" ;
+    koi:filePath "./regen-discourse-ontology.ttl" ;
+    koi:format "text/turtle" ;
+    koi:sizeBytes "6552"^^xsd:integer ;
+    
+    # Derivation relationship
+    regen:derivesFrom orn:regen.ontology:metabolic-v1 ;
+    
+    # Issues with this version
+    koi:hasIssue "Duplicates core metabolic classes instead of proper extension" ;
+    koi:hasIssue "References undefined regen:MetabolicProcess class" ;
+    koi:status "deprecated-needs-synthesis" ;
+    
+    # What it adds
+    schema:about "Discourse graph elements, scientific process subclasses" ;
+    rdfs:comment "Adds Question, Claim, Evidence, Source plus Hypothesis, Experiment, Result - but with architectural issues" .
+
+# Future Unified Ontology (To be created)
+orn:regen.ontology:unified-v1 a regen:SemanticAsset ;
+    schema:name "Regen Unified Ontology v1.0" ;
+    schema:description "Properly integrated ontology combining metabolic base with discourse extensions" ;
+    schema:dateCreated "2025-09-03"^^xsd:date ;
+    
+    # Synthesis relationships
+    regen:derivesFrom orn:regen.ontology:metabolic-v1 ;
+    regen:synthesizes orn:regen.ontology:discourse-v1 ;
+    
+    # Planned improvements
+    koi:fixes "Eliminates class duplication" ;
+    koi:fixes "Provides proper OWL extension patterns" ;
+    koi:fixes "Defines missing MetabolicProcess class" ;
+    koi:status "planned" ;
+    
+    schema:about "Complete ontology: metabolic base + discourse graph + scientific processes" ;
+    rdfs:comment "Single source of truth for all Regen Network knowledge extraction and modeling" .
+
+# ============================================
+# EXTRACTION PROVENANCE PROPERTIES
+# Track which ontology version was used for entity extraction
+# ============================================
+
+regen:wasExtractedUsing a rdf:Property ;
+    rdfs:label "was extracted using" ;
+    rdfs:comment "Links an extracted entity to the ontology version used for extraction" ;
+    rdfs:domain regen:SemanticAsset ;
+    rdfs:range regen:SemanticAsset ;
+    rdfs:subPropertyOf prov:wasAttributedTo .
+
+regen:hasOntologyVersion a rdf:Property ;
+    rdfs:label "has ontology version" ;
+    rdfs:comment "Specifies which ontology version is active in a processing context" ;
+    rdfs:domain regen:Transformation ;
+    rdfs:range regen:SemanticAsset .
+
+# ============================================
+# ONTOLOGY EVOLUTION METADATA
+# Track the synthesis process as a transformation
+# ============================================
+
+koi:OntologySynthesis a rdfs:Class ;
+    rdfs:subClassOf regen:Transformation ;
+    rdfs:label "Ontology Synthesis" ;
+    rdfs:comment "Transformation that combines or extends ontologies" .
+
+# CAT receipt will be generated when unified ontology is created
+koi:synthesis-cat-placeholder a koi:OntologySynthesis ;
+    rdfs:comment "Placeholder for CAT receipt documenting metabolic-v1 + discourse-v1 → unified-v1" .
+
+# ============================================
+# USAGE TRACKING
+# Connect extraction processes to ontology versions
+# ============================================
+
+# Example usage pattern (will be populated by processing scripts):
+# orn:regen.extracted:document-123 regen:wasExtractedUsing orn:regen.ontology:unified-v1 .
+# orn:regen.transformation:extract-456 regen:hasOntologyVersion orn:regen.ontology:unified-v1 .

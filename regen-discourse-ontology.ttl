@@ -1,0 +1,198 @@
+@prefix regen: <https://regen.network/ontology#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# ============================================
+# REGEN NETWORK METABOLIC DISCOURSE ONTOLOGY
+# Combining Living Systems + Discourse Graph
+# ============================================
+
+# Core Metabolic Classes (existing)
+regen:System           a rdfs:Class ; rdfs:label "Living System" .
+regen:Agent            a rdfs:Class ; rdfs:label "Agent" .
+regen:MetabolicFlow    a rdfs:Class ; rdfs:label "Metabolic Flow" .
+regen:Transformation   a rdfs:Class ; rdfs:label "Transformation" .
+regen:SemanticAsset    a rdfs:Class ; rdfs:label "Semantic Asset" .
+regen:EcologicalAsset  a rdfs:Class ; rdfs:label "Ecological Asset" .
+regen:GovernanceAct    a rdfs:Class ; rdfs:label "Governance Act" .
+
+# ============================================
+# DISCOURSE GRAPH BASE CLASSES
+# ============================================
+
+regen:DiscourseElement  a rdfs:Class ;
+    rdfs:label "Discourse Element" ;
+    rdfs:comment "Base class for all discourse graph elements" .
+
+regen:Question  a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Question" ;
+    rdfs:comment "A question or inquiry that drives investigation" .
+
+regen:Claim  a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Claim" ;
+    rdfs:comment "An assertion or statement that can be supported or refuted" .
+
+regen:Evidence  a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Evidence" ;
+    rdfs:comment "Data, observations, or documentation that supports or opposes claims" .
+
+regen:Source  a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Source" ;
+    rdfs:comment "Origin or reference for evidence, claims, or questions" .
+
+# ============================================
+# SCIENTIFIC PROCESS SUBCLASSES
+# ============================================
+
+regen:Hypothesis  a rdfs:Class ;
+    rdfs:subClassOf regen:Question ;
+    rdfs:label "Hypothesis" ;
+    rdfs:comment "A testable prediction or proposed explanation" .
+
+regen:Experiment  a rdfs:Class ;
+    rdfs:subClassOf regen:Source ;
+    rdfs:label "Experiment" ;
+    rdfs:comment "A scientific test or investigation" .
+
+regen:Result  a rdfs:Class ;
+    rdfs:subClassOf regen:Evidence ;
+    rdfs:label "Result" ;
+    rdfs:comment "Outcome or data from an experiment or observation" .
+
+regen:Conclusion  a rdfs:Class ;
+    rdfs:subClassOf regen:Claim ;
+    rdfs:label "Conclusion" ;
+    rdfs:comment "A judgment or decision reached through reasoning" .
+
+regen:Theory  a rdfs:Class ;
+    rdfs:subClassOf regen:Claim ;
+    rdfs:label "Theory" ;
+    rdfs:comment "A well-substantiated explanation of phenomena" .
+
+regen:Model  a rdfs:Class ;
+    rdfs:subClassOf regen:Claim ;
+    rdfs:label "Model" ;
+    rdfs:comment "A representation or framework for understanding" .
+
+# ============================================
+# DISCOURSE RELATIONSHIPS
+# ============================================
+
+# Basic Discourse Relations
+regen:supports  a rdf:Property ;
+    rdfs:domain regen:Evidence ;
+    rdfs:range regen:Claim ;
+    rdfs:label "supports" .
+
+regen:opposes  a rdf:Property ;
+    rdfs:domain regen:Evidence ;
+    rdfs:range regen:Claim ;
+    rdfs:label "opposes" .
+
+regen:contextualizes  a rdf:Property ;
+    rdfs:domain regen:Source ;
+    rdfs:range regen:Evidence ;
+    rdfs:label "contextualizes" .
+
+regen:synthesizes  a rdf:Property ;
+    rdfs:domain regen:Claim ;
+    rdfs:range regen:Evidence ;
+    rdfs:label "synthesizes" .
+
+regen:informsQuestion  a rdf:Property ;
+    rdfs:domain regen:DiscourseElement ;
+    rdfs:range regen:Question ;
+    rdfs:label "informs question" .
+
+regen:informsClaim  a rdf:Property ;
+    rdfs:domain regen:DiscourseElement ;
+    rdfs:range regen:Claim ;
+    rdfs:label "informs claim" .
+
+# Scientific Process Relations
+regen:tests  a rdf:Property ;
+    rdfs:domain regen:Experiment ;
+    rdfs:range regen:Hypothesis ;
+    rdfs:label "tests" .
+
+regen:produces  a rdf:Property ;
+    rdfs:domain regen:Experiment ;
+    rdfs:range regen:Result ;
+    rdfs:label "produces" .
+
+regen:leadsTo  a rdf:Property ;
+    rdfs:domain regen:Result ;
+    rdfs:range regen:Conclusion ;
+    rdfs:label "leads to" .
+
+regen:validates  a rdf:Property ;
+    rdfs:domain regen:Result ;
+    rdfs:range regen:Hypothesis ;
+    rdfs:label "validates" .
+
+regen:refutes  a rdf:Property ;
+    rdfs:domain regen:Result ;
+    rdfs:range regen:Hypothesis ;
+    rdfs:label "refutes" .
+
+regen:informsTheory  a rdf:Property ;
+    rdfs:domain regen:Conclusion ;
+    rdfs:range regen:Theory ;
+    rdfs:label "informs theory" .
+
+regen:informsModel  a rdf:Property ;
+    rdfs:domain regen:Conclusion ;
+    rdfs:range regen:Model ;
+    rdfs:label "informs model" .
+
+regen:generatesHypothesis  a rdf:Property ;
+    rdfs:domain regen:Theory ;
+    rdfs:range regen:Hypothesis ;
+    rdfs:label "generates hypothesis" .
+
+# ============================================
+# DISCOURSE-METABOLIC BRIDGES
+# ============================================
+
+# Connect discourse elements to metabolic processes
+regen:metabolicRole  a rdf:Property ;
+    rdfs:domain regen:DiscourseElement ;
+    rdfs:range regen:MetabolicProcess ;
+    rdfs:label "metabolic role" .
+
+# Questions drive Anchor process (establishing foundation)
+# Claims undergo Attest process (verification)
+# Evidence participates in Issue process (creation)
+# Sources enable Circulate process (distribution)
+
+# ============================================
+# ESSENCE ALIGNMENTS FOR DISCOURSE
+# ============================================
+
+# Re-Whole Value: Questions about regeneration, holistic understanding
+# Nest Caring: Evidence from community, collaborative claims
+# Harmonize Agency: Conclusions supporting governance, autonomous decisions
+
+# ============================================
+# NOTES AS METADATA
+# ============================================
+
+regen:Note  a rdfs:Class ;
+    rdfs:label "Note" ;
+    rdfs:comment "Annotation or metadata about any discourse element" .
+
+regen:hasNote  a rdf:Property ;
+    rdfs:domain regen:DiscourseElement ;
+    rdfs:range regen:Note ;
+    rdfs:label "has note" .
+
+regen:ExperimentNote     rdfs:subClassOf regen:Note .
+regen:ResultNote         rdfs:subClassOf regen:Note .
+regen:ConclusionNote     rdfs:subClassOf regen:Note .
+regen:HypothesisNote     rdfs:subClassOf regen:Note .
+regen:TheoryNote         rdfs:subClassOf regen:Note .

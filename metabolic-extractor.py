@@ -18,9 +18,9 @@ from graphiti_core.nodes import EpisodeType
 load_dotenv()
 
 class MetabolicExtractor:
-    """Extract JSON-LD entities from documents using Regen's metabolic ontology"""
+    """Extract JSON-LD entities from documents using Regen's unified ontology"""
     
-    # Regen Metabolic Ontology context
+    # Regen Unified Ontology context (v1.0)
     ONTOLOGY_CONTEXT = {
         "@context": {
             "regen": "https://regen.network/ontology#",
@@ -38,12 +38,26 @@ class MetabolicExtractor:
             "LegitimacyNote": "regen:LegitimacyNote",
             
             # Metabolic processes
+            "MetabolicProcess": "regen:MetabolicProcess",
             "Anchor": "regen:Anchor",
             "Attest": "regen:Attest",
             "Issue": "regen:Issue",
             "Circulate": "regen:Circulate",
             "Retire": "regen:Retire",
             "Govern": "regen:Govern",
+            
+            # Discourse elements (from unified ontology)
+            "DiscourseElement": "regen:DiscourseElement",
+            "Question": "regen:Question",
+            "Claim": "regen:Claim",
+            "Evidence": "regen:Evidence",
+            "Source": "regen:Source",
+            "Hypothesis": "regen:Hypothesis",
+            "Experiment": "regen:Experiment",
+            "Result": "regen:Result",
+            "Conclusion": "regen:Conclusion",
+            "Theory": "regen:Theory",
+            "Model": "regen:Model",
             
             # Relations
             "orchestrates": "regen:orchestrates",
@@ -138,6 +152,10 @@ class MetabolicExtractor:
         self.graphiti = graphiti_client
         self.extracted_entities = []
         
+        # Ontology version tracking
+        self.ontology_version = "orn:regen.ontology:unified-v1"
+        self.ontology_cid = "cid:sha256:e002e2e94b5cc9057e16fe0173854c88af1d1ba307986c0337066ddcbfdeb4a7"
+        
     def generate_rid(self, entity_type: str, identifier: str) -> str:
         """Generate a Regen Resource Identifier"""
         return f"orn:regen.{entity_type.lower()}:{identifier}"
@@ -169,11 +187,17 @@ class MetabolicExtractor:
         # For now, we'll extract basic entities using pattern matching
         entities = self.extract_basic_entities(content, doc_path.name)
         
-        # Add JSON-LD context
+        # Add JSON-LD context and ontology provenance
         for entity in entities:
             entity.update(self.ONTOLOGY_CONTEXT)
             entity["@id"] = self.generate_rid(entity["@type"], entity.get("name", "unknown"))
             entity["_cid"] = self.generate_cid(entity)
+            
+            # Add ontology provenance tracking
+            entity["wasExtractedUsing"] = self.ontology_version
+            entity["ontologyVersion"] = self.ontology_cid
+            entity["extractedAt"] = datetime.now(tz=timezone.utc).isoformat()
+            entity["extractedBy"] = "metabolic-extractor-v1"
             
         return entities
     

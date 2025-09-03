@@ -1,0 +1,342 @@
+@prefix regen:  <https://regen.network/ontology#> .
+@prefix koi:    <https://regen.network/koi#> .
+@prefix prov:   <http://www.w3.org/ns/prov#> .
+@prefix schema: <http://schema.org/> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+
+# ============================================
+# REGEN NETWORK UNIFIED ONTOLOGY v1.0
+# 
+# Properly integrates:
+# - Complete metabolic ontology (base foundation)
+# - Discourse graph extensions (clean additions)
+# - Scientific process subclasses
+# - Ontology provenance tracking
+# 
+# Derivation: extends orn:regen.ontology:metabolic-v1
+# Synthesizes: discourse elements from orn:regen.ontology:discourse-v1
+# ============================================
+
+# Ontology self-description
+<https://regen.network/ontology> a owl:Ontology ;
+    rdfs:label "Regen Network Unified Ontology" ;
+    schema:version "1.0" ;
+    schema:dateCreated "2025-09-03"^^xsd:date ;
+    rdfs:comment "Living systems ontology with discourse graph extensions for Regen Network knowledge infrastructure" ;
+    owl:versionIRI <https://regen.network/ontology/1.0> .
+
+# ============================================
+# CORE METABOLIC BASE (from metabolic-v1)
+# Complete import without duplication
+# ============================================
+
+### Core metaphors: organs, flows, metabolism
+regen:System           a rdfs:Class ; rdfs:label "Living System" .
+regen:Organ            a rdfs:Class ; rdfs:label "Functional Organ" .
+regen:MetabolicFlow    a rdfs:Class ; rdfs:label "Metabolic Flow" .
+regen:Transformation   a rdfs:Class ; rdfs:label "Transformation" .
+regen:FeedbackLoop     a rdfs:Class ; rdfs:label "Feedback Loop" .
+
+### Actors and substrates
+regen:Commons          a rdfs:Class ; rdfs:label "Commons" .
+regen:Agent            a rdfs:Class ; rdfs:label "Agent" .
+regen:HumanActor       a rdfs:Class ; rdfs:subClassOf regen:Agent .
+regen:AIAgent          a rdfs:Class ; rdfs:subClassOf regen:Agent .
+regen:SemanticAsset    a rdfs:Class ; rdfs:label "Semantic Asset" .
+regen:EcologicalAsset  a rdfs:Class ; rdfs:label "Ecological Asset" .
+regen:LegitimacyNote   a rdfs:Class ; rdfs:label "Legitimacy Note" .
+regen:GovernanceAct    a rdfs:Class ; rdfs:label "Governance Act" .
+regen:Metric           a rdfs:Class ; rdfs:label "Metric" .
+
+### Processual substrates (metabolic processes)
+regen:MetabolicProcess a rdfs:Class ; rdfs:label "Metabolic Process" .
+regen:Anchor           a rdfs:Class ; rdfs:subClassOf regen:MetabolicProcess ; rdfs:label "Anchor Process" .
+regen:Attest           a rdfs:Class ; rdfs:subClassOf regen:MetabolicProcess ; rdfs:label "Attest Process" .
+regen:Issue            a rdfs:Class ; rdfs:subClassOf regen:MetabolicProcess ; rdfs:label "Issue Process" .
+regen:Circulate        a rdfs:Class ; rdfs:subClassOf regen:MetabolicProcess ; rdfs:label "Circulate Process" .
+regen:Retire           a rdfs:Class ; rdfs:subClassOf regen:MetabolicProcess ; rdfs:label "Retire Process" .
+regen:Govern           a rdfs:Class ; rdfs:subClassOf regen:MetabolicProcess ; rdfs:label "Govern Process" .
+
+### Relations
+regen:hasOrgan         a rdf:Property ; rdfs:domain regen:System ; rdfs:range regen:Organ .
+regen:usesAgent        a rdf:Property ; rdfs:domain regen:Organ  ; rdfs:range regen:Agent .
+regen:produces         a rdf:Property ; rdfs:domain regen:Organ  ; rdfs:range regen:SemanticAsset .
+regen:actsOn           a rdf:Property ; rdfs:domain regen:MetabolicFlow ; rdfs:range rdfs:Resource .
+regen:fromState        a rdf:Property ; rdfs:domain regen:Transformation ; rdfs:range rdfs:Resource .
+regen:toState          a rdf:Property ; rdfs:domain regen:Transformation ; rdfs:range rdfs:Resource .
+regen:enacts           a rdf:Property ; rdfs:domain regen:Commons ; rdfs:range regen:GovernanceAct .
+regen:attests          a rdf:Property ; rdfs:domain regen:Commons ; rdfs:range regen:LegitimacyNote .
+regen:measures         a rdf:Property ; rdfs:domain regen:Metric  ; rdfs:range rdfs:Resource .
+regen:feeds            a rdf:Property ; rdfs:domain regen:FeedbackLoop ; rdfs:range rdfs:Resource .
+regen:guards           a rdf:Property ; rdfs:domain regen:GovernanceAct ; rdfs:range regen:MetabolicFlow .
+regen:orchestrates     a rdf:Property ; rdfs:domain regen:AIAgent ; rdfs:range regen:MetabolicFlow .
+regen:derivesFrom      a rdf:Property ; rdfs:domain regen:SemanticAsset ; rdfs:range regen:SemanticAsset .
+regen:references       a rdf:Property ; rdfs:domain regen:SemanticAsset ; rdfs:range rdfs:Resource .
+regen:alignsWith       a rdf:Property ; rdfs:domain rdfs:Resource ; rdfs:range rdfs:Literal .
+
+### Lightweight PROV alignment
+regen:wasAnchoredBy    a rdf:Property ; rdfs:subPropertyOf prov:wasAttributedTo .
+regen:wasAttestedBy    a rdf:Property ; rdfs:subPropertyOf prov:wasAttributedTo .
+regen:wasIssuedBy      a rdf:Property ; rdfs:subPropertyOf prov:wasAttributedTo .
+regen:wasGovernedBy    a rdf:Property ; rdfs:subPropertyOf prov:wasAssociatedWith .
+
+# ============================================
+# DISCOURSE GRAPH EXTENSIONS
+# Clean additions without duplication
+# ============================================
+
+### Discourse element base class
+regen:DiscourseElement  a rdfs:Class ;
+    rdfs:subClassOf regen:SemanticAsset ;
+    rdfs:label "Discourse Element" ;
+    rdfs:comment "Base class for all discourse graph elements" .
+
+### Core discourse classes
+regen:Question  a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Question" ;
+    rdfs:comment "A question or inquiry that drives investigation" .
+
+regen:Claim  a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Claim" ;
+    rdfs:comment "An assertion or statement that can be supported or refuted" .
+
+regen:Evidence  a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Evidence" ;
+    rdfs:comment "Data, observations, or documentation that supports or opposes claims" .
+
+regen:Source  a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Source" ;
+    rdfs:comment "Origin or reference for evidence, claims, or questions" .
+
+### Scientific process subclasses
+regen:Hypothesis  a rdfs:Class ;
+    rdfs:subClassOf regen:Question ;
+    rdfs:label "Hypothesis" ;
+    rdfs:comment "A testable prediction or proposed explanation" .
+
+regen:Experiment  a rdfs:Class ;
+    rdfs:subClassOf regen:Source ;
+    rdfs:label "Experiment" ;
+    rdfs:comment "A scientific test or investigation" .
+
+regen:Result  a rdfs:Class ;
+    rdfs:subClassOf regen:Evidence ;
+    rdfs:label "Result" ;
+    rdfs:comment "Outcome or data from an experiment or observation" .
+
+regen:Conclusion  a rdfs:Class ;
+    rdfs:subClassOf regen:Claim ;
+    rdfs:label "Conclusion" ;
+    rdfs:comment "A judgment or decision reached through reasoning" .
+
+regen:Theory  a rdfs:Class ;
+    rdfs:subClassOf regen:Claim ;
+    rdfs:label "Theory" ;
+    rdfs:comment "A well-substantiated explanation of phenomena" .
+
+regen:Model  a rdfs:Class ;
+    rdfs:subClassOf regen:Claim ;
+    rdfs:label "Model" ;
+    rdfs:comment "A representation or framework for understanding" .
+
+### Discourse relationships
+regen:supports  a rdf:Property ;
+    rdfs:domain regen:Evidence ;
+    rdfs:range regen:Claim ;
+    rdfs:label "supports" .
+
+regen:opposes  a rdf:Property ;
+    rdfs:domain regen:Evidence ;
+    rdfs:range regen:Claim ;
+    rdfs:label "opposes" .
+
+regen:contextualizes  a rdf:Property ;
+    rdfs:domain regen:Source ;
+    rdfs:range regen:Evidence ;
+    rdfs:label "contextualizes" .
+
+regen:synthesizes  a rdf:Property ;
+    rdfs:domain regen:Claim ;
+    rdfs:range regen:Evidence ;
+    rdfs:label "synthesizes" .
+
+regen:informsQuestion  a rdf:Property ;
+    rdfs:domain regen:DiscourseElement ;
+    rdfs:range regen:Question ;
+    rdfs:label "informs question" .
+
+regen:informsClaim  a rdf:Property ;
+    rdfs:domain regen:DiscourseElement ;
+    rdfs:range regen:Claim ;
+    rdfs:label "informs claim" .
+
+### Scientific process relations
+regen:tests  a rdf:Property ;
+    rdfs:domain regen:Experiment ;
+    rdfs:range regen:Hypothesis ;
+    rdfs:label "tests" .
+
+regen:leadsTo  a rdf:Property ;
+    rdfs:domain regen:Result ;
+    rdfs:range regen:Conclusion ;
+    rdfs:label "leads to" .
+
+regen:validates  a rdf:Property ;
+    rdfs:domain regen:Result ;
+    rdfs:range regen:Hypothesis ;
+    rdfs:label "validates" .
+
+regen:refutes  a rdf:Property ;
+    rdfs:domain regen:Result ;
+    rdfs:range regen:Hypothesis ;
+    rdfs:label "refutes" .
+
+regen:informsTheory  a rdf:Property ;
+    rdfs:domain regen:Conclusion ;
+    rdfs:range regen:Theory ;
+    rdfs:label "informs theory" .
+
+regen:informsModel  a rdf:Property ;
+    rdfs:domain regen:Conclusion ;
+    rdfs:range regen:Model ;
+    rdfs:label "informs model" .
+
+regen:generatesHypothesis  a rdf:Property ;
+    rdfs:domain regen:Theory ;
+    rdfs:range regen:Hypothesis ;
+    rdfs:label "generates hypothesis" .
+
+### Notes and annotations
+regen:Note  a rdfs:Class ;
+    rdfs:subClassOf regen:SemanticAsset ;
+    rdfs:label "Note" ;
+    rdfs:comment "Annotation or metadata about any discourse element" .
+
+regen:hasNote  a rdf:Property ;
+    rdfs:domain regen:DiscourseElement ;
+    rdfs:range regen:Note ;
+    rdfs:label "has note" .
+
+# ============================================
+# DISCOURSE-METABOLIC BRIDGES
+# Connect discourse elements to metabolic processes
+# ============================================
+
+regen:metabolicRole  a rdf:Property ;
+    rdfs:domain regen:DiscourseElement ;
+    rdfs:range regen:MetabolicProcess ;
+    rdfs:label "metabolic role" ;
+    rdfs:comment "Links discourse elements to their role in metabolic processes" .
+
+# Suggested mappings:
+# Questions → Anchor (establishing foundational inquiries)
+# Claims → Attest (verification and validation)
+# Evidence → Issue (creation and publication)
+# Sources → Circulate (distribution and sharing)
+
+# ============================================
+# ONTOLOGY PROVENANCE EXTENSIONS
+# Track which ontology version was used for extractions
+# ============================================
+
+regen:wasExtractedUsing a rdf:Property ;
+    rdfs:label "was extracted using" ;
+    rdfs:comment "Links an extracted entity to the ontology version used for extraction" ;
+    rdfs:domain regen:SemanticAsset ;
+    rdfs:range regen:SemanticAsset ;
+    rdfs:subPropertyOf prov:wasAttributedTo .
+
+regen:hasOntologyVersion a rdf:Property ;
+    rdfs:label "has ontology version" ;
+    rdfs:comment "Specifies which ontology version is active in a processing context" ;
+    rdfs:domain regen:Transformation ;
+    rdfs:range regen:SemanticAsset .
+
+# ============================================
+# REGEN AI SYSTEM INSTANCES
+# (Preserved from metabolic-v1)
+# ============================================
+
+### Organs for the Regen AI metabolic stack
+regen:KnowledgeCommons  a regen:Organ ;
+    rdfs:label "Knowledge Commons" ;
+    rdfs:comment "Distributed knowledge repository and discovery system" .
+
+regen:AgentOrchestrator a regen:Organ ;
+    rdfs:label "Agent Orchestrator" ;
+    rdfs:comment "ElizaOS hub for agent coordination" .
+
+regen:RegistryInterface a regen:Organ ;
+    rdfs:label "Registry Interface" ;
+    rdfs:comment "External agent services for Registry/Marketplace" .
+
+regen:MRVWatch a regen:Organ ;
+    rdfs:label "MRV Watch" ;
+    rdfs:comment "Environmental monitoring and alerting system" .
+
+regen:ImpactAnalytics a regen:Organ ;
+    rdfs:label "Impact Analytics" ;
+    rdfs:comment "Dashboards, reports, and audit systems" .
+
+### Example system instance
+regen:RegenAISystem a regen:System ;
+    regen:hasOrgan regen:KnowledgeCommons, 
+                   regen:AgentOrchestrator, 
+                   regen:RegistryInterface, 
+                   regen:MRVWatch, 
+                   regen:ImpactAnalytics ;
+    rdfs:comment "Regen AI as a metabolic organ of the Commons" .
+
+### Example agents from roadmap
+regen:ProposalWriter a regen:AIAgent ;
+    rdfs:label "Proposal Writer Agent" ;
+    rdfs:comment "AI agent for drafting governance proposals" .
+
+regen:PMAssistant a regen:AIAgent ;
+    rdfs:label "PM Assistant Agent" ;
+    rdfs:comment "Project management assistant agent" .
+
+regen:RegistryAssistant a regen:AIAgent ;
+    rdfs:label "Registry Assistant Agent" ;
+    rdfs:comment "Registry query and form-filling assistant" .
+
+regen:EcoNarrator a regen:AIAgent ;
+    rdfs:label "Eco Narrator Agent" ;
+    rdfs:comment "Storytelling agent for ecological narratives" .
+
+### Metabolic flows mapped to roadmap phases
+regen:Flow_KnowledgeAnchoring a regen:MetabolicFlow, regen:Anchor ;
+    rdfs:label "Knowledge Anchoring Flow" ;
+    regen:actsOn regen:KnowledgeCommons .
+
+regen:Flow_InternalAgents a regen:MetabolicFlow, regen:Issue ;
+    rdfs:label "Internal Agents Flow" ;
+    regen:actsOn regen:ProposalWriter, regen:PMAssistant .
+
+regen:Flow_AIGovernance a regen:MetabolicFlow, regen:Govern ;
+    rdfs:label "AI Governance Flow" ;
+    regen:actsOn regen:KnowledgeCommons, 
+                 regen:AgentOrchestrator, 
+                 regen:ProposalWriter, 
+                 regen:PMAssistant .
+
+### Commons governance
+regen:CommonsCouncil a regen:Commons ;
+    rdfs:label "Commons Council" ;
+    regen:enacts [ a regen:GovernanceAct ; 
+                   schema:name "AI Governance v0.1" ] ;
+    regen:attests [ a regen:LegitimacyNote ; 
+                    schema:description "Public oversight & audit logs" ] .
+
+### Example feedback loop
+regen:Loop_Legibility a regen:FeedbackLoop ;
+    rdfs:label "Legibility Feedback Loop" ;
+    regen:feeds regen:KnowledgeCommons, 
+                regen:ImpactAnalytics, 
+                regen:CommonsCouncil .
