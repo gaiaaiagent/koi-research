@@ -351,8 +351,10 @@ After KOI:
 | **Local Embeddings** | Ollama (nomic-embed-text) | Free, fast, private |
 | **Text Generation** | OpenAI GPT-4o-mini | Cost-effective, quality |
 | **Event System** | KOI-net protocol | Distributed coordination |
-| **Export Format** | RDF/JSON-LD | Standards compliance |
+| **Export Format** | RDF/JSON-LD + OWL | Standards compliance + reasoning |
 | **Processing** | TypeScript/Bun | Fast, familiar |
+| **Future Reasoners** | OWL (Pellet, HermiT) | Link prediction, graph completion |
+| **Federation** | SPARQL Endpoints | Regen Network RDF integration |
 
 ### Why Graphiti?
 
@@ -1885,25 +1887,62 @@ SELECT ?ontology ?derivedFrom WHERE {
 - **Ontology Provenance**: Complete audit trail of conceptual evolution  
 - **Entity-Aware Processing**: Never lose semantic meaning through blind chunking
 - **Cost-Optimized Pipeline**: Smart model selection and budget controls
-- **Commons-Ready**: RDF export with governance transparency
+- **OWL-Compliant Architecture**: Ready for logical reasoning and link prediction
+- **RDF Federation Ready**: Seamless integration with Regen Network's existing RDF infrastructure
+- **Commons-Ready**: SPARQL endpoints enabling public knowledge audit and governance
 
 This breakthrough transforms knowledge management from static schema processing into **dynamic, self-aware knowledge metabolism** where the infrastructure continuously describes and improves its own understanding - perfectly aligned with Regen Network's regenerative principles.
 
 **The knowledge organism is now alive and aware of itself.** 🌱✨
 
----
+## Future OWL & RDF Integration Roadmap
 
-*Version: 7.0 - Self-Describing Knowledge Organism*
-*Date: September 3, 2025*
-*Status: Revolutionary Breakthrough Achieved*
-*Key Innovations:*
-- *Ontologies as First-Class Knowledge Graph Entities*
-- *Unified Ontology Architecture (36 classes, 26 properties)*
-- *Extraction-Enhanced Chunking with Entity Boundary Respect*
-- *Complete Ontological Provenance via CAT Receipts*
-- *Meta-Knowledge Queries about System Evolution*
-- *True KOI Recursion: Infrastructure Describes Itself*
-- *3-Repository Production Architecture Deployed*
+### 🦉 **OWL Reasoner Integration (Planned)**
+
+Our unified ontology is **OWL-compliant** and designed for integration with standard OWL reasoners (Pellet, HermiT, Fact++), which will enable:
+
+**Logical Inference Capabilities:**
+- **Link Prediction**: Infer missing relationships between entities based on ontological rules
+- **Graph Completion**: Automatically complete partial knowledge structures  
+- **Subsumption Reasoning**: Determine hierarchical relationships (e.g., "Is this Agent also a HumanActor?")
+- **Consistency Checking**: Validate knowledge graph integrity against ontological constraints
+- **Property Propagation**: Inherit properties along class hierarchies
+
+**Advanced Knowledge Discovery:**
+```sparql
+# Example: Reasoner could infer this relationship
+?metabolicFlow regen:actsOn ?ecologicalAsset .
+?ecologicalAsset regen:alignsWith "Re-Whole Value" .
+# → Inferred: ?metabolicFlow regen:supportsEssence "Re-Whole Value"
+```
+
+### 🌐 **RDF & SPARQL Federation (Strategic Priority)**
+
+**Regen Network Alignment**: Since Regen Network already uses RDF for ecological data, our system will seamlessly integrate:
+
+**Federation Benefits:**
+- **Cross-Domain Queries**: Combine AI knowledge with ecological/MRV data
+- **Standards Compliance**: Full W3C Semantic Web compatibility
+- **Interoperability**: Direct integration with existing Regen Registry RDF stores  
+- **Governance Transparency**: SPARQL endpoints for public knowledge audit
+- **Commons Participation**: Standard RDF enables broader ecosystem collaboration
+
+**Planned Integration:**
+```sparql
+# Federated query across AI knowledge + ecological data
+SELECT ?agent ?carbonCredit ?impactClaim WHERE {
+  SERVICE <http://gaia.regen.network/sparql> {
+    ?agent a regen:AIAgent ;
+           regen:orchestrates ?flow .
+  }
+  SERVICE <http://registry.regen.network/sparql> {  
+    ?carbonCredit regen:documentedBy ?flow ;
+                  regen:hasClaim ?impactClaim .
+  }
+}
+```
+
+**Timeline**: OWL reasoner integration targeted for Phase 3, RDF federation for Phase 4 to align with Regen Network's semantic infrastructure preferences.
 
 ## Appendix: Quick Reference
 
