@@ -8,7 +8,7 @@ After extensive research into KOI (Knowledge Organization Infrastructure) and in
 
 **Living Systems Integration:** Beyond traditional knowledge graphs, we've implemented a **Unified Metabolic Ontology** (v1.0) that treats knowledge as a living system with metabolic processes (Anchor, Attest, Issue, Circulate, Govern, Retire) while seamlessly integrating discourse graph elements (Question, Claim, Evidence, Theory) for scientific reasoning.
 
-**Implementation Status:** Full KOI architecture deployed across three repositories with ontology-informed chunking, complete transformation provenance via CAT receipts, and meta-knowledge queries about the system's own modeling decisions.
+**Implementation Status:** Full KOI architecture deployed across three repositories with Apache Jena + RDF/SPARQL backend, ontology-informed chunking, complete transformation provenance via CAT receipts, and comprehensive visualization strategy for graph exploration.
 
 **Critical Innovation:** **Extraction-Enhanced Chunking** - Documents are first processed through JSON-LD extraction to identify metabolic entities and discourse elements, then chunked along semantic boundaries respecting entity relationships and essence alignments.
 
@@ -18,9 +18,11 @@ After extensive research into KOI (Knowledge Organization Infrastructure) and in
 3. **CAT Receipt System**: Complete transformation tracking with `cat:ontology-synthesis:20250903-001`
 4. **Ontology-Informed Chunking**: Semantic chunking based on extracted entities and metabolic processes
 5. **Repository Architecture**: 3-repo structure with proper separation of concerns
-6. **Extraction Provenance**: Every entity knows which ontology version created it
-7. **Meta-Knowledge Queries**: System can query its own ontological evolution
-8. **Self-Describing Infrastructure**: True KOI recursion achieved
+6. **Apache Jena Integration**: RDF/SPARQL/OWL backend aligned with Regen Network Registry Framework
+7. **Extraction Provenance**: Every entity knows which ontology version created it
+8. **Meta-Knowledge Queries**: SPARQL queries for system's own ontological evolution
+9. **Visualization Strategy**: Multi-tier architecture with D3.js + Sigma.js for interactive exploration
+10. **Self-Describing Infrastructure**: True KOI recursion achieved
 
 ## 1. Understanding KOI
 
@@ -174,7 +176,7 @@ YouTube Sensor ──┘              │
                                  ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                  KNOWLEDGE GRAPH LAYER                       │
-│  📊 Neo4j/Graphiti: Temporal entity relationships           │
+│  📊 Apache Jena: RDF/SPARQL knowledge representation       │
 │  🔍 PostgreSQL+pgvector: Semantic search & embeddings       │
 │  🌐 RDF Export: Commons-ready knowledge sharing             │
 │  🏗️ Ontology Metadata: Ontologies as graph entities        │
@@ -316,7 +318,7 @@ Total:                  ~20GB used / 32GB available
 ```
 5 Agents (lightweight):   2.5GB  # Only 500MB each!
 KOI Processor:           2GB
-Neo4j/Graphiti:          6GB
+Apache Jena TDB2:        4GB
 Ollama:                  3GB
 PostgreSQL:              3GB
 Other services:          2GB
@@ -347,7 +349,7 @@ After KOI:
 | Component | Technology | Rationale |
 |-----------|------------|-----------|
 | **Document Storage** | PostgreSQL + pgvector | Already working, proven scale |
-| **Knowledge Graph** | Graphiti (on Neo4j) | Temporal tracking, LLM-native |
+| **Knowledge Graph** | Apache Jena + RDF/SPARQL | Standards-compliant, Registry Framework aligned |
 | **Local Embeddings** | Ollama (nomic-embed-text) | Free, fast, private |
 | **Text Generation** | OpenAI GPT-4o-mini | Cost-effective, quality |
 | **Event System** | KOI-net protocol | Distributed coordination |
@@ -356,15 +358,17 @@ After KOI:
 | **Future Reasoners** | OWL (Pellet, HermiT) | Link prediction, graph completion |
 | **Federation** | SPARQL Endpoints | Regen Network RDF integration |
 
-### Why Graphiti?
+### Why Apache Jena?
 
-After comparing Neo4j, RDF/SPARQL, and [Graphiti](https://github.com/getzep/graphiti):
+After extensive research and alignment with Regen Network's Registry Framework:
 
-**Graphiti Advantages:**
-- **Temporal by default**: Tracks when facts were true
-- **LLM-native**: Built-in entity extraction
-- **Fact invalidation**: Knowledge can expire/update
-- **Neo4j foundation**: Familiar tools
+**Apache Jena Advantages:**
+- **Standards Compliance**: Full RDF/SPARQL/OWL W3C standards
+- **Registry Framework Alignment**: Perfect for "credits as claims" modeling
+- **Semantic Reasoning**: Built-in OWL reasoner for inference
+- **Mature Ecosystem**: TDB2 triplestore, Fuseki SPARQL server
+- **Interoperability**: JSON-LD, Turtle, N-Triples format support
+- **Provenance Tracking**: Named graphs for CAT receipt integration
 - **Python-first**: Easier than RDF
 
 ```python
@@ -417,7 +421,7 @@ class ProcessingPipeline {
     new ChunkingStage({ maxTokens: 1000 }),
     new ConditionalEnrichmentStage({ costOptimizer }),
     new EmbeddingStage({ provider: 'ollama' }),
-    new EntityExtractionStage({ provider: 'graphiti' }),
+    new EntityExtractionStage({ provider: 'mistral-7b', ontology: 'regen-unified' }),
     new DeduplicationStage()
   ];
   
@@ -616,7 +620,7 @@ class KOIEnhancedAgent {
 
 ```bash
 Week 5:
-✅ Configure Graphiti entity extraction
+✅ Configure Mistral 7B entity extraction with unified ontology
 ✅ Process markdown artifacts for entities
 ✅ Deduplicate entities across documents
 ✅ Create entity relationship graph
@@ -1412,9 +1416,9 @@ enrich    → "orn:regen.enriched:notion/{page-id}"   // + topics
 embed     → "orn:regen.embedding:notion/{page-id}"  // Vector
 ```
 
-## 16. Graphiti Integration Checklist
+## 16. Apache Jena Integration & Visualization Strategy
 
-### Phase 1: Infrastructure Setup
+### Phase 1: Apache Jena Infrastructure Setup
 - [ ] **Install Neo4j Database**
   ```bash
   docker run -d \
