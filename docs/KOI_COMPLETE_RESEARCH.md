@@ -712,12 +712,13 @@ services:
     environment:
       - POSTGRES_URL=postgresql://postgres:postgres@postgres:5432/koi
       - OLLAMA_URL=http://ollama:11434
-      - NEO4J_URI=bolt://neo4j:7687
+      - JENA_TDB_PATH=/data/tdb
+      - FUSEKI_URL=http://fuseki:3030
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
       - postgres
       - ollama
-      - neo4j
+      - fuseki
 
   postgres:
     image: pgvector/pgvector:pg16
@@ -1895,11 +1896,11 @@ This breakthrough transforms knowledge management from static schema processing 
 
 **The knowledge organism is now alive and aware of itself.** 🌱✨
 
-## Future OWL & RDF Integration Roadmap
+## Apache Jena & Semantic Web Integration Roadmap
 
-### 🦉 **OWL Reasoner Integration (Planned)**
+### 🦉 **Apache Jena + OWL Reasoner Integration (Active Development)**
 
-Our unified ontology is **OWL-compliant** and designed for integration with standard OWL reasoners (Pellet, HermiT, Fact++), which will enable:
+Our unified ontology is **OWL-compliant** and specifically designed for Apache Jena's built-in OWL reasoners, aligning with Regen Network's Registry Framework infrastructure. This enables:
 
 **Logical Inference Capabilities:**
 - **Link Prediction**: Infer missing relationships between entities based on ontological rules
@@ -1916,16 +1917,17 @@ Our unified ontology is **OWL-compliant** and designed for integration with stan
 # → Inferred: ?metabolicFlow regen:supportsEssence "Re-Whole Value"
 ```
 
-### 🌐 **RDF & SPARQL Federation (Strategic Priority)**
+### 🌐 **Registry Framework Integration (Strategic Priority)**
 
-**Regen Network Alignment**: Since Regen Network already uses RDF for ecological data, our system will seamlessly integrate:
+**Direct Regen Network Alignment**: Our Apache Jena + RDF approach directly integrates with Regen Network's existing Registry Framework infrastructure, creating seamless interoperability:
 
-**Federation Benefits:**
-- **Cross-Domain Queries**: Combine AI knowledge with ecological/MRV data
-- **Standards Compliance**: Full W3C Semantic Web compatibility
-- **Interoperability**: Direct integration with existing Regen Registry RDF stores  
-- **Governance Transparency**: SPARQL endpoints for public knowledge audit
-- **Commons Participation**: Standard RDF enables broader ecosystem collaboration
+**Registry Framework Benefits:**
+- **Credits as Claims Modeling**: Direct semantic modeling using shared RDF substrate
+- **Standards Compliance**: Native W3C Semantic Web compatibility with Registry Framework
+- **Verifiable Provenance**: Deterministic grounding in traceable, auditable data flows  
+- **Cross-Methodology Reasoning**: Automated validation of credit class definitions
+- **Ontology Federation**: Direct integration with ENVO and environmental knowledge bases
+- **Commons Participation**: Standard RDF enables broader regenerative ecosystem collaboration
 
 **Planned Integration:**
 ```sparql
