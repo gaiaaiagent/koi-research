@@ -1,0 +1,252 @@
+@prefix rea: <http://www.example.org/rea-accounting#> .
+@prefix ex: <http://www.example.org/rea-instances#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# ============================================================================
+# Example: Sales Process with Duality Relationship
+# ============================================================================
+
+# --- Agents ---
+ex:AcmeCorp a rea:Organization, rea:InternalAgent ;
+    rea:name "Acme Corporation" ;
+    rea:identifier "ACME-001" ;
+    rea:description "The selling organization" .
+
+ex:CustomerXYZ a rea:Organization, rea:ExternalAgent ;
+    rea:name "Customer XYZ Ltd." ;
+    rea:identifier "CUST-XYZ-001" ;
+    rea:description "External customer organization" .
+
+ex:JohnDoe a rea:Person, rea:InternalAgent ;
+    rea:name "John Doe" ;
+    rea:identifier "EMP-001" ;
+    rea:description "Sales representative" .
+
+ex:Warehouse1 a rea:Department ;
+    rea:name "Warehouse Department" ;
+    rea:identifier "DEPT-WH-001" .
+
+# --- Resources ---
+ex:Laptop001 a rea:Good ;
+    rea:name "Dell Laptop Model X" ;
+    rea:identifier "PROD-LAPTOP-001" ;
+    rea:unitPrice "1200.00"^^xsd:decimal ;
+    rea:description "High-performance business laptop" .
+
+ex:Cash001 a rea:Money ;
+    rea:name "USD Cash" ;
+    rea:identifier "CASH-USD-001" ;
+    rea:description "US Dollar currency" .
+
+ex:Inventory001 a rea:Good ;
+    rea:name "Laptop Inventory" ;
+    rea:identifier "INV-001" ;
+    rea:quantity "50"^^xsd:decimal .
+
+# --- Sales Order (Commitment) ---
+ex:SalesOrder001 a rea:SalesOrder ;
+    rea:identifier "SO-2025-001" ;
+    rea:name "Sales Order for Customer XYZ" ;
+    rea:dueDate "2025-02-15T00:00:00"^^xsd:dateTime ;
+    rea:specification ex:Laptop001 ;
+    rea:reservation ex:Inventory001 ;
+    rea:quantity "10"^^xsd:decimal ;
+    rea:totalAmount "12000.00"^^xsd:decimal .
+
+ex:PurchaseOrder001 a rea:PurchaseOrder ;
+    rea:identifier "PO-2025-001" ;
+    rea:name "Customer XYZ Purchase Order" ;
+    rea:dueDate "2025-02-15T00:00:00"^^xsd:dateTime ;
+    rea:reciprocal ex:SalesOrder001 .
+
+# --- Economic Events with Duality ---
+ex:Sale001 a rea:DecrementEvent ;
+    rea:identifier "SALE-2025-001" ;
+    rea:name "Sale of 10 Laptops" ;
+    rea:eventDate "2025-02-10T14:30:00"^^xsd:dateTime ;
+    rea:quantity "10"^^xsd:decimal ;
+    rea:totalAmount "12000.00"^^xsd:decimal ;
+    rea:outflow ex:Laptop001 ;
+    rea:providingAgent ex:AcmeCorp ;
+    rea:receivingAgent ex:CustomerXYZ ;
+    rea:participation ex:JohnDoe ;
+    rea:fulfillment ex:SalesOrder001 ;
+    rea:partOfProcess ex:SalesProcessInstance001 ;
+    rea:duality ex:CashReceipt001 .
+
+ex:CashReceipt001 a rea:IncrementEvent ;
+    rea:identifier "CASH-REC-2025-001" ;
+    rea:name "Cash Receipt from Customer XYZ" ;
+    rea:eventDate "2025-02-10T15:00:00"^^xsd:dateTime ;
+    rea:totalAmount "12000.00"^^xsd:decimal ;
+    rea:inflow ex:Cash001 ;
+    rea:providingAgent ex:CustomerXYZ ;
+    rea:receivingAgent ex:AcmeCorp ;
+    rea:participation ex:JohnDoe ;
+    rea:fulfillment ex:PurchaseOrder001 ;
+    rea:partOfProcess ex:SalesProcessInstance001 ;
+    rea:duality ex:Sale001 .
+
+# --- Business Process Instance ---
+ex:SalesProcessInstance001 a rea:SalesProcess ;
+    rea:identifier "SP-2025-001" ;
+    rea:name "Sales Process - Customer XYZ February 2025" ;
+    rea:status "completed" .
+
+# ============================================================================
+# Example: Manufacturing Process with Transformation
+# ============================================================================
+
+# --- Raw Materials ---
+ex:Wood001 a rea:Good ;
+    rea:name "Oak Wood Planks" ;
+    rea:identifier "MAT-WOOD-001" ;
+    rea:unitPrice "50.00"^^xsd:decimal ;
+    rea:quantity "100"^^xsd:decimal .
+
+ex:Hardware001 a rea:Good ;
+    rea:name "Furniture Hardware Kit" ;
+    rea:identifier "MAT-HW-001" ;
+    rea:unitPrice "25.00"^^xsd:decimal ;
+    rea:quantity "50"^^xsd:decimal .
+
+# --- Finished Product ---
+ex:Table001 a rea:Good ;
+    rea:name "Oak Dining Table" ;
+    rea:identifier "PROD-TABLE-001" ;
+    rea:unitPrice "500.00"^^xsd:decimal .
+
+# --- Labor Resource ---
+ex:Labor001 a rea:Service ;
+    rea:name "Manufacturing Labor" ;
+    rea:identifier "LABOR-001" ;
+    rea:unitPrice "30.00"^^xsd:decimal .
+
+# --- Manufacturing Events ---
+ex:MaterialConsumption001 a rea:DecrementEvent ;
+    rea:identifier "CONS-2025-001" ;
+    rea:name "Consumption of Wood and Hardware" ;
+    rea:eventDate "2025-02-05T08:00:00"^^xsd:dateTime ;
+    rea:outflow ex:Wood001, ex:Hardware001 ;
+    rea:quantity "10"^^xsd:decimal ;
+    rea:partOfProcess ex:ManufacturingProcessInstance001 .
+
+ex:LaborUsage001 a rea:DecrementEvent ;
+    rea:identifier "LABOR-2025-001" ;
+    rea:name "Labor Hours Used" ;
+    rea:eventDate "2025-02-05T08:00:00"^^xsd:dateTime ;
+    rea:outflow ex:Labor001 ;
+    rea:quantity "8"^^xsd:decimal ;
+    rea:totalAmount "240.00"^^xsd:decimal ;
+    rea:partOfProcess ex:ManufacturingProcessInstance001 .
+
+ex:Production001 a rea:TransformationEvent, rea:IncrementEvent ;
+    rea:identifier "PROD-2025-001" ;
+    rea:name "Production of Dining Tables" ;
+    rea:eventDate "2025-02-05T16:00:00"^^xsd:dateTime ;
+    rea:inflow ex:Table001 ;
+    rea:quantity "5"^^xsd:decimal ;
+    rea:partOfProcess ex:ManufacturingProcessInstance001 ;
+    rea:duality ex:MaterialConsumption001, ex:LaborUsage001 .
+
+ex:ManufacturingProcessInstance001 a rea:ManufacturingProcess ;
+    rea:identifier "MP-2025-001" ;
+    rea:name "Table Manufacturing Batch 001" ;
+    rea:status "completed" .
+
+# ============================================================================
+# Example: Purchase Process
+# ============================================================================
+
+# --- Supplier ---
+ex:SupplierABC a rea:Organization, rea:ExternalAgent ;
+    rea:name "Supplier ABC Inc." ;
+    rea:identifier "SUPP-ABC-001" .
+
+# --- Purchase Events ---
+ex:PurchaseOrder002 a rea:PurchaseOrder ;
+    rea:identifier "PO-2025-002" ;
+    rea:name "Purchase Order to Supplier ABC" ;
+    rea:dueDate "2025-03-01T00:00:00"^^xsd:dateTime ;
+    rea:specification ex:Wood001 ;
+    rea:quantity "200"^^xsd:decimal ;
+    rea:totalAmount "10000.00"^^xsd:decimal .
+
+ex:Purchase001 a rea:IncrementEvent ;
+    rea:identifier "PURCH-2025-001" ;
+    rea:name "Purchase of Wood Materials" ;
+    rea:eventDate "2025-02-28T10:00:00"^^xsd:dateTime ;
+    rea:inflow ex:Wood001 ;
+    rea:quantity "200"^^xsd:decimal ;
+    rea:totalAmount "10000.00"^^xsd:decimal ;
+    rea:providingAgent ex:SupplierABC ;
+    rea:receivingAgent ex:AcmeCorp ;
+    rea:fulfillment ex:PurchaseOrder002 ;
+    rea:duality ex:CashDisbursement001 .
+
+ex:CashDisbursement001 a rea:DecrementEvent ;
+    rea:identifier "CASH-DISB-2025-001" ;
+    rea:name "Payment to Supplier ABC" ;
+    rea:eventDate "2025-02-28T11:00:00"^^xsd:dateTime ;
+    rea:outflow ex:Cash001 ;
+    rea:totalAmount "10000.00"^^xsd:decimal ;
+    rea:providingAgent ex:AcmeCorp ;
+    rea:receivingAgent ex:SupplierABC ;
+    rea:duality ex:Purchase001 .
+
+# ============================================================================
+# Example: Policies and Controls
+# ============================================================================
+
+ex:CreditPolicy001 a rea:BusinessRule ;
+    rea:name "Credit Limit Policy" ;
+    rea:description "Maximum credit limit per customer is $50,000" ;
+    rea:constrains ex:SalesOrder001 .
+
+ex:ApprovalPolicy001 a rea:BusinessRule ;
+    rea:name "Purchase Approval Policy" ;
+    rea:description "Purchases over $5,000 require management approval" ;
+    rea:constrains ex:PurchaseOrder002 .
+
+# --- Control Relationships ---
+ex:AcmeCorp rea:control ex:Inventory001, ex:Table001 .
+ex:Warehouse1 rea:custody ex:Laptop001, ex:Wood001, ex:Hardware001 .
+
+# ============================================================================
+# Example: HR Process
+# ============================================================================
+
+ex:Employee001 a rea:Person, rea:InternalAgent ;
+    rea:name "Jane Smith" ;
+    rea:identifier "EMP-002" .
+
+ex:LaborService001 a rea:Service ;
+    rea:name "Employee Labor Service" ;
+    rea:identifier "SERVICE-001" ;
+    rea:unitPrice "35.00"^^xsd:decimal .
+
+ex:Salary001 a rea:Money ;
+    rea:name "Monthly Salary" ;
+    rea:identifier "SAL-001" .
+
+ex:WorkPerformed001 a rea:IncrementEvent ;
+    rea:identifier "WORK-2025-001" ;
+    rea:name "Monthly Work Performed" ;
+    rea:eventDate "2025-01-31T17:00:00"^^xsd:dateTime ;
+    rea:inflow ex:LaborService001 ;
+    rea:quantity "160"^^xsd:decimal ;
+    rea:providingAgent ex:Employee001 ;
+    rea:receivingAgent ex:AcmeCorp ;
+    rea:duality ex:SalaryPayment001 .
+
+ex:SalaryPayment001 a rea:DecrementEvent ;
+    rea:identifier "SAL-PAY-2025-001" ;
+    rea:name "Monthly Salary Payment" ;
+    rea:eventDate "2025-01-31T17:00:00"^^xsd:dateTime ;
+    rea:outflow ex:Salary001 ;
+    rea:totalAmount "5600.00"^^xsd:decimal ;
+    rea:providingAgent ex:AcmeCorp ;
+    rea:receivingAgent ex:Employee001 ;
+    rea:duality ex:WorkPerformed001 .
