@@ -9,16 +9,17 @@ This master guide consolidates the complete KOI (Knowledge Organization Infrastr
 
 **Revolutionary Achievement**: We have created the world's first **self-describing living knowledge organism** that treats ontologies as first-class knowledge graph entities, enabling the system to describe and track its own evolution with complete provenance.
 
-### 📊 Current Status (Sept 2025)
+### 📊 Current Status (January 2025)
 
-**✅ MAJOR MILESTONE**: Backend API Integration Complete
-- **5 Django REST API endpoints** fully operational (`/api/koi/*`)
+**✅ MAJOR MILESTONE**: MCP-RAG Integration Architecture Defined
+- **BGE embeddings deployed**: 48,151 document chunks with 1024-dim vectors
+- **Custom chunking implemented**: Adaptive strategy based on document size
 - **Apache Jena Fuseki integration** with SPARQL triplestore 
-- **Real data visualization** - 6 nodes, 5 edges from actual RDF queries
-- **React frontend framework** with 4 interactive components
+- **PostgreSQL pgvector**: Production embeddings stored and indexed
 - **1,100+ documents processed** with 3,041 entities extracted using unified ontology v1.0
+- **MCP-KOI architecture designed**: Model Context Protocol integrated with KOI nodes
 
-**📈 Progress**: ~75% of core specification implemented
+**📈 Progress**: ~40% of core specification implemented, pivoting to MCP-based RAG
 
 ---
 
@@ -1087,9 +1088,389 @@ def resolve_entities(entities):
     }
 ```
 
-### 9.9 Success Criteria
+### 9.9 🚀 MCP-RAG Integration: The Future Architecture
+
+**CRITICAL UPDATE**: We are pivoting to Model Context Protocol (MCP) for our RAG system, integrating it as a KOI Processor Node. This provides maximum flexibility for experimentation while maintaining KOI compliance.
+
+#### 9.9.1 Why MCP for RAG?
+
+**Current Challenges**:
+- ElizaOS knowledge plugin tightly coupled to OpenAI embeddings
+- Difficult to experiment with different RAG strategies
+- Column mapping issues (dim_1024 vs dim_1536) in database
+- Hard to swap embedding models or chunking strategies
+- Limited ability to do Graph RAG or hybrid approaches
+
+**MCP Solution**:
+- Clean separation of RAG logic from agent framework
+- Standardized tool protocol (Anthropic's open standard)
+- Easy to experiment with different strategies
+- Maintains full KOI compliance (RIDs, CIDs, CAT receipts)
+- Enables hot-swapping of embedding models and RAG approaches
+
+#### 9.9.2 Architecture: MCP as KOI Processor Node
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              MCP-RAG KOI PROCESSOR NODE                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  NODE CONFIGURATION:                                         │
+│  • Name: regen-mcp-rag-processor                           │
+│  • Type: FULL (serves state & events)                      │
+│  • Protocol: MCP + KOI                                     │
+│                                                              │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │                  MCP SERVER LAYER                     │  │
+│  │  Exposes tools via Model Context Protocol:           │  │
+│  │  • koi_search - Main RAG search                      │  │
+│  │  • koi_embed - Generate embeddings                   │  │
+│  │  • koi_graph_traverse - Graph RAG                    │  │
+│  │  • koi_provenance - CAT receipt chains               │  │
+│  │  • koi_essence_align - Essence patterns              │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                           ↓                                 │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │                  KOI PROCESSOR CORE                   │  │
+│  │  • Generates RIDs for all queries & results          │  │
+│  │  • Creates CAT receipts for transformations          │  │
+│  │  • Emits FUN events (NEW/UPDATE/FORGET)              │  │
+│  │  • Maintains provenance chains                       │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                           ↓                                 │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │              RAG STRATEGY ENGINES                     │  │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐    │  │
+│  │  │    BGE     │  │   Sparse   │  │   Graph    │    │  │
+│  │  │ Embeddings │  │    BM25    │  │    RAG     │    │  │
+│  │  │  (1024d)   │  │   TF-IDF   │  │  Neo4j/NX  │    │  │
+│  │  └────────────┘  └────────────┘  └────────────┘    │  │
+│  │                                                       │  │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐    │  │
+│  │  │   Hybrid   │  │  Reranking │  │   Query    │    │  │
+│  │  │  Dense+    │  │   Cross-   │  │ Expansion  │    │  │
+│  │  │  Sparse    │  │  Encoders  │  │  w/Ontology│    │  │
+│  │  └────────────┘  └────────────┘  └────────────┘    │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                           ↓                                 │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │                  STORAGE LAYER                        │  │
+│  │  • PostgreSQL + pgvector (48,151 BGE embeddings)     │  │
+│  │  • Apache Jena Fuseki (RDF knowledge graph)          │  │
+│  │  • ChromaDB (backup/experimental)                    │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 9.9.3 Implementation Roadmap
+
+##### Phase 1: MCP Server Foundation (Week 1)
+
+**Task 1.1: Create Basic MCP Server**
+```python
+# /koi-processor/koi_mcp_server.py
+from mcp import Server, Tool
+from koi_net import NodeType
+
+# Configure as KOI processor node
+node_config = {
+    "node_name": "regen-mcp-rag-processor",
+    "node_type": NodeType.FULL,
+    "provides": {
+        "event": ["RAGQuery", "Embedding", "KnowledgeFragment"],
+        "state": ["KnowledgeGraph", "EmbeddingIndex"]
+    }
+}
+
+# Initialize MCP server
+mcp_server = Server("koi-rag-processor")
+```
+
+**Task 1.2: Wrap Existing BGE Pipeline**
+- Use existing `embed_documents.py` functionality
+- Expose via MCP tool interface
+- Connect to PostgreSQL pgvector (48,151 chunks ready)
+
+**Task 1.3: Implement Basic Search Tool**
+```python
+@mcp_server.tool()
+async def koi_search(
+    query: str,
+    top_k: int = 10,
+    strategy: str = "bge"
+) -> dict:
+    # Generate query RID
+    query_rid = f"orn:regen.query:{hash(query)[:8]}"
+    
+    # Search using BGE embeddings
+    results = await search_pgvector(query, top_k)
+    
+    # Generate CAT receipt
+    cat_receipt = create_cat_receipt(
+        input_rid=query_rid,
+        output_rids=[r.rid for r in results],
+        operation="rag_search_bge"
+    )
+    
+    return {
+        "chunks": results,
+        "cat_receipt": cat_receipt,
+        "metadata": {"strategy": "bge", "dimension": 1024}
+    }
+```
+
+##### Phase 2: KOI Integration (Week 2)
+
+**Task 2.1: Implement RID/CID Generation**
+```python
+class KOIIdentityManager:
+    def generate_rid(self, resource_type: str, content: str):
+        """Generate stable Resource Identifier"""
+        return f"orn:regen.{resource_type}:{hash(content)[:8]}"
+    
+    def generate_cid(self, content: bytes):
+        """Generate Content Identifier for deduplication"""
+        return f"cid:sha256:{hashlib.sha256(content).hexdigest()}"
+```
+
+**Task 2.2: CAT Receipt System**
+```python
+class CATReceiptManager:
+    def create_receipt(self, transformation: dict):
+        return {
+            "cat_id": f"cat:{uuid.uuid4()}",
+            "timestamp": datetime.now().isoformat(),
+            "input_rid": transformation["input"],
+            "output_rid": transformation["output"],
+            "operation": transformation["operation"],
+            "agent": "mcp-rag-processor",
+            "metadata": transformation.get("metadata", {})
+        }
+```
+
+**Task 2.3: FUN Event Emission**
+```python
+class FUNEventEmitter:
+    async def emit_new(self, rid: str, content: dict):
+        """Emit NEW event when content discovered"""
+        
+    async def emit_update(self, rid: str, changes: dict):
+        """Emit UPDATE event when content changes"""
+        
+    async def emit_forget(self, rid: str, reason: str):
+        """Emit FORGET event for GDPR/cleanup"""
+```
+
+##### Phase 3: Advanced RAG Strategies (Week 3)
+
+**Task 3.1: Hybrid Search Implementation**
+```python
+@mcp_server.tool()
+async def koi_hybrid_search(
+    query: str,
+    dense_weight: float = 0.7,
+    sparse_weight: float = 0.3
+) -> dict:
+    # Dense retrieval with BGE
+    dense_results = await search_bge(query)
+    
+    # Sparse retrieval with BM25
+    sparse_results = await search_bm25(query)
+    
+    # Weighted combination
+    combined = combine_results(
+        dense_results, dense_weight,
+        sparse_results, sparse_weight
+    )
+    
+    return {"chunks": combined, "strategy": "hybrid"}
+```
+
+**Task 3.2: Graph RAG Integration**
+```python
+@mcp_server.tool()
+async def koi_graph_traverse(
+    query: str,
+    max_hops: int = 2,
+    entity_types: list = None
+) -> dict:
+    # Extract entities from query
+    entities = extract_entities(query)
+    
+    # Traverse knowledge graph
+    sparql_query = build_graph_query(entities, max_hops)
+    graph_context = await fuseki_query(sparql_query)
+    
+    # Combine with vector search
+    vector_context = await search_bge(query)
+    
+    return {
+        "graph_context": graph_context,
+        "vector_context": vector_context,
+        "entities": entities
+    }
+```
+
+**Task 3.3: Query Expansion with Ontology**
+```python
+@mcp_server.tool()
+async def koi_expand_query(
+    query: str,
+    use_ontology: bool = True
+) -> dict:
+    # Use unified ontology for expansion
+    if use_ontology:
+        expanded_terms = expand_with_ontology(query)
+    else:
+        expanded_terms = expand_with_synonyms(query)
+    
+    # Search with expanded query
+    results = await koi_search(" ".join(expanded_terms))
+    
+    return {
+        "original_query": query,
+        "expanded_query": expanded_terms,
+        "results": results
+    }
+```
+
+##### Phase 4: ElizaOS Integration (Week 4)
+
+**Task 4.1: Create MCP Client Plugin**
+```typescript
+// /GAIA/packages/plugin-mcp-koi/src/index.ts
+import { MCPClient } from '@modelcontextprotocol/sdk';
+
+export class KOIMCPClient {
+    private client: MCPClient;
+    
+    constructor(serverUrl: string = 'localhost:8300') {
+        this.client = new MCPClient(serverUrl);
+    }
+    
+    async searchKnowledge(query: string, agentId: string) {
+        const result = await this.client.callTool('koi_search', {
+            query,
+            strategy: 'hybrid',
+            agent_rid: `orn:regen.agent:${agentId}`
+        });
+        
+        return result;
+    }
+}
+```
+
+**Task 4.2: Replace Knowledge Plugin Calls**
+```typescript
+// In agent action handler
+const mcpClient = new KOIMCPClient();
+const results = await mcpClient.searchKnowledge(
+    message.content,
+    runtime.agentId
+);
+
+// Results include CAT receipts and full provenance
+console.log(`Found ${results.chunks.length} relevant chunks`);
+console.log(`Provenance: ${results.cat_receipt.cat_id}`);
+```
+
+#### 9.9.4 Step-by-Step Implementation Tasks
+
+**Week 1: Foundation**
+- [ ] Set up MCP server project structure in `/koi-processor/mcp/`
+- [ ] Install MCP SDK: `pip install modelcontextprotocol`
+- [ ] Create basic server with health check endpoint
+- [ ] Wrap BGE embedding generation in MCP tool
+- [ ] Implement basic pgvector search tool
+- [ ] Test with MCP client CLI
+
+**Week 2: KOI Compliance**
+- [ ] Add RID generation for all resources
+- [ ] Implement CID calculation for deduplication
+- [ ] Create CAT receipt generation system
+- [ ] Add FUN event emission capabilities
+- [ ] Store CAT receipts in PostgreSQL
+- [ ] Test provenance chain queries
+
+**Week 3: Advanced RAG**
+- [ ] Implement BM25 sparse retrieval
+- [ ] Create hybrid search with weighting
+- [ ] Connect to Fuseki for graph queries
+- [ ] Build graph RAG with entity extraction
+- [ ] Add query expansion with ontology
+- [ ] Implement reranking with cross-encoders
+
+**Week 4: Integration**
+- [ ] Create TypeScript MCP client for ElizaOS
+- [ ] Build plugin wrapper for agents
+- [ ] Replace knowledge plugin calls
+- [ ] Test with Narrator agent
+- [ ] Document API and usage
+- [ ] Performance benchmarking
+
+#### 9.9.5 Configuration & Deployment
+
+**MCP Server Configuration**:
+```yaml
+# /koi-processor/mcp/config.yaml
+server:
+  name: koi-rag-processor
+  port: 8300
+  protocol: mcp
+
+koi:
+  node_type: FULL
+  node_name: regen-mcp-rag-processor
+  
+storage:
+  postgres:
+    url: postgresql://postgres:postgres@localhost:5433/eliza
+    embedding_column: dim_1024
+  fuseki:
+    url: http://localhost:3030/koi
+    
+rag:
+  default_strategy: hybrid
+  embedding_model: BAAI/bge-large-en-v1.5
+  embedding_dim: 1024
+  chunk_size: 512
+  chunk_overlap: 128
+```
+
+**Docker Deployment**:
+```dockerfile
+FROM python:3.11
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+CMD ["python", "koi_mcp_server.py"]
+```
+
+#### 9.9.6 Benefits of This Approach
+
+1. **Clean Architecture**: RAG logic completely separated from agents
+2. **Flexibility**: Easy to experiment with different strategies
+3. **KOI Compliant**: Full provenance with RIDs, CIDs, CAT receipts
+4. **Reusable**: Any MCP-compatible tool can use the RAG service
+5. **Scalable**: Can run on separate GPU server if needed
+6. **Maintainable**: Single place to update RAG logic
+7. **Testable**: Can benchmark different approaches easily
+
+### 9.10 Success Criteria
+
+**MCP-RAG Implementation**:
+- [ ] MCP server responding to tool calls
+- [ ] BGE embeddings searchable via MCP
+- [ ] CAT receipts generated for all operations
+- [ ] Graph RAG queries working with Fuseki
+- [ ] Hybrid search combining dense + sparse
+- [ ] ElizaOS agents using MCP for knowledge
+
+**Original Goals**:
 - [ ] All 1,100 documents loaded into knowledge graph
-- [ ] Natural language queries working with OpenAI integration
+- [ ] Natural language queries working with MCP tools
 - [ ] Interactive visualizations rendering 1,000+ nodes at 60fps
 - [ ] Complete essence alignment data queryable via SPARQL
 - [ ] Ontology evolution trackable via CAT receipts
@@ -1099,6 +1480,7 @@ def resolve_entities(entities):
 - [ ] Researchers can trace complete provenance of any extracted entity
 - [ ] System administrators can monitor ontological evolution
 - [ ] Agent developers can query meta-knowledge about system capabilities
+- [ ] Easy experimentation with different RAG strategies via MCP tools
 
 ---
 
