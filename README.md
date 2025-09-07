@@ -38,10 +38,10 @@ This repository contains the Knowledge Organization Infrastructure (KOI) impleme
 
 ## 📚 Supporting Documents
 
-- **[KOI_COMPLETE_RESEARCH.md](docs/KOI_COMPLETE_RESEARCH.md)** - Original comprehensive research (consolidated)
-- **[KOI_VISUALIZATION_IMPLEMENTATION_SPEC.md](docs/KOI_VISUALIZATION_IMPLEMENTATION_SPEC.md)** - Frontend implementation details (consolidated)
-- **[KOI_VISUALIZATION_STRATEGY.md](docs/KOI_VISUALIZATION_STRATEGY.md)** - Visualization architecture (consolidated) 
+- **[APACHE_JENA_INTEGRATION.md](docs/APACHE_JENA_INTEGRATION.md)** - Apache Jena Fuseki integration details
 - **[ONTOLOGY-AS-KNOWLEDGE-GRAPH.md](docs/ONTOLOGY-AS-KNOWLEDGE-GRAPH.md)** - Ontological innovation (consolidated)
+- **[ResearchonVisualizingRDFKnowledgeGraphs.md](docs/ResearchonVisualizingRDFKnowledgeGraphs.md)** - RDF visualization research
+- **[local-model-comparison.md](docs/local-model-comparison.md)** - Local model performance analysis
 
 *Note: Individual documents preserved for reference, but Master Guide is the primary source of truth.*
 
