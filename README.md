@@ -4,9 +4,9 @@
 
 This repository contains the Knowledge Organization Infrastructure (KOI) implementation for RegenAI, integrating BlockScience's KOI v3 protocol with Regen Network's metabolic ontology to create a distributed knowledge management system.
 
-## 🚀 Current Status (January 2025)
+## 🚀 Current Status (September 2025)
 
-**75% Complete** - Backend API integration complete, visualization working, preparing for KOI network deployment
+**85% Complete** - BGE semantic search via MCP integration complete, visualization working, KOI network deployed
 
 ### ✅ Completed
 - Apache Jena Fuseki integration with 3,851+ RDF triples
@@ -15,11 +15,13 @@ This repository contains the Knowledge Organization Infrastructure (KOI) impleme
 - JSON-LD to TTL conversion pipeline
 - Metabolic entity extraction from 1,100+ documents
 - CAT receipt provenance tracking
+- **BGE Semantic Search via MCP**: 48,151 embeddings accessible to agents
+- **TypeScript MCP Server**: Stable stdio implementation for ElizaOS integration
+- **Agent RAG Integration**: Complete with semantic search capabilities
 
 ### 🔄 In Progress  
 - KOI sensor nodes for source monitoring
 - Entity resolution using embeddings
-- Agent RAG integration with knowledge graph
 - Complete end-to-end flow from source to agent
 
 ## 📖 Master Documentation
