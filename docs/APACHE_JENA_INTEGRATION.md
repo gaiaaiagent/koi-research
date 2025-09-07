@@ -2,6 +2,8 @@
 
 ## Overview
 
+**UPDATE (September 2025)**: While Apache Jena integration remains valuable for semantic reasoning and RDF capabilities, the **primary operational KOI pipeline now uses the KOI Event Bridge with BGE embeddings** flowing directly to PostgreSQL for immediate agent access. This Apache Jena integration serves as the semantic reasoning layer alongside the production BGE pipeline.
+
 This guide provides comprehensive instructions for integrating KOI (Knowledge Organization Infrastructure) with Apache Jena + RDF/SPARQL/OWL, aligning with Regen Network's Registry Framework architecture.
 
 ## Architecture Alignment
@@ -622,12 +624,19 @@ tdb2.tdbloader --loc=/data/tdb2 --graph=default ontology.ttl
 
 **This integration enables KOI to leverage the full power of semantic web technologies while maintaining perfect alignment with Regen Network's Registry Framework architecture.** 🌐🌱
 
+## Current Status: Complementary to BGE Pipeline
+
+**Production Architecture**: The operational KOI system uses:
+1. **Primary Pipeline**: KOI Event Bridge → BGE Embeddings → PostgreSQL → Agent RAG (OPERATIONAL)
+2. **Semantic Layer**: Apache Jena + RDF/SPARQL for reasoning and ontological queries (AVAILABLE)
+
 ## Next Steps
 
-1. **Deploy Fuseki server** with KOI dataset
+1. **Deploy Fuseki server** with KOI dataset (complementary to BGE pipeline)
 2. **Load unified ontology** with OWL reasoning enabled  
-3. **Process production entities** through RDF pipeline
+3. **Process production entities** through RDF pipeline (parallel to BGE processing)
 4. **Enable SPARQL endpoints** for Registry Framework integration
 5. **Implement reasoning rules** for credit validation and methodology comparison
+6. **Integrate with operational BGE pipeline** for hybrid semantic + vector search
 
-*Ready for semantic web deployment with full Registry Framework compatibility!* 🚀
+*Available for semantic web deployment alongside the operational BGE-based KOI pipeline!* 🚀
