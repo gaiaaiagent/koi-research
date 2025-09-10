@@ -10,9 +10,9 @@ This repository contains the Knowledge Organization Infrastructure (KOI) impleme
 
 ### ✅ Implementation Complete - BREAKTHROUGH ACHIEVEMENT
 - **Complete KOI Pipeline**: End-to-end flow from sensors to agents fully operational
-- **KOI Event Bridge**: Real-time processing of sensor events through BGE embedding pipeline
+- **KOI Event Bridge v2**: Real-time processing with RID-based deduplication and versioning
 - **BGE Server Integration**: 1024-dimensional embeddings generated via HTTP API
-- **PostgreSQL Direct Storage**: Immediate integration with Eliza agent database
+- **PostgreSQL Direct Storage**: Immediate integration with Eliza agent database using isolated tables
 - **Real-time Processing**: Content processed and available within seconds of ingestion
 - **Agent RAG Access**: Processed content immediately accessible for agent queries
 - **CAT Receipt Generation**: Complete transformation provenance tracking operational
@@ -96,7 +96,7 @@ To begin implementation:
 ## Current Status
 
 🚀 **BREAKTHROUGH ACHIEVEMENT** - Complete KOI sensor-to-agent pipeline operational
-✅ **Production Deployment** - KOI Event Bridge processing sensors through BGE to PostgreSQL
+✅ **Production Deployment** - KOI Event Bridge v2 with deduplication processing sensors through BGE to PostgreSQL
 ✅ **Real-time Processing** - Content flows from sensors to agent access in seconds
 ✅ **BGE Integration** - 1024-dimensional embeddings via dedicated HTTP API server
 ✅ **Agent Integration** - Direct RAG query access to processed KOI content
@@ -106,7 +106,7 @@ To begin implementation:
 
 ### Key Achievements - Production-Ready KOI Pipeline
 - **Complete KOI Implementation**: Full sensor-to-agent pipeline operational and tested
-- **KOI Event Bridge**: Real-time sensor event processing through BGE embedding pipeline
+- **KOI Event Bridge v2**: Real-time processing with RID-based deduplication and versioning
 - **BGE Server Integration**: Dedicated HTTP API generating 1024-dimensional embeddings
 - **PostgreSQL Direct Storage**: Immediate agent database integration with pgvector
 - **Real-time Agent Access**: Content available for RAG queries within seconds of processing
