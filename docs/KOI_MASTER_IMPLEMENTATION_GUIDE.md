@@ -12,10 +12,10 @@ This master guide consolidates the complete KOI (Knowledge Organization Infrastr
 ### 📊 Current Status (September 2025)
 
 **🚀 BREAKTHROUGH ACHIEVEMENT**: Complete KOI Sensor-to-Agent Pipeline Operational
-- **KOI Event Bridge**: Real-time processing of sensor events through BGE embedding pipeline
+- **KOI Event Bridge v2**: Real-time processing with RID-based deduplication and versioning
 - **BGE Server Integration**: 1024-dimensional embeddings generated and stored immediately
 - **PostgreSQL pgvector**: Direct integration with Eliza agent database for instant RAG access
-- **Complete Pipeline Flow**: KOI Sensors → Event Bridge → BGE Processing → PostgreSQL → Agent RAG
+- **Complete Pipeline Flow**: KOI Sensors → Event Bridge v2 → BGE Processing → PostgreSQL → Agent RAG
 - **Production Tested**: Full content processing verified with test content and transformations
 - **CAT Receipt Generation**: Complete transformation provenance tracking operational
 - **Real-time Agent Access**: Processed content immediately available for agent queries
@@ -126,7 +126,7 @@ This master guide consolidates the complete KOI (Knowledge Organization Infrastr
 │      ├── ✅ Sensor Adapters (Partial Nodes) for all platforms │
 │      ├── ✅ FUN Event System (NEW/UPDATE/FORGET)              │
 │      ├── ✅ 100% KOI Protocol Compliance                      │
-│      ├── ✅ KOI Event Bridge - Real-time sensor event processing │
+│      ├── ✅ KOI Event Bridge v2 - Deduplication & versioning    │
 │      ├── ✅ BGE Pipeline Integration - 1024-dim embeddings    │
 │      ├── ✅ PostgreSQL Direct Storage - Agent-ready format    │
 │      ├── 18,824 Documents Successfully Indexed                │
@@ -146,7 +146,7 @@ This master guide consolidates the complete KOI (Knowledge Organization Infrastr
 └────────────────────────────────┬────────────────────────────┘
                                  ▼ (Real-time Events)
 ┌─────────────────────────────────────────────────────────────┐
-│         KOI EVENT BRIDGE (koi_event_bridge.py) ✅          │
+│         KOI EVENT BRIDGE v2 (koi_event_bridge_v2.py) ✅    │
 │  ┌─────────────────────────────────────────────────────┐    │
 │  │  📡 1. SENSOR EVENT PROCESSING                     │    │
 │  │     • Receives KOI FUN events (NEW/UPDATE/FORGET)  │    │
@@ -234,7 +234,7 @@ interface CATReceipt {
 ### 3.1 ✅ Completed Components - FULL KOI PIPELINE OPERATIONAL
 
 #### Complete KOI Sensor-to-Agent Pipeline ✅
-- **KOI Event Bridge** (`koi_event_bridge.py`) - Real-time sensor event processing
+- **KOI Event Bridge v2** (`koi_event_bridge_v2.py`) - Real-time processing with deduplication
 - **BGE Embedding Server** (`bge_server.py`) - 1024-dimensional embedding generation
 - **PostgreSQL Integration** - Direct storage in agent database with pgvector
 - **Agent RAG Access** - Immediate availability of processed content for queries
@@ -1434,7 +1434,7 @@ console.log(`Provenance: ${results.cat_receipt.cat_id}`);
 - [x] Add FUN event emission capabilities
 - [x] Store CAT receipts in PostgreSQL
 - [x] Test provenance chain queries
-- [x] **KOI Event Bridge Implementation**
+- [x] **KOI Event Bridge v2 Implementation with Deduplication**
 - [x] **BGE Server Integration**
 - [x] **Real-time Sensor Event Processing**
 
@@ -1447,7 +1447,7 @@ console.log(`Provenance: ${results.cat_receipt.cat_id}`);
 - [x] Implement complete provenance tracking
 
 **Week 4: Integration** ✅ COMPLETE
-- [x] Create complete KOI Event Bridge system
+- [x] Create complete KOI Event Bridge v2 with deduplication
 - [x] Build BGE embedding server integration
 - [x] Deploy real-time processing pipeline
 - [x] Test with complete sensor-to-agent flow
@@ -1506,7 +1506,7 @@ CMD ["python", "koi_mcp_server.py"]
 ### 9.10 Success Criteria
 
 **Complete KOI Pipeline Implementation** ✅:
-- [x] KOI Event Bridge processing sensor events in real-time
+- [x] KOI Event Bridge v2 with RID-based deduplication
 - [x] BGE Server generating 1024-dimensional embeddings
 - [x] PostgreSQL direct integration with agent database
 - [x] Complete sensor-to-agent pipeline operational
