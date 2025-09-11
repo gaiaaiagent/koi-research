@@ -632,6 +632,33 @@ full-dataset-checkpoint.json → TTL Conversion → Fuseki Load → Full Knowled
 
 ## 9. Next Steps & Roadmap
 
+### 9.0 Milestone B: Information Pipelines Implementation
+
+**Status**: Sessions 1-6 Complete, Session 7 Architecture Defined
+
+Building automated information pipelines for daily X posts and weekly digests using the KOI infrastructure.
+
+#### Completed Sessions (Milestone A):
+- ✅ **Session 1**: Twitter/X Sensor - Playwright scraper operational
+- ✅ **Session 2**: Ledger Query Interface - Direct blockchain connection
+- ✅ **Session 3**: GitHub/GitLab Sensor - Repository documentation extraction
+- ✅ **Session 4**: Website Sensor - Enhanced deep crawling capabilities
+- ✅ **Session 5**: Discourse Forum Sensor - Forum discussion monitoring
+- ✅ **Session 6**: Medium Blog Sensor - RSS and web scraping
+
+#### Current Architecture Decision (Session 7):
+**Daily Content Curator Design**:
+- **Type**: Processor component in `/koi-processor/daily_curator.py`
+- **NOT a KOI node**: Acts as consumer/aggregator, not sensor
+- **Integration**: Queries PostgreSQL and KOI Coordinator for content
+- **Output**: JSON for X bot and weekly digest generation
+
+#### Upcoming Sessions (Milestone B):
+- **Sessions 8-12**: Weekly aggregator, NotebookLM formatter, X bot, scheduler, quality control
+- **Sessions 13-19**: Audio pipeline, podcast publishing, permissions, monitoring, deployment
+
+**Reference**: See `/GAIA/docs/MILESTONE_B_UPGRADE_PROPOSAL.md` for complete details
+
 ### 9.1 KOI Rich Dataset Integration Plan
 
 **Goal**: Connect the existing 326+ entity dataset to our visualization system, transforming from proof-of-concept to production-ready KOI implementation.
@@ -1503,7 +1530,63 @@ CMD ["python", "koi_mcp_server.py"]
 6. **Maintainable**: Single place to update RAG logic
 7. **Testable**: Can benchmark different approaches easily
 
-### 9.10 Success Criteria
+### 9.10 Research Direction: Academic Paper Indexing & DeSci Integration
+
+**Research Note**: Investigate DeSci.com's approach to academic paper indexing and AI application
+
+**DeSci.com Analysis**:
+DeSci (Decentralized Science) has developed sophisticated infrastructure for:
+- **PDF Paper Extraction**: Advanced parsing of academic PDFs including figures, tables, citations
+- **Semantic Indexing**: Deep understanding of scientific concepts and relationships
+- **Citation Graph Analysis**: Mapping research lineage and impact
+- **AI-Enhanced Search**: Natural language queries over scientific literature
+- **Knowledge Graph Construction**: Automatic extraction of entities, methods, results
+
+**Relevance to KOI**:
+- Their approach to academic paper processing could enhance our Research Retreat papers sensor
+- Consider integrating their techniques for:
+  - PDF content extraction beyond basic text
+  - Scientific entity recognition (methods, datasets, chemicals, species)
+  - Citation network analysis for regenerative research
+  - Automatic hypothesis extraction from papers
+
+**Discourse Graphs for Structured Knowledge Extraction**:
+Discourse graphs provide a powerful methodology for extracting structured data from scientific papers into our knowledge graph. Unlike traditional text extraction, discourse graphs capture the logical structure and argumentation within papers:
+
+- **Claims and Evidence**: Map hypotheses to supporting data and experiments
+- **Methodological Flows**: Extract step-by-step procedures as connected nodes
+- **Result Dependencies**: Understand how conclusions build on prior findings
+- **Contradictions and Agreements**: Identify where papers support or challenge each other
+- **Semantic Roles**: Distinguish background, methods, results, and implications
+
+This approach transforms unstructured paper text into queryable knowledge graph triples that preserve scientific reasoning. For detailed exploration of discourse graphs in DeSci context, see: https://darrenzal.github.io/Quartz/GraphsForDeSci
+
+Integration with KOI would enable:
+- Automatic extraction of scientific claims as RID-identified entities
+- CAT receipts tracking transformation from paper text to discourse graph
+- SPARQL queries over scientific arguments and evidence chains
+- Agent reasoning over structured scientific knowledge
+
+**Implementation Opportunities**:
+1. **Enhanced PDF Processing**: Upgrade website sensor to handle academic PDFs
+2. **Scientific Ontology**: Extend our unified ontology with scientific research concepts
+3. **Citation RIDs**: Create special RID types for academic citations and references
+4. **Research Graph**: Build knowledge graph of regenerative science research
+5. **Discourse Graphs**: Extract structured knowledge from scientific papers using discourse graph methodology
+
+**Action Items**:
+- [ ] Study DeSci's open-source components if available
+- [ ] Evaluate PDF extraction libraries (PyMuPDF, pdfplumber, Grobid)
+- [ ] Design scientific entity extraction pipeline
+- [ ] Consider partnership or integration with DeSci platform
+- [ ] Test with Research Retreat papers collection
+
+**Related Sensors**:
+- `research-retreat-papers` sensor (already added to website_sensor.py)
+- Future: ArXiv sensor for regenerative/ecological papers
+- Future: PubMed sensor for environmental health research
+
+### 9.11 Success Criteria
 
 **Complete KOI Pipeline Implementation** ✅:
 - [x] KOI Event Bridge v2 with RID-based deduplication
