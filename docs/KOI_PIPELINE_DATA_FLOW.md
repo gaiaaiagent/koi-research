@@ -6,67 +6,84 @@ The KOI (Knowledge Organization Infrastructure) pipeline implements a sophistica
 
 ## Architecture Overview
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                          KOI PIPELINE ARCHITECTURE                           │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                               │
-│  SENSORS              PROCESSING                   STORAGE                   │
-│                                                                               │
-│  ┌──────────┐        ┌─────────────┐         ┌─────────────────────────┐   │
-│  │ Website  │───────▶│             │         │   PostgreSQL + pgvector  │   │
-│  ├──────────┤        │   Event     │         │  ┌───────────────────┐  │   │
-│  │ GitHub   │───────▶│   Bridge    │────────▶│  │  koi_memories     │  │   │
-│  ├──────────┤        │     v2      │         │  │  (source docs)    │  │   │
-│  │ Medium   │───────▶│             │         │  └───────────────────┘  │   │
-│  ├──────────┤        └─────────────┘         │                         │   │
-│  │ Telegram │              │                 │  ┌───────────────────┐  │   │
-│  ├──────────┤              │                 │  │  memories         │  │   │
-│  │ Notion   │              ▼                 │  │  (chunks)         │  │   │
-│  └──────────┘        ┌─────────────┐         │  └───────────────────┘  │   │
-│                      │  Document   │         │                         │   │
-│                      │  Chunking   │────────▶│  ┌───────────────────┐  │   │
-│                      └─────────────┘         │  │  koi_embeddings   │  │   │
-│                            │                 │  │  (1024D vectors)  │  │   │
-│                            ▼                 │  └───────────────────┘  │   │
-│                      ┌─────────────┐         └─────────────────────────┘   │
-│                      │     BGE     │                      │                 │
-│                      │  Embedder   │──────────────────────┘                 │
-│                      └─────────────┘                                        │
-│                            │                                                │
-│                            ▼                      ┌──────────────────────┐  │
-│                      ┌─────────────┐             │   Apache Jena Fuseki  │  │
-│                      │  Knowledge  │             │   (Port 3030)         │  │
-│                      │  Extractor  │────────────▶│  • RDF Triples        │  │
-│                      │  (Future)   │             │  • OWL Ontology       │  │
-│                      └─────────────┘             │  • SPARQL Endpoint    │  │
-│                                                  └──────────────────────┘  │
-│                                                            │                │
-│                            ┌────────────────────────────────┘                │
-│                            ▼                               ▼                │
-│                      ┌─────────────┐              ┌──────────────┐         │
-│                      │ MCP Server  │              │ SPARQL Query │         │
-│                      │ (Port 8200) │              │   Service    │         │
-│                      │ Vector RAG  │              │   (Future)   │         │
-│                      └─────────────┘              └──────────────┘         │
-│                            │                               │                │
-│                            └───────────┬───────────────────┘                │
-│                                        ▼                                    │
-│                                 ┌──────────────┐                           │
-│                                 │ Eliza Agents │                           │
-│                                 │  (Consumers) │                           │
-│                                 └──────────────┘                           │
-│                                        ▲                                    │
-│                                        │                                    │
-│                            ┌───────────┴───────────┐                        │
-│                            │  Direct PostgreSQL    │                        │
-│                            │     Connections:      │                        │
-│                            │  • Write memories     │                        │
-│                            │  • Read memories      │                        │
-│                            │  • Conversations      │                        │
-│                            │  • Relationships      │                        │
-│                            └───────────────────────┘                        │
-└──────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Sensors
+        Website[Website Sensor]
+        GitHub[GitHub Sensor]
+        Medium[Medium Sensor]
+        Telegram[Telegram Sensor]
+        Notion[Notion Sensor]
+    end
+
+    subgraph Processing
+        EventBridge[Event Bridge v2<br/>Port 8100]
+        Chunker[Document Chunking]
+        BGE[BGE Embedder<br/>1024D Vectors]
+        KnowledgeExtractor[Knowledge Extractor<br/>Future]
+    end
+
+    subgraph "PostgreSQL + pgvector (Port 5433)"
+        subgraph "KOI Pipeline Tables"
+            koi_memories[koi_memories<br/>Source Documents]
+            koi_embeddings[koi_embeddings<br/>Vector Embeddings]
+        end
+        subgraph "Agent State Tables"
+            memories[memories<br/>Conversation Chunks]
+            conversations[conversations<br/>Chat History]
+            relationships[relationships<br/>User Profiles]
+            participants[participants<br/>Agent/User Data]
+        end
+    end
+
+    subgraph "Knowledge Graph (Future)"
+        Jena[Apache Jena Fuseki<br/>Port 3030<br/>RDF Triples & OWL]
+        SPARQL[SPARQL Query Service<br/>Future]
+    end
+
+    subgraph "Access Layer"
+        MCP[MCP Server<br/>Port 8200<br/>Vector RAG]
+        Agents[Eliza Agents<br/>5 Agents]
+    end
+
+    %% Data flow
+    Website --> EventBridge
+    GitHub --> EventBridge
+    Medium --> EventBridge
+    Telegram --> EventBridge
+    Notion --> EventBridge
+    
+    EventBridge --> Chunker
+    Chunker --> BGE
+    BGE --> koi_memories
+    BGE --> koi_embeddings
+    
+    koi_memories --> KnowledgeExtractor
+    KnowledgeExtractor --> Jena
+    Jena --> SPARQL
+    
+    koi_embeddings --> MCP
+    SPARQL --> MCP
+    MCP --> Agents
+    
+    %% Direct agent connections
+    Agents <--> memories
+    Agents <--> conversations
+    Agents <--> relationships
+    Agents <--> participants
+
+    %% Styling
+    classDef sensor fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef processor fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef storage fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef future fill:#f5f5f5,stroke:#9e9e9e,stroke-width:2px,stroke-dasharray: 5 5
+    classDef access fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    
+    class Website,GitHub,Medium,Telegram,Notion sensor
+    class EventBridge,Chunker,BGE processor
+    class koi_memories,koi_embeddings,memories,conversations,relationships,participants storage
+    class KnowledgeExtractor,Jena,SPARQL future
+    class MCP,Agents access
 ```
 
 ## Storage Systems Explained
