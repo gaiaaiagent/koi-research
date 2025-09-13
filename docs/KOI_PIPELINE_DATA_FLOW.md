@@ -117,14 +117,23 @@ The KOI (Knowledge Organization Infrastructure) pipeline implements a sophistica
 │                                     │   (pgvector) │            │    (Future)      │        │
 │                                     └──────────────┘            └─────────┬────────┘        │
 │                                                                           │                  │
-│         ┌──────────────────┐                                            │                  │
-│         │ Knowledge        │                                            ▼                  │
-│         │ Extractor        │                                 ┌──────────────────┐          │
-│         │ (Future)         │                                 │  Apache Jena     │          │
-│         └────────┬─────────┘                                 │  Fuseki          │          │
-│                  │                                           │  (Port 3030)     │          │
-│                  └───────────────────────────────────────────▶│ • RDF Triples    │          │
-│                                                              │ • SPARQL Store   │          │
+│                    │                                                     │                  │
+│                    │                                                     ▼                  │
+│                    │                                          ┌──────────────────┐          │
+│                    │                                          │  Apache Jena     │          │
+│                    │                                          │  Fuseki          │          │
+│                    │                                          │  (Port 3030)     │          │
+│                    │                                          │ • RDF Triples    │          │
+│                    │                                          │ • SPARQL Store   │          │
+│                    │                                          └──────────────────┘          │
+│                    │                                                     ▲                  │
+│                    │                                                     │                  │
+│                    │                                          ┌──────────────────┐          │
+│                    └─────────────────────────────────────────▶│ Knowledge        │          │
+│                                [reads koi_memories]          │ Extractor        │          │
+│                                                              │ (Future)         │          │
+│                                                              │ • Entity extract │          │
+│                                                              │ • RDF generation │          │
 │                                                              └──────────────────┘          │
 │                                                                                              │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
