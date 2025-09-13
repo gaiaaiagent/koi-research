@@ -85,7 +85,142 @@ This master guide consolidates the complete KOI (Knowledge Organization Infrastr
 
 ## 2. System Architecture
 
-### 2.1 Repository Architecture
+### 2.1 Complete Pipeline Architecture
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    KOI COMPLETE PIPELINE ARCHITECTURE                          │
+├────────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                                 │
+│                              ┌─────────────────────┐                                          │
+│                              │      SENSORS        │                                          │
+│                              │  • Website          │                                          │
+│                              │  • GitHub           │                                          │
+│                              │  • Medium           │                                          │
+│                              │  • Telegram         │                                          │
+│                              │  • Notion           │                                          │
+│                              │  • GitLab           │                                          │
+│                              │  • Twitter          │                                          │
+│                              │  • Discord          │                                          │
+│                              └──────────┬──────────┘                                          │
+│                                         │                                                      │
+│                                         ▼                                                      │
+│                              ┌─────────────────────┐                                          │
+│                              │   KOI Coordinator   │                                          │
+│                              │    (Port 8005)      │                                          │
+│                              │  • Event Routing    │                                          │
+│                              │  • Sensor Registry  │                                          │
+│                              └──────────┬──────────┘                                          │
+│                                         │                                                      │
+│                                         ▼                                                      │
+│                              ┌─────────────────────┐                                          │
+│                              │   Event Bridge v2   │                                          │
+│                              │    (Port 8100)      │                                          │
+│                              │  • Deduplication    │                                          │
+│                              │  • RID Management   │                                          │
+│                              │  • Store documents  │                                          │
+│                              └──────────┬──────────┘                                          │
+│                                         │                                                      │
+│                    ┌────────────────────┼────────────────────┐                                │
+│                    │                    │                    │                                │
+│                    │                    ▼                    │                                │
+│                    │          ┌─────────────────┐            │                                │
+│                    │          │ Document Chunker│            │                                │
+│                    │          │ • 1000 chars    │            │                                │
+│                    │          │ • 200 overlap   │            │                                │
+│                    │          └────────┬────────┘            │                                │
+│                    │                    │                    │                                │
+│                    │                    ▼                    │                                │
+│                    │          ┌─────────────────┐            │                                │
+│                    │          │  BGE Embedder   │            │                                │
+│                    │          │  (Port 8090)    │            │                                │
+│                    │          │ • BAAI/bge-large│            │                                │
+│                    │          │ • 1024D vectors │            │                                │
+│                    │          └────────┬────────┘            │                                │
+│                    │                    │                    │                                │
+│            [stores documents]   [stores embeddings]   [stores chunks]                         │
+│                    ▼                    ▼                    ▼                                │
+│  ┌──────────────────────────────────────────────────────────────────────────────┐            │
+│  │                      PostgreSQL Database (Port 5433)                         │            │
+│  │                                                                               │            │
+│  │  ┌─────────────────────────── KOI PIPELINE TABLES ────────────────────────┐  │            │
+│  │  │                                                                          │  │            │
+│  │  │  ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐  │  │            │
+│  │  │  │  koi_memories   │     │  koi_embeddings  │     │  koi_receipts   │  │  │            │
+│  │  │  │ • Source docs   │     │ • 1024D vectors  │     │ • CAT receipts  │  │  │            │
+│  │  │  │ • RID tracking  │     │ • pgvector ext   │     │ • Audit trail   │  │  │            │
+│  │  │  │ • Versioning    │     │ • Similarity     │     │ • Provenance    │  │  │            │
+│  │  │  └─────────────────┘     └──────────────────┘     └─────────────────┘  │  │            │
+│  │  └──────────────────────────────────────────────────────────────────────────┘  │            │
+│  │                                                                               │            │
+│  │  ┌────────────────────────── AGENT STATE TABLES ──────────────────────────┐  │            │
+│  │  │                                                                          │  │            │
+│  │  │  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────────────┐   │  │            │
+│  │  │  │    memories     │  │  conversations  │  │   relationships     │   │  │            │
+│  │  │  │ • Agent memory  │  │ • Chat history  │  │ • User profiles     │   │  │            │
+│  │  │  │ • KOI chunks    │  │ • Thread state  │  │ • Agent connections │   │  │            │
+│  │  │  └─────────────────┘  └─────────────────┘  └──────────────────────┘   │  │            │
+│  │  │                                                                          │  │            │
+│  │  │  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────────────┐   │  │            │
+│  │  │  │  participants   │  │     rooms       │  │    agent_configs    │   │  │            │
+│  │  │  │ • User data     │  │ • Chat rooms    │  │ • Agent settings    │   │  │            │
+│  │  │  │ • Agent IDs     │  │ • Channels      │  │ • Permissions       │   │  │            │
+│  │  │  └─────────────────┘  └─────────────────┘  └──────────────────────┘   │  │            │
+│  │  └──────────────────────────────────────────────────────────────────────────┘  │            │
+│  └──────────────────────────────────────────────────────────────────────────────┘            │
+│                    │                                            ▲                             │
+│                    │                                            │                             │
+│                    ├────────────────────────────────────────────┤                             │
+│                    │                                            │                             │
+│                    ▼                                            │                             │
+│         ┌──────────────────┐                      ┌─────────────────────┐                    │
+│         │ Daily Content    │                      │    Eliza Agents     │                    │
+│         │ Curator          │                      │     (5 agents)      │                    │
+│         │ • Query memories │                      │   • Twitter         │                    │
+│         │ • Generate posts │                      │   • Discord         │                    │
+│         └──────────────────┘                      │   • Telegram        │                    │
+│                                                   │   • Web UI          │                    │
+│                    │                              │   • API             │                    │
+│                    │                              └──────────┬──────────┘                    │
+│                    │                                         │                               │
+│                    │                                         ▼                               │
+│                    │                              ┌──────────────────┐                       │
+│                    │                              │   MCP Server     │                       │
+│                    ├─────────────────────────────▶│   (Port 8200)    │                       │
+│                    │                              │  • Vector RAG    │                       │
+│                    │                              │  • Query Router  │                       │
+│                    │                              └─────────┬────────┘                       │
+│                    │                                        │                                │
+│                    │                         ┌──────────────┴──────────────┐                 │
+│                    │                         ▼                             ▼                 │
+│                    │                ┌──────────────┐            ┌──────────────────┐        │
+│                    └───────────────▶│ koi_embeddings│            │  SPARQL Service  │        │
+│                                     │   (pgvector) │            │    (Future)      │        │
+│                                     └──────────────┘            └─────────┬────────┘        │
+│                                                                           │                  │
+│                    │                                                     │                  │
+│                    │                                                     ▼                  │
+│                    │                                          ┌──────────────────┐          │
+│                    │                                          │  Apache Jena     │          │
+│                    │                                          │  Fuseki          │          │
+│                    │                                          │  (Port 3030)     │          │
+│                    │                                          │ • RDF Triples    │          │
+│                    │                                          │ • SPARQL Store   │          │
+│                    │                                          └──────────────────┘          │
+│                    │                                                     ▲                  │
+│                    │                                                     │                  │
+│                    │                                          ┌──────────────────┐          │
+│                    └─────────────────────────────────────────▶│ Knowledge        │          │
+│                                [reads koi_memories]          │ Extractor        │          │
+│                                                              │ (Future)         │          │
+│                                                              │ • Entity extract │          │
+│                                                              │ • RDF generation │          │
+│                                                              └──────────────────┘          │
+│                                                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 2.2 Repository Architecture
 
 **Four-Repository Strategy** with clear separation of concerns:
 
@@ -208,7 +343,67 @@ orn:regen.ontology:unified-v1
 cid:sha256:e002e2e94b5cc9057e16fe0173854c88af1d1ba307986c0337066ddcbfdeb4a7
 ```
 
-### 2.4 Transformation Provenance (CAT Receipts)
+### 2.4 Storage Architecture
+
+#### PostgreSQL with pgvector (ACTIVE)
+All tables are in the **same PostgreSQL database** (`eliza` on port 5433):
+
+**KOI Pipeline Tables**:
+- `koi_memories`: Source documents from sensors (26+ documents)
+- `koi_embeddings`: Vector embeddings (1024D) for semantic search
+- `koi_receipts`: CAT receipts for transformation provenance
+- pgvector extension enables vector operations
+
+**Agent State Tables** (direct access):
+- `memories`: Agent memories from conversations and KOI chunks (40,479+ chunks)
+- `conversations`: Full conversation history
+- `relationships`: Agent relationship tracking
+- `participants`: User/agent profiles
+
+**Dual-Table Storage Pattern**:
+- **Source documents** preserved in `koi_memories` with RIDs
+- **Chunked content** in `memories` for agent RAG access
+- **1:7.5 ratio**: Each document produces ~7.5 searchable chunks
+- **Deduplication**: RID-based tracking prevents duplicate processing
+
+#### Apache Jena Fuseki (FUTURE)
+Knowledge graph triplestore for semantic relationships:
+- **Port**: 3030 (when deployed)
+- **Purpose**: Store RDF triples extracted from content
+- **Will store**: Entities, relationships, ontologies
+
+### 2.5 Data Flow Example
+
+```python
+# 1. Sensor collects document
+{
+    "rid": "github:regen-ledger:README.md",
+    "content": "# Regen Ledger\n\nComprehensive documentation...",
+    "metadata": {"source": "github", "repo": "regen-ledger"}
+}
+
+# 2. Event Bridge processes
+async def process_koi_event(event):
+    # Check for duplicates
+    if await check_rid_exists(event.rid):
+        return {"chunks": 0, "embeddings": 0}  # Skip duplicate
+    
+    # Chunk document (1000 chars, 200 overlap)
+    chunks = chunk_document(event.content)  # 1 doc → 5 chunks
+    
+    # Store original in koi_memories
+    await store_koi_memory(event)
+    
+    # Store chunks in memories table
+    for chunk in chunks:
+        await store_memory_chunk(chunk)
+    
+    # Generate embeddings
+    embeddings = await generate_embeddings(chunks)
+    await store_embeddings(embeddings)
+```
+
+### 2.6 Transformation Provenance (CAT Receipts)
 
 Every transformation tracked with complete accountability:
 
