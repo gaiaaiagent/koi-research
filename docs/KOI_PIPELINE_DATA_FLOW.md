@@ -11,21 +11,17 @@ The KOI (Knowledge Organization Infrastructure) pipeline implements a sophistica
 │                                    KOI COMPLETE PIPELINE ARCHITECTURE                          │
 ├────────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                                 │
-│  ┌─────────────────────────────────── SENSORS ────────────────────────────────────┐           │
-│  │                                                                                  │           │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │           │
-│  │  │   Website    │  │    GitHub    │  │    Medium    │  │   Telegram   │       │           │
-│  │  │   Sensor     │  │    Sensor    │  │    Sensor    │  │    Sensor    │       │           │
-│  │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘       │           │
-│  │         │                  │                  │                  │              │           │
-│  │  ┌──────▼───────┐  ┌──────▼───────┐  ┌──────▼───────┐  ┌──────▼───────┐       │           │
-│  │  │    Notion    │  │    GitLab    │  │   Twitter    │  │   Discord    │       │           │
-│  │  │    Sensor    │  │    Sensor    │  │    Sensor    │  │    Sensor    │       │           │
-│  │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘       │           │
-│  │         │                  │                  │                  │              │           │
-│  └─────────┼──────────────────┼──────────────────┼──────────────────┼──────────────┘           │
-│            │                  │                  │                  │                          │
-│            └──────────────────┴──────────────────┴──────────────────┘                          │
+│                              ┌─────────────────────┐                                          │
+│                              │      SENSORS        │                                          │
+│                              │  • Website          │                                          │
+│                              │  • GitHub           │                                          │
+│                              │  • Medium           │                                          │
+│                              │  • Telegram         │                                          │
+│                              │  • Notion           │                                          │
+│                              │  • GitLab           │                                          │
+│                              │  • Twitter          │                                          │
+│                              │  • Discord          │                                          │
+│                              └──────────┬──────────┘                                          │
 │                                         │                                                      │
 │                                         ▼                                                      │
 │                              ┌─────────────────────┐                                          │
@@ -41,27 +37,28 @@ The KOI (Knowledge Organization Infrastructure) pipeline implements a sophistica
 │                              │    (Port 8100)      │                                          │
 │                              │  • Deduplication    │                                          │
 │                              │  • RID Management   │                                          │
+│                              │  • Store documents  │                                          │
 │                              └──────────┬──────────┘                                          │
 │                                         │                                                      │
-│                          ┌──────────────┴──────────────┐                                      │
-│                          ▼                             ▼                                      │
-│                ┌─────────────────────┐       ┌─────────────────────┐                         │
-│                │  Document Chunker   │       │   Content Extractor  │                         │
-│                │  • 1000 char chunks │       │  • Text extraction   │                         │
-│                │  • 200 char overlap │       │  • Metadata parsing  │                         │
-│                └──────────┬──────────┘       └──────────┬──────────┘                         │
-│                           │                              │                                     │
-│                           └──────────────┬───────────────┘                                     │
-│                                          ▼                                                     │
-│                              ┌─────────────────────┐                                          │
-│                              │    BGE Embedder     │                                          │
-│                              │    (Port 8090)      │                                          │
-│                              │  • BAAI/bge-large   │                                          │
-│                              │  • 1024 dimensions  │                                          │
-│                              └──────────┬──────────┘                                          │
-│                                         │                                                      │
-│                 ┌───────────────────────┼───────────────────────┐                             │
-│                 ▼                       ▼                       ▼                             │
+│                    ┌────────────────────┼────────────────────┐                                │
+│                    │                    │                    │                                │
+│                    │                    ▼                    │                                │
+│                    │          ┌─────────────────┐            │                                │
+│                    │          │ Document Chunker│            │                                │
+│                    │          │ • 1000 chars    │            │                                │
+│                    │          │ • 200 overlap   │            │                                │
+│                    │          └────────┬────────┘            │                                │
+│                    │                    │                    │                                │
+│                    │                    ▼                    │                                │
+│                    │          ┌─────────────────┐            │                                │
+│                    │          │  BGE Embedder   │            │                                │
+│                    │          │  (Port 8090)    │            │                                │
+│                    │          │ • BAAI/bge-large│            │                                │
+│                    │          │ • 1024D vectors │            │                                │
+│                    │          └────────┬────────┘            │                                │
+│                    │                    │                    │                                │
+│            [stores documents]   [stores embeddings]   [stores chunks]                         │
+│                    ▼                    ▼                    ▼                                │
 │  ┌──────────────────────────────────────────────────────────────────────────────┐            │
 │  │                      PostgreSQL Database (Port 5433)                         │            │
 │  │                                                                               │            │
@@ -69,7 +66,7 @@ The KOI (Knowledge Organization Infrastructure) pipeline implements a sophistica
 │  │  │                                                                          │  │            │
 │  │  │  ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐  │  │            │
 │  │  │  │  koi_memories   │     │  koi_embeddings  │     │  koi_receipts   │  │  │            │
-│  │  │  │ • Source docs   │◄────│ • 1024D vectors  │     │ • CAT receipts  │  │  │            │
+│  │  │  │ • Source docs   │     │ • 1024D vectors  │     │ • CAT receipts  │  │  │            │
 │  │  │  │ • RID tracking  │     │ • pgvector ext   │     │ • Audit trail   │  │  │            │
 │  │  │  │ • Versioning    │     │ • Similarity     │     │ • Provenance    │  │  │            │
 │  │  │  └─────────────────┘     └──────────────────┘     └─────────────────┘  │  │            │
@@ -90,32 +87,32 @@ The KOI (Knowledge Organization Infrastructure) pipeline implements a sophistica
 │  │  │  └─────────────────┘  └─────────────────┘  └──────────────────────┘   │  │            │
 │  │  └──────────────────────────────────────────────────────────────────────────┘  │            │
 │  └──────────────────────────────────────────────────────────────────────────────┘            │
+│                    │                                            ▲                             │
 │                    │                                            │                             │
-│                    │                                            │                             │
-│         ┌──────────┴──────────┐                      ┌─────────┴────────┐                    │
-│         ▼                     ▼                      ▼                  ▼                    │
-│  ┌──────────────┐      ┌──────────────┐      ┌──────────────┐   ┌──────────────┐           │
-│  │ Knowledge    │      │   MCP Server │      │ Eliza Agents │   │ Daily Content│           │
-│  │ Extractor    │      │ (Port 8200)  │◄─────│  (5 agents)  │   │   Curator    │           │
-│  │ (Future)     │      │ • Vector RAG │      │              │   │  (Processor) │           │
-│  └──────┬───────┘      │ • Semantic   │      │ • Twitter    │   └──────────────┘           │
-│         │              │   Search     │      │ • Discord    │                               │
-│         ▼              └──────────────┘      │ • Telegram   │                               │
-│  ┌──────────────┐                            │ • Web UI     │                               │
-│  │ Apache Jena  │                            │ • API        │                               │
-│  │   Fuseki     │                            └──────────────┘                               │
-│  │ (Port 3030)  │                                    ▲                                      │
-│  │ • RDF Triple │                                    │                                      │
-│  │   Store      │                                    │                                      │
-│  │ • SPARQL     │                            ┌───────┴────────┐                             │
-│  └──────┬───────┘                            │  Direct SQL    │                             │
-│         │                                    │  Connections   │                             │
-│         ▼                                    │ • Read/Write   │                             │
-│  ┌──────────────┐                            │   memories     │                             │
-│  │ SPARQL Query │                            │ • Manage       │                             │
-│  │   Service    │                            │   conversations│                             │
-│  │   (Future)   │                            └────────────────┘                             │
-│  └──────────────┘                                                                           │
+│         ┌──────────┴──────────┐                                │                             │
+│         ▼                     ▼                                │                             │
+│  ┌──────────────┐      ┌──────────────┐              ┌────────┴────────┐                    │
+│  │ Knowledge    │      │   MCP Server │              │  Eliza Agents   │                    │
+│  │ Extractor    │      │ (Port 8200)  │◄─────────────│   (5 agents)    │                    │
+│  │ (Future)     │      │ • Vector RAG │              │  • Twitter      │                    │
+│  └──────┬───────┘      │ • Semantic   │              │  • Discord      │                    │
+│         │              │   Search     │              │  • Telegram     │                    │
+│         ▼              └──────────────┘              │  • Web UI       │                    │
+│  ┌──────────────┐                                    │  • API          │                    │
+│  │ Apache Jena  │                                    └─────────────────┘                    │
+│  │   Fuseki     │                                                                           │
+│  │ (Port 3030)  │      ┌──────────────┐                                                   │
+│  │ • RDF Triple │      │ Daily Content│                                                   │
+│  │   Store      │      │   Curator    │                                                   │
+│  │ • SPARQL     │      │ (Processor)  │                                                   │
+│  └──────┬───────┘      └──────────────┘                                                   │
+│         │                                                                                   │
+│         ▼                                                                                   │
+│  ┌──────────────┐                                                                          │
+│  │ SPARQL Query │                                                                          │
+│  │   Service    │                                                                          │
+│  │   (Future)   │                                                                          │
+│  └──────────────┘                                                                          │
 │                                                                                              │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
