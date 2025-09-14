@@ -30,7 +30,7 @@ This repository contains the Knowledge Organization Infrastructure (KOI) impleme
 
 🎯 **[KOI Master Implementation Guide](docs/KOI_MASTER_IMPLEMENTATION_GUIDE.md)** - **PRIMARY REFERENCE**
 
-**Complete consolidated guide** (Version 1.1) covering:
+**Complete consolidated guide** (Version 1.2) covering:
 - KOI v3 protocol implementation with FULL/PARTIAL nodes
 - Sensor, processor, and coordinator node architecture
 - Entity resolution and deduplication strategies
