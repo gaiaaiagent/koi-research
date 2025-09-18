@@ -1,0 +1,273 @@
+@prefix twitter:  <https://regen.network/ontology/twitter#> .
+@prefix regen:    <https://regen.network/ontology#> .
+@prefix rdf:      <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:     <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:      <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:      <http://www.w3.org/2001/XMLSchema#> .
+@prefix prov:     <http://www.w3.org/ns/prov#> .
+@prefix rdf:      <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# ============================================
+# TWITTER SOURCE-SPECIFIC ONTOLOGY
+# Extends Regen Unified Ontology for Twitter/X Data
+# ============================================
+
+<https://regen.network/ontology/twitter> a owl:Ontology ;
+    rdfs:label "Twitter/X Ontology" ;
+    rdfs:comment "Source-specific ontology for Twitter/X social media data extraction" ;
+    owl:imports <https://regen.network/ontology> .
+
+# ============================================
+# TWITTER-SPECIFIC CLASSES
+# ============================================
+
+### Tweet Structure Classes
+twitter:Tweet a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Tweet" ;
+    rdfs:comment "A Twitter post (up to 280 characters or thread)" .
+
+twitter:Thread a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Thread" ;
+    rdfs:comment "A series of connected tweets" .
+
+twitter:Retweet a rdfs:Class ;
+    rdfs:subClassOf twitter:Tweet ;
+    rdfs:label "Retweet" ;
+    rdfs:comment "A repost of another user's tweet" .
+
+twitter:Quote a rdfs:Class ;
+    rdfs:subClassOf twitter:Tweet ;
+    rdfs:label "Quote Tweet" ;
+    rdfs:comment "A tweet quoting another tweet with commentary" .
+
+twitter:Reply a rdfs:Class ;
+    rdfs:subClassOf twitter:Tweet ;
+    rdfs:label "Reply" ;
+    rdfs:comment "A reply to another tweet" .
+
+### Twitter User Classes
+twitter:TwitterUser a rdfs:Class ;
+    rdfs:subClassOf regen:HumanActor ;
+    rdfs:label "Twitter User" ;
+    rdfs:comment "A Twitter/X account holder" .
+
+twitter:VerifiedUser a rdfs:Class ;
+    rdfs:subClassOf twitter:TwitterUser ;
+    rdfs:label "Verified User" ;
+    rdfs:comment "User with verification badge" .
+
+twitter:Bot a rdfs:Class ;
+    rdfs:subClassOf regen:AIAgent ;
+    rdfs:label "Bot" ;
+    rdfs:comment "Automated Twitter account" .
+
+### Twitter Interaction Classes
+twitter:Like a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Like" ;
+    rdfs:comment "A like/favorite on a tweet" .
+
+twitter:Bookmark a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Bookmark" ;
+    rdfs:comment "A saved tweet" .
+
+twitter:Hashtag a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Hashtag" ;
+    rdfs:comment "A topic tag starting with #" .
+
+twitter:Mention a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Mention" ;
+    rdfs:comment "A reference to another user (@username)" .
+
+twitter:Media a rdfs:Class ;
+    rdfs:subClassOf regen:Evidence ;
+    rdfs:label "Media" ;
+    rdfs:comment "Images, videos, or GIFs in tweets" .
+
+# ============================================
+# TWITTER-SPECIFIC PROPERTIES
+# ============================================
+
+### Structural Properties
+twitter:hasReply a rdf:Property ;
+    rdfs:domain twitter:Tweet ;
+    rdfs:range twitter:Reply ;
+    rdfs:label "has reply" .
+
+twitter:replyTo a rdf:Property ;
+    rdfs:subPropertyOf regen:informsClaim ;
+    rdfs:domain twitter:Reply ;
+    rdfs:range twitter:Tweet ;
+    rdfs:label "reply to" .
+
+twitter:retweets a rdf:Property ;
+    rdfs:domain twitter:Retweet ;
+    rdfs:range twitter:Tweet ;
+    rdfs:label "retweets" .
+
+twitter:quotes a rdf:Property ;
+    rdfs:subPropertyOf regen:references ;
+    rdfs:domain twitter:Quote ;
+    rdfs:range twitter:Tweet ;
+    rdfs:label "quotes" .
+
+twitter:inThread a rdf:Property ;
+    rdfs:domain twitter:Tweet ;
+    rdfs:range twitter:Thread ;
+    rdfs:label "in thread" .
+
+### User Properties
+twitter:tweetedBy a rdf:Property ;
+    rdfs:subPropertyOf regen:wasAttestedBy ;
+    rdfs:domain twitter:Tweet ;
+    rdfs:range twitter:TwitterUser ;
+    rdfs:label "tweeted by" .
+
+twitter:username a rdf:Property ;
+    rdfs:domain twitter:TwitterUser ;
+    rdfs:range xsd:string ;
+    rdfs:label "username" ;
+    rdfs:comment "Twitter handle without @" .
+
+twitter:displayName a rdf:Property ;
+    rdfs:domain twitter:TwitterUser ;
+    rdfs:range xsd:string ;
+    rdfs:label "display name" .
+
+twitter:followerCount a rdf:Property ;
+    rdfs:domain twitter:TwitterUser ;
+    rdfs:range xsd:integer ;
+    rdfs:label "follower count" .
+
+twitter:followingCount a rdf:Property ;
+    rdfs:domain twitter:TwitterUser ;
+    rdfs:range xsd:integer ;
+    rdfs:label "following count" .
+
+twitter:isVerified a rdf:Property ;
+    rdfs:domain twitter:TwitterUser ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is verified" .
+
+### Engagement Properties
+twitter:likeCount a rdf:Property ;
+    rdfs:domain twitter:Tweet ;
+    rdfs:range xsd:integer ;
+    rdfs:label "like count" .
+
+twitter:retweetCount a rdf:Property ;
+    rdfs:domain twitter:Tweet ;
+    rdfs:range xsd:integer ;
+    rdfs:label "retweet count" .
+
+twitter:replyCount a rdf:Property ;
+    rdfs:domain twitter:Tweet ;
+    rdfs:range xsd:integer ;
+    rdfs:label "reply count" .
+
+twitter:viewCount a rdf:Property ;
+    rdfs:domain twitter:Tweet ;
+    rdfs:range xsd:integer ;
+    rdfs:label "view count" .
+
+twitter:bookmarkCount a rdf:Property ;
+    rdfs:domain twitter:Tweet ;
+    rdfs:range xsd:integer ;
+    rdfs:label "bookmark count" .
+
+### Content Properties
+twitter:hasHashtag a rdf:Property ;
+    rdfs:domain twitter:Tweet ;
+    rdfs:range twitter:Hashtag ;
+    rdfs:label "has hashtag" .
+
+twitter:mentions a rdf:Property ;
+    rdfs:domain twitter:Tweet ;
+    rdfs:range twitter:TwitterUser ;
+    rdfs:label "mentions" .
+
+twitter:hasMedia a rdf:Property ;
+    rdfs:domain twitter:Tweet ;
+    rdfs:range twitter:Media ;
+    rdfs:label "has media" .
+
+twitter:tweetId a rdf:Property ;
+    rdfs:domain twitter:Tweet ;
+    rdfs:range xsd:string ;
+    rdfs:label "tweet ID" .
+
+twitter:tweetUrl a rdf:Property ;
+    rdfs:domain twitter:Tweet ;
+    rdfs:range xsd:anyURI ;
+    rdfs:label "tweet URL" .
+
+# ============================================
+# MAPPING TO UNIFIED ONTOLOGY
+# ============================================
+
+# Tweets can contain claims
+twitter:Tweet rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:informsClaim ;
+    owl:someValuesFrom regen:Claim
+] .
+
+# Threads can represent arguments
+twitter:Thread rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:synthesizes ;
+    owl:someValuesFrom regen:Evidence
+] .
+
+# Quote tweets provide commentary/evidence
+twitter:Quote rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:supports ;
+    owl:someValuesFrom regen:Claim
+] .
+
+# ============================================
+# EXTRACTION TEMPLATES
+# ============================================
+
+# Template for extracting Twitter metadata
+twitter:TwitterExtractionTemplate a regen:Note ;
+    rdfs:label "Twitter Extraction Template" ;
+    rdfs:comment """
+    Extract from tweets:
+    - Author username and display name
+    - Tweet type (original, reply, retweet, quote)
+    - Thread relationships
+    - Hashtags and mentions
+    - Engagement metrics (likes, retweets, replies)
+    - Media attachments
+    - Timestamp and URL
+    """ .
+
+# Template for identifying discourse patterns
+twitter:TwitterDiscourseTemplate a regen:Note ;
+    rdfs:label "Twitter Discourse Template" ;
+    rdfs:comment """
+    Identify Twitter patterns:
+    - Viral claims → High retweet count + regen:Claim
+    - Fact checks → Quote tweets + regen:Evidence
+    - Community consensus → Reply patterns
+    - Information cascades → Retweet chains
+    - Hashtag movements → Coordinated regen:Claims
+    """ .
+
+# Template for sentiment analysis
+twitter:SentimentTemplate a regen:Note ;
+    rdfs:label "Sentiment Template" ;
+    rdfs:comment """
+    Analyze tweet sentiment:
+    - Support/opposition stance
+    - Emotional tone
+    - Urgency indicators
+    - Call-to-action presence
+    """ .

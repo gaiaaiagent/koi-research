@@ -1,0 +1,381 @@
+@prefix github:   <https://regen.network/ontology/github#> .
+@prefix regen:    <https://regen.network/ontology#> .
+@prefix rdfs:     <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:      <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:      <http://www.w3.org/2001/XMLSchema#> .
+@prefix prov:     <http://www.w3.org/ns/prov#> .
+@prefix rdf:      <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# ============================================
+# GITHUB SOURCE-SPECIFIC ONTOLOGY
+# Extends Regen Unified Ontology for GitHub Repository Data
+# ============================================
+
+<https://regen.network/ontology/github> a owl:Ontology ;
+    rdfs:label "GitHub Repository Ontology" ;
+    rdfs:comment "Source-specific ontology for GitHub code repository data extraction" ;
+    owl:imports <https://regen.network/ontology> .
+
+# ============================================
+# GITHUB-SPECIFIC CLASSES
+# ============================================
+
+### Repository Structure Classes
+github:Repository a rdfs:Class ;
+    rdfs:subClassOf regen:Source ;
+    rdfs:label "Repository" ;
+    rdfs:comment "A GitHub code repository" .
+
+github:Branch a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Branch" ;
+    rdfs:comment "A git branch within a repository" .
+
+github:Commit a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Commit" ;
+    rdfs:comment "A git commit with changes to the codebase" .
+
+github:Tag a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Tag" ;
+    rdfs:comment "A git tag marking a specific version" .
+
+github:Release a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Release" ;
+    rdfs:comment "A packaged software release" .
+
+### Collaboration Classes
+github:Issue a rdfs:Class ;
+    rdfs:subClassOf regen:Question ;
+    rdfs:label "Issue" ;
+    rdfs:comment "Bug report, feature request, or task" .
+
+github:PullRequest a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Pull Request" ;
+    rdfs:comment "Proposed code changes for review" .
+
+github:Discussion a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Discussion" ;
+    rdfs:comment "Community discussion thread" .
+
+github:Comment a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Comment" ;
+    rdfs:comment "Comment on issue, PR, or commit" .
+
+github:Review a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Review" ;
+    rdfs:comment "Code review with approval/changes/rejection" .
+
+### User Classes
+github:User a rdfs:Class ;
+    rdfs:subClassOf regen:HumanActor ;
+    rdfs:label "User" ;
+    rdfs:comment "GitHub user account" .
+
+github:Organization a rdfs:Class ;
+    rdfs:subClassOf regen:CollectiveActor ;
+    rdfs:label "Organization" ;
+    rdfs:comment "GitHub organization account" .
+
+github:Contributor a rdfs:Class ;
+    rdfs:subClassOf github:User ;
+    rdfs:label "Contributor" ;
+    rdfs:comment "User who has contributed to a repository" .
+
+github:Maintainer a rdfs:Class ;
+    rdfs:subClassOf github:Contributor ;
+    rdfs:label "Maintainer" ;
+    rdfs:comment "Repository maintainer with admin rights" .
+
+github:Bot a rdfs:Class ;
+    rdfs:subClassOf regen:AIAgent ;
+    rdfs:label "Bot" ;
+    rdfs:comment "Automated GitHub account" .
+
+### GitHub Interaction Classes
+github:Star a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Star" ;
+    rdfs:comment "Star/bookmark of a repository" .
+
+github:Fork a rdfs:Class ;
+    rdfs:subClassOf github:Repository ;
+    rdfs:label "Fork" ;
+    rdfs:comment "Personal copy of another repository" .
+
+github:Watch a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Watch" ;
+    rdfs:comment "Subscription to repository notifications" .
+
+github:Label a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Label" ;
+    rdfs:comment "Categorical tag for issues and PRs" .
+
+github:Milestone a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Milestone" ;
+    rdfs:comment "Project milestone grouping issues/PRs" .
+
+# ============================================
+# GITHUB-SPECIFIC PROPERTIES
+# ============================================
+
+### Repository Properties
+github:ownedBy a rdf:Property ;
+    rdfs:domain github:Repository ;
+    rdfs:range github:User ;
+    rdfs:label "owned by" .
+
+github:forkedFrom a rdf:Property ;
+    rdfs:domain github:Fork ;
+    rdfs:range github:Repository ;
+    rdfs:label "forked from" .
+
+github:defaultBranch a rdf:Property ;
+    rdfs:domain github:Repository ;
+    rdfs:range github:Branch ;
+    rdfs:label "default branch" .
+
+github:language a rdf:Property ;
+    rdfs:domain github:Repository ;
+    rdfs:range xsd:string ;
+    rdfs:label "primary language" .
+
+github:topics a rdf:Property ;
+    rdfs:domain github:Repository ;
+    rdfs:range xsd:string ;
+    rdfs:label "topics" .
+
+### Commit Properties
+github:commitHash a rdf:Property ;
+    rdfs:domain github:Commit ;
+    rdfs:range xsd:string ;
+    rdfs:label "commit hash" .
+
+github:commitMessage a rdf:Property ;
+    rdfs:domain github:Commit ;
+    rdfs:range xsd:string ;
+    rdfs:label "commit message" .
+
+github:committedBy a rdf:Property ;
+    rdfs:subPropertyOf regen:wasAttestedBy ;
+    rdfs:domain github:Commit ;
+    rdfs:range github:User ;
+    rdfs:label "committed by" .
+
+github:authoredBy a rdf:Property ;
+    rdfs:domain github:Commit ;
+    rdfs:range github:User ;
+    rdfs:label "authored by" .
+
+github:onBranch a rdf:Property ;
+    rdfs:domain github:Commit ;
+    rdfs:range github:Branch ;
+    rdfs:label "on branch" .
+
+### Issue/PR Properties
+github:createdBy a rdf:Property ;
+    rdfs:subPropertyOf regen:wasAttestedBy ;
+    rdfs:domain [ owl:unionOf (github:Issue github:PullRequest) ] ;
+    rdfs:range github:User ;
+    rdfs:label "created by" .
+
+github:assignedTo a rdf:Property ;
+    rdfs:domain [ owl:unionOf (github:Issue github:PullRequest) ] ;
+    rdfs:range github:User ;
+    rdfs:label "assigned to" .
+
+github:hasLabel a rdf:Property ;
+    rdfs:domain [ owl:unionOf (github:Issue github:PullRequest) ] ;
+    rdfs:range github:Label ;
+    rdfs:label "has label" .
+
+github:inMilestone a rdf:Property ;
+    rdfs:domain [ owl:unionOf (github:Issue github:PullRequest) ] ;
+    rdfs:range github:Milestone ;
+    rdfs:label "in milestone" .
+
+github:closedBy a rdf:Property ;
+    rdfs:domain [ owl:unionOf (github:Issue github:PullRequest) ] ;
+    rdfs:range github:User ;
+    rdfs:label "closed by" .
+
+github:linkedPR a rdf:Property ;
+    rdfs:domain github:Issue ;
+    rdfs:range github:PullRequest ;
+    rdfs:label "linked pull request" .
+
+### Review Properties
+github:reviewedBy a rdf:Property ;
+    rdfs:domain github:Review ;
+    rdfs:range github:User ;
+    rdfs:label "reviewed by" .
+
+github:reviewState a rdf:Property ;
+    rdfs:domain github:Review ;
+    rdfs:range xsd:string ;
+    rdfs:label "review state" ;
+    rdfs:comment "approved, changes_requested, or commented" .
+
+github:reviewsRequest a rdf:Property ;
+    rdfs:domain github:Review ;
+    rdfs:range github:PullRequest ;
+    rdfs:label "reviews request" .
+
+### Engagement Properties
+github:starCount a rdf:Property ;
+    rdfs:domain github:Repository ;
+    rdfs:range xsd:integer ;
+    rdfs:label "star count" .
+
+github:forkCount a rdf:Property ;
+    rdfs:domain github:Repository ;
+    rdfs:range xsd:integer ;
+    rdfs:label "fork count" .
+
+github:watchCount a rdf:Property ;
+    rdfs:domain github:Repository ;
+    rdfs:range xsd:integer ;
+    rdfs:label "watch count" .
+
+github:issueCount a rdf:Property ;
+    rdfs:domain github:Repository ;
+    rdfs:range xsd:integer ;
+    rdfs:label "open issue count" .
+
+github:prCount a rdf:Property ;
+    rdfs:domain github:Repository ;
+    rdfs:range xsd:integer ;
+    rdfs:label "open PR count" .
+
+### Status Properties
+github:isPrivate a rdf:Property ;
+    rdfs:domain github:Repository ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is private" .
+
+github:isArchived a rdf:Property ;
+    rdfs:domain github:Repository ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is archived" .
+
+github:isOpen a rdf:Property ;
+    rdfs:domain [ owl:unionOf (github:Issue github:PullRequest) ] ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is open" .
+
+github:isDraft a rdf:Property ;
+    rdfs:domain github:PullRequest ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is draft" .
+
+github:isMerged a rdf:Property ;
+    rdfs:domain github:PullRequest ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is merged" .
+
+### ID Properties
+github:repositoryId a rdf:Property ;
+    rdfs:domain github:Repository ;
+    rdfs:range xsd:string ;
+    rdfs:label "repository ID" .
+
+github:issueNumber a rdf:Property ;
+    rdfs:domain github:Issue ;
+    rdfs:range xsd:integer ;
+    rdfs:label "issue number" .
+
+github:prNumber a rdf:Property ;
+    rdfs:domain github:PullRequest ;
+    rdfs:range xsd:integer ;
+    rdfs:label "PR number" .
+
+github:repositoryUrl a rdf:Property ;
+    rdfs:domain github:Repository ;
+    rdfs:range xsd:anyURI ;
+    rdfs:label "repository URL" .
+
+# ============================================
+# MAPPING TO UNIFIED ONTOLOGY
+# ============================================
+
+# Issues represent questions or problems
+github:Issue rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:generatesHypothesis ;
+    owl:someValuesFrom regen:Hypothesis
+] .
+
+# Pull requests propose solutions
+github:PullRequest rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:supports ;
+    owl:someValuesFrom regen:Claim
+] .
+
+# Reviews provide evidence for/against changes
+github:Review rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:informsClaim ;
+    owl:someValuesFrom github:PullRequest
+] .
+
+# Commits contain implementation evidence
+github:Commit rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:supports ;
+    owl:someValuesFrom regen:Claim
+] .
+
+# ============================================
+# EXTRACTION TEMPLATES
+# ============================================
+
+# Template for extracting GitHub metadata
+github:GitHubExtractionTemplate a regen:Note ;
+    rdfs:label "GitHub Extraction Template" ;
+    rdfs:comment """
+    Extract from GitHub repositories:
+    - Repository metadata (name, description, language, topics)
+    - Owner and contributor information
+    - Star, fork, and watch counts
+    - Issue and PR titles, descriptions, labels
+    - Commit messages and changes
+    - Review comments and decisions
+    - Discussion threads
+    - Release notes and changelogs
+    """ .
+
+# Template for identifying development patterns
+github:DevelopmentPatternTemplate a regen:Note ;
+    rdfs:label "Development Pattern Template" ;
+    rdfs:comment """
+    Identify GitHub patterns:
+    - Bug reports → github:Issue + evidence of problems
+    - Feature requests → github:Issue + proposed solutions
+    - Code reviews → github:Review + approval/rejection reasoning
+    - Release planning → github:Milestone + coordinated issues/PRs
+    - Community consensus → Issue discussion patterns
+    - Technical debt → Recurring issue patterns
+    """ .
+
+# Template for collaboration analysis
+github:CollaborationTemplate a regen:Note ;
+    rdfs:label "Collaboration Template" ;
+    rdfs:comment """
+    Analyze GitHub collaboration:
+    - Contributor activity patterns
+    - Review approval/rejection rates
+    - Issue resolution times
+    - Discussion thread sentiment
+    - Code quality indicators via reviews
+    - Community health metrics
+    """ .

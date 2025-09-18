@@ -1,0 +1,455 @@
+@prefix website:  <https://regen.network/ontology/website#> .
+@prefix regen:    <https://regen.network/ontology#> .
+@prefix rdfs:     <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:      <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:      <http://www.w3.org/2001/XMLSchema#> .
+@prefix prov:     <http://www.w3.org/ns/prov#> .
+@prefix rdf:      <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# ============================================
+# WEBSITE SOURCE-SPECIFIC ONTOLOGY
+# Extends Regen Unified Ontology for Web Page Data
+# ============================================
+
+<https://regen.network/ontology/website> a owl:Ontology ;
+    rdfs:label "Website Ontology" ;
+    rdfs:comment "Source-specific ontology for general website and web page data extraction" ;
+    owl:imports <https://regen.network/ontology> .
+
+# ============================================
+# WEBSITE-SPECIFIC CLASSES
+# ============================================
+
+### Website Structure Classes
+website:Website a rdfs:Class ;
+    rdfs:subClassOf regen:Source ;
+    rdfs:label "Website" ;
+    rdfs:comment "A complete website with multiple pages" .
+
+website:WebPage a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Web Page" ;
+    rdfs:comment "An individual web page or document" .
+
+website:HomePage a rdfs:Class ;
+    rdfs:subClassOf website:WebPage ;
+    rdfs:label "Home Page" ;
+    rdfs:comment "Main landing page of a website" .
+
+website:AboutPage a rdfs:Class ;
+    rdfs:subClassOf website:WebPage ;
+    rdfs:label "About Page" ;
+    rdfs:comment "Page describing organization or purpose" .
+
+website:ContactPage a rdfs:Class ;
+    rdfs:subClassOf website:WebPage ;
+    rdfs:label "Contact Page" ;
+    rdfs:comment "Page with contact information" .
+
+website:BlogPost a rdfs:Class ;
+    rdfs:subClassOf website:WebPage ;
+    rdfs:label "Blog Post" ;
+    rdfs:comment "Blog article or news post" .
+
+website:ProductPage a rdfs:Class ;
+    rdfs:subClassOf website:WebPage ;
+    rdfs:label "Product Page" ;
+    rdfs:comment "Page describing a product or service" .
+
+### Content Structure Classes
+website:Section a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Section" ;
+    rdfs:comment "Distinct section or area of a web page" .
+
+website:Header a rdfs:Class ;
+    rdfs:subClassOf website:Section ;
+    rdfs:label "Header" ;
+    rdfs:comment "Top header section with navigation" .
+
+website:Footer a rdfs:Class ;
+    rdfs:subClassOf website:Section ;
+    rdfs:label "Footer" ;
+    rdfs:comment "Bottom footer section" .
+
+website:Sidebar a rdfs:Class ;
+    rdfs:subClassOf website:Section ;
+    rdfs:label "Sidebar" ;
+    rdfs:comment "Side navigation or content area" .
+
+website:MainContent a rdfs:Class ;
+    rdfs:subClassOf website:Section ;
+    rdfs:label "Main Content" ;
+    rdfs:comment "Primary content area of the page" .
+
+### Navigation Classes
+website:Navigation a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Navigation" ;
+    rdfs:comment "Navigation menu or breadcrumb" .
+
+website:MenuItem a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Menu Item" ;
+    rdfs:comment "Individual navigation menu item" .
+
+website:Breadcrumb a rdfs:Class ;
+    rdfs:subClassOf website:Navigation ;
+    rdfs:label "Breadcrumb" ;
+    rdfs:comment "Hierarchical navigation path" .
+
+### Media and Content Classes
+website:Image a rdfs:Class ;
+    rdfs:subClassOf regen:Evidence ;
+    rdfs:label "Image" ;
+    rdfs:comment "Image content on the page" .
+
+website:Video a rdfs:Class ;
+    rdfs:subClassOf regen:Evidence ;
+    rdfs:label "Video" ;
+    rdfs:comment "Video content embedded on the page" .
+
+website:Form a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Form" ;
+    rdfs:comment "Interactive form for user input" .
+
+website:Table a rdfs:Class ;
+    rdfs:subClassOf regen:Evidence ;
+    rdfs:label "Table" ;
+    rdfs:comment "Structured data table" .
+
+website:List a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "List" ;
+    rdfs:comment "Ordered or unordered list" .
+
+### Metadata Classes
+website:Author a rdfs:Class ;
+    rdfs:subClassOf regen:HumanActor ;
+    rdfs:label "Author" ;
+    rdfs:comment "Content author or website creator" .
+
+website:Organization a rdfs:Class ;
+    rdfs:subClassOf regen:CollectiveActor ;
+    rdfs:label "Organization" ;
+    rdfs:comment "Organization that owns/operates the website" .
+
+website:Tag a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Tag" ;
+    rdfs:comment "Content categorization tag" .
+
+website:Category a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Category" ;
+    rdfs:comment "Content category or classification" .
+
+# ============================================
+# WEBSITE-SPECIFIC PROPERTIES
+# ============================================
+
+### Website Properties
+website:hasPage a rdf:Property ;
+    rdfs:domain website:Website ;
+    rdfs:range website:WebPage ;
+    rdfs:label "has page" .
+
+website:domainName a rdf:Property ;
+    rdfs:domain website:Website ;
+    rdfs:range xsd:string ;
+    rdfs:label "domain name" .
+
+website:operatedBy a rdf:Property ;
+    rdfs:domain website:Website ;
+    rdfs:range website:Organization ;
+    rdfs:label "operated by" .
+
+### Page Properties
+website:pageUrl a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:anyURI ;
+    rdfs:label "page URL" .
+
+website:pageTitle a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:string ;
+    rdfs:label "page title" .
+
+website:metaDescription a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:string ;
+    rdfs:label "meta description" .
+
+website:canonicalUrl a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:anyURI ;
+    rdfs:label "canonical URL" .
+
+website:lastModified a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:dateTime ;
+    rdfs:label "last modified" .
+
+website:wordCount a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:integer ;
+    rdfs:label "word count" .
+
+### Content Properties
+website:hasSection a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range website:Section ;
+    rdfs:label "has section" .
+
+website:sectionTitle a rdf:Property ;
+    rdfs:domain website:Section ;
+    rdfs:range xsd:string ;
+    rdfs:label "section title" .
+
+website:sectionContent a rdf:Property ;
+    rdfs:domain website:Section ;
+    rdfs:range xsd:string ;
+    rdfs:label "section content" .
+
+website:heading a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:string ;
+    rdfs:label "heading" ;
+    rdfs:comment "H1-H6 headings on the page" .
+
+website:bodyText a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:string ;
+    rdfs:label "body text" .
+
+### Navigation Properties
+website:hasNavigation a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range website:Navigation ;
+    rdfs:label "has navigation" .
+
+website:hasMenuItem a rdf:Property ;
+    rdfs:domain website:Navigation ;
+    rdfs:range website:MenuItem ;
+    rdfs:label "has menu item" .
+
+website:linkText a rdf:Property ;
+    rdfs:domain website:MenuItem ;
+    rdfs:range xsd:string ;
+    rdfs:label "link text" .
+
+website:linkUrl a rdf:Property ;
+    rdfs:domain website:MenuItem ;
+    rdfs:range xsd:anyURI ;
+    rdfs:label "link URL" .
+
+website:linksTo a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range website:WebPage ;
+    rdfs:label "links to" .
+
+website:linkCount a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:integer ;
+    rdfs:label "outbound link count" .
+
+### Media Properties
+website:hasImage a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range website:Image ;
+    rdfs:label "has image" .
+
+website:hasVideo a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range website:Video ;
+    rdfs:label "has video" .
+
+website:imageUrl a rdf:Property ;
+    rdfs:domain website:Image ;
+    rdfs:range xsd:anyURI ;
+    rdfs:label "image URL" .
+
+website:altText a rdf:Property ;
+    rdfs:domain website:Image ;
+    rdfs:range xsd:string ;
+    rdfs:label "alt text" .
+
+website:imageCaption a rdf:Property ;
+    rdfs:domain website:Image ;
+    rdfs:range xsd:string ;
+    rdfs:label "image caption" .
+
+### Author Properties
+website:authoredBy a rdf:Property ;
+    rdfs:subPropertyOf regen:wasAttestedBy ;
+    rdfs:domain website:WebPage ;
+    rdfs:range website:Author ;
+    rdfs:label "authored by" .
+
+website:authorName a rdf:Property ;
+    rdfs:domain website:Author ;
+    rdfs:range xsd:string ;
+    rdfs:label "author name" .
+
+website:authorBio a rdf:Property ;
+    rdfs:domain website:Author ;
+    rdfs:range xsd:string ;
+    rdfs:label "author bio" .
+
+website:authorEmail a rdf:Property ;
+    rdfs:domain website:Author ;
+    rdfs:range xsd:string ;
+    rdfs:label "author email" .
+
+### Classification Properties
+website:hasTag a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range website:Tag ;
+    rdfs:label "has tag" .
+
+website:inCategory a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range website:Category ;
+    rdfs:label "in category" .
+
+website:tagName a rdf:Property ;
+    rdfs:domain website:Tag ;
+    rdfs:range xsd:string ;
+    rdfs:label "tag name" .
+
+website:categoryName a rdf:Property ;
+    rdfs:domain website:Category ;
+    rdfs:range xsd:string ;
+    rdfs:label "category name" .
+
+### Technical Properties
+website:httpStatus a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:integer ;
+    rdfs:label "HTTP status" .
+
+website:loadTime a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:decimal ;
+    rdfs:label "load time" ;
+    rdfs:comment "Page load time in seconds" .
+
+website:mimeType a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:string ;
+    rdfs:label "MIME type" .
+
+website:charset a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:string ;
+    rdfs:label "character set" .
+
+website:language a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:string ;
+    rdfs:label "language" .
+
+### SEO Properties
+website:metaKeywords a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:string ;
+    rdfs:label "meta keywords" .
+
+website:ogTitle a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:string ;
+    rdfs:label "Open Graph title" .
+
+website:ogDescription a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:string ;
+    rdfs:label "Open Graph description" .
+
+website:ogImage a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:anyURI ;
+    rdfs:label "Open Graph image" .
+
+website:isIndexable a rdf:Property ;
+    rdfs:domain website:WebPage ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is indexable" ;
+    rdfs:comment "Whether page allows search engine indexing" .
+
+# ============================================
+# MAPPING TO UNIFIED ONTOLOGY
+# ============================================
+
+# Web pages can contain claims and evidence
+website:WebPage rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:informsClaim ;
+    owl:someValuesFrom regen:Claim
+] .
+
+# Blog posts can present arguments
+website:BlogPost rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:supports ;
+    owl:someValuesFrom regen:Claim
+] .
+
+# Product pages make specific claims
+website:ProductPage rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:informsClaim ;
+    owl:someValuesFrom regen:Claim
+] .
+
+# Images and videos serve as evidence
+website:Image rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:supports ;
+    owl:someValuesFrom regen:Claim
+] .
+
+# ============================================
+# EXTRACTION TEMPLATES
+# ============================================
+
+# Template for extracting website metadata
+website:WebsiteExtractionTemplate a regen:Note ;
+    rdfs:label "Website Extraction Template" ;
+    rdfs:comment """
+    Extract from web pages:
+    - Page title, description, and URL
+    - Author and organization information
+    - Content structure (headings, sections, lists)
+    - Navigation menu and internal links
+    - Images with alt text and captions
+    - Meta tags and SEO elements
+    - Publication and modification dates
+    - Contact information and social links
+    """ .
+
+# Template for content analysis
+website:ContentAnalysisTemplate a regen:Note ;
+    rdfs:label "Content Analysis Template" ;
+    rdfs:comment """
+    Analyze website content:
+    - Extract key claims from main content
+    - Identify supporting evidence and sources
+    - Map page hierarchy and information architecture
+    - Assess content credibility via author expertise
+    - Track content freshness and update patterns
+    - Analyze internal linking structure
+    """ .
+
+# Template for identifying web patterns
+website:WebPatternTemplate a regen:Note ;
+    rdfs:label "Web Pattern Template" ;
+    rdfs:comment """
+    Identify website patterns:
+    - Authority signals → About page + author credentials
+    - Commercial intent → Product pages + pricing information
+    - News/blog sites → Date stamps + author bylines
+    - Corporate sites → Contact info + organizational structure
+    - Landing pages → Call-to-action + conversion elements
+    - Resource sites → External links + reference materials
+    """ .

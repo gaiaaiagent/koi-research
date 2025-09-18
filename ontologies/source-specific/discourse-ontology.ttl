@@ -1,0 +1,226 @@
+@prefix discourse: <https://regen.network/ontology/discourse#> .
+@prefix regen:     <https://regen.network/ontology#> .
+@prefix rdf:       <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:      <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:       <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:       <http://www.w3.org/2001/XMLSchema#> .
+@prefix prov:      <http://www.w3.org/ns/prov#> .
+@prefix rdf:      <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# ============================================
+# DISCOURSE SOURCE-SPECIFIC ONTOLOGY
+# Extends Regen Unified Ontology for Forum Data
+# ============================================
+
+<https://regen.network/ontology/discourse> a owl:Ontology ;
+    rdfs:label "Discourse Forum Ontology" ;
+    rdfs:comment "Source-specific ontology for Discourse forum data extraction" ;
+    owl:imports <https://regen.network/ontology> .
+
+# ============================================
+# FORUM-SPECIFIC CLASSES
+# ============================================
+
+### Forum Structure Classes
+discourse:Forum a rdfs:Class ;
+    rdfs:subClassOf regen:Source ;
+    rdfs:label "Forum" ;
+    rdfs:comment "A Discourse forum instance" .
+
+discourse:Category a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Category" ;
+    rdfs:comment "A forum category or section" .
+
+discourse:Topic a rdfs:Class ;
+    rdfs:subClassOf regen:Question ;
+    rdfs:label "Topic" ;
+    rdfs:comment "A forum discussion topic/thread" .
+
+discourse:Post a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Post" ;
+    rdfs:comment "An individual forum post" .
+
+discourse:Reply a rdfs:Class ;
+    rdfs:subClassOf discourse:Post ;
+    rdfs:label "Reply" ;
+    rdfs:comment "A reply to another post" .
+
+### Forum User Classes
+discourse:ForumUser a rdfs:Class ;
+    rdfs:subClassOf regen:HumanActor ;
+    rdfs:label "Forum User" ;
+    rdfs:comment "A registered forum user" .
+
+discourse:Moderator a rdfs:Class ;
+    rdfs:subClassOf discourse:ForumUser ;
+    rdfs:label "Moderator" ;
+    rdfs:comment "Forum moderator with special privileges" .
+
+discourse:Admin a rdfs:Class ;
+    rdfs:subClassOf discourse:Moderator ;
+    rdfs:label "Admin" ;
+    rdfs:comment "Forum administrator" .
+
+### Forum Interaction Classes
+discourse:Like a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Like" ;
+    rdfs:comment "A like or endorsement of a post" .
+
+discourse:Badge a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Badge" ;
+    rdfs:comment "Achievement or recognition badge" .
+
+discourse:Poll a rdfs:Class ;
+    rdfs:subClassOf regen:Question ;
+    rdfs:label "Poll" ;
+    rdfs:comment "A voting poll in a forum post" .
+
+# ============================================
+# FORUM-SPECIFIC PROPERTIES
+# ============================================
+
+### Structural Properties
+discourse:inCategory a rdf:Property ;
+    rdfs:domain discourse:Topic ;
+    rdfs:range discourse:Category ;
+    rdfs:label "in category" .
+
+discourse:hasTopic a rdf:Property ;
+    rdfs:domain discourse:Forum ;
+    rdfs:range discourse:Topic ;
+    rdfs:label "has topic" .
+
+discourse:hasPost a rdf:Property ;
+    rdfs:domain discourse:Topic ;
+    rdfs:range discourse:Post ;
+    rdfs:label "has post" .
+
+discourse:replyTo a rdf:Property ;
+    rdfs:subPropertyOf regen:informsClaim ;
+    rdfs:domain discourse:Reply ;
+    rdfs:range discourse:Post ;
+    rdfs:label "reply to" .
+
+### User Properties
+discourse:postedBy a rdf:Property ;
+    rdfs:subPropertyOf regen:wasAttestedBy ;
+    rdfs:domain discourse:Post ;
+    rdfs:range discourse:ForumUser ;
+    rdfs:label "posted by" .
+
+discourse:likedBy a rdf:Property ;
+    rdfs:domain discourse:Like ;
+    rdfs:range discourse:ForumUser ;
+    rdfs:label "liked by" .
+
+discourse:trustLevel a rdf:Property ;
+    rdfs:domain discourse:ForumUser ;
+    rdfs:range xsd:integer ;
+    rdfs:label "trust level" ;
+    rdfs:comment "Discourse trust level (0-4)" .
+
+### Metadata Properties
+discourse:postNumber a rdf:Property ;
+    rdfs:domain discourse:Post ;
+    rdfs:range xsd:integer ;
+    rdfs:label "post number" .
+
+discourse:topicId a rdf:Property ;
+    rdfs:domain discourse:Topic ;
+    rdfs:range xsd:string ;
+    rdfs:label "topic ID" .
+
+discourse:postId a rdf:Property ;
+    rdfs:domain discourse:Post ;
+    rdfs:range xsd:string ;
+    rdfs:label "post ID" .
+
+discourse:likeCount a rdf:Property ;
+    rdfs:domain discourse:Post ;
+    rdfs:range xsd:integer ;
+    rdfs:label "like count" .
+
+discourse:replyCount a rdf:Property ;
+    rdfs:domain discourse:Post ;
+    rdfs:range xsd:integer ;
+    rdfs:label "reply count" .
+
+discourse:viewCount a rdf:Property ;
+    rdfs:domain discourse:Topic ;
+    rdfs:range xsd:integer ;
+    rdfs:label "view count" .
+
+discourse:isSolution a rdf:Property ;
+    rdfs:domain discourse:Post ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is solution" ;
+    rdfs:comment "Whether post is marked as solution" .
+
+discourse:isPinned a rdf:Property ;
+    rdfs:domain discourse:Topic ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is pinned" .
+
+discourse:isClosed a rdf:Property ;
+    rdfs:domain discourse:Topic ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is closed" .
+
+# ============================================
+# MAPPING TO UNIFIED ONTOLOGY
+# ============================================
+
+# Topics can generate hypotheses
+discourse:Topic rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:generatesHypothesis ;
+    owl:someValuesFrom regen:Hypothesis
+] .
+
+# Posts can contain claims or evidence
+discourse:Post rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:supports ;
+    owl:someValuesFrom regen:Claim
+] .
+
+# Replies inform the original claim
+discourse:Reply rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:informsClaim ;
+    owl:someValuesFrom discourse:Post
+] .
+
+# ============================================
+# EXTRACTION TEMPLATES
+# ============================================
+
+# Template for extracting forum metadata
+discourse:ForumExtractionTemplate a regen:Note ;
+    rdfs:label "Forum Extraction Template" ;
+    rdfs:comment """
+    Extract from forum posts:
+    - Post author (discourse:postedBy)
+    - Topic category (discourse:inCategory)
+    - Reply relationships (discourse:replyTo)
+    - Like counts (discourse:likeCount)
+    - Solution status (discourse:isSolution)
+    - Post timestamps
+    - User trust levels
+    """ .
+
+# Template for identifying discourse patterns
+discourse:DiscoursePatternTemplate a regen:Note ;
+    rdfs:label "Discourse Pattern Template" ;
+    rdfs:comment """
+    Identify discourse patterns:
+    - Questions seeking answers → regen:Question
+    - Answers/solutions → regen:Claim + discourse:isSolution
+    - Supporting arguments → regen:Evidence + regen:supports
+    - Disagreements → regen:Evidence + regen:opposes
+    - Consensus building → Multiple regen:supports
+    """ .

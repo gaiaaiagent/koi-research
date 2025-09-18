@@ -1,0 +1,294 @@
+@prefix medium:   <https://regen.network/ontology/medium#> .
+@prefix regen:    <https://regen.network/ontology#> .
+@prefix rdfs:     <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:      <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:      <http://www.w3.org/2001/XMLSchema#> .
+@prefix prov:     <http://www.w3.org/ns/prov#> .
+@prefix rdf:      <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# ============================================
+# MEDIUM SOURCE-SPECIFIC ONTOLOGY
+# Extends Regen Unified Ontology for Medium Blog Data
+# ============================================
+
+<https://regen.network/ontology/medium> a owl:Ontology ;
+    rdfs:label "Medium Blog Ontology" ;
+    rdfs:comment "Source-specific ontology for Medium blog platform data extraction" ;
+    owl:imports <https://regen.network/ontology> .
+
+# ============================================
+# MEDIUM-SPECIFIC CLASSES
+# ============================================
+
+### Article Structure Classes
+medium:Article a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Article" ;
+    rdfs:comment "A Medium blog article or story" .
+
+medium:Story a rdfs:Class ;
+    rdfs:subClassOf medium:Article ;
+    rdfs:label "Story" ;
+    rdfs:comment "A longer form narrative article" .
+
+medium:Response a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Response" ;
+    rdfs:comment "A response/comment to an article" .
+
+medium:Series a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Series" ;
+    rdfs:comment "A collection of related articles" .
+
+medium:Publication a rdfs:Class ;
+    rdfs:subClassOf regen:Source ;
+    rdfs:label "Publication" ;
+    rdfs:comment "A Medium publication or collection" .
+
+### Medium User Classes
+medium:Author a rdfs:Class ;
+    rdfs:subClassOf regen:HumanActor ;
+    rdfs:label "Author" ;
+    rdfs:comment "A Medium author/writer" .
+
+medium:Editor a rdfs:Class ;
+    rdfs:subClassOf medium:Author ;
+    rdfs:label "Editor" ;
+    rdfs:comment "Publication editor with special privileges" .
+
+medium:Member a rdfs:Class ;
+    rdfs:subClassOf medium:Author ;
+    rdfs:label "Member" ;
+    rdfs:comment "Medium member with subscription access" .
+
+medium:Partner a rdfs:Class ;
+    rdfs:subClassOf medium:Author ;
+    rdfs:label "Partner" ;
+    rdfs:comment "Medium Partner Program participant" .
+
+### Medium Interaction Classes
+medium:Clap a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Clap" ;
+    rdfs:comment "Medium's applause/like mechanism (up to 50 per user)" .
+
+medium:Highlight a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Highlight" ;
+    rdfs:comment "A highlighted text passage with optional note" .
+
+medium:Follow a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Follow" ;
+    rdfs:comment "Following another author or publication" .
+
+medium:Tag a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Tag" ;
+    rdfs:comment "Topical tag for categorizing articles" .
+
+# ============================================
+# MEDIUM-SPECIFIC PROPERTIES
+# ============================================
+
+### Publication Properties
+medium:publishedIn a rdf:Property ;
+    rdfs:domain medium:Article ;
+    rdfs:range medium:Publication ;
+    rdfs:label "published in" .
+
+medium:hasArticle a rdf:Property ;
+    rdfs:domain medium:Publication ;
+    rdfs:range medium:Article ;
+    rdfs:label "has article" .
+
+medium:inSeries a rdf:Property ;
+    rdfs:domain medium:Article ;
+    rdfs:range medium:Series ;
+    rdfs:label "in series" .
+
+### Author Properties
+medium:writtenBy a rdf:Property ;
+    rdfs:subPropertyOf regen:wasAttestedBy ;
+    rdfs:domain medium:Article ;
+    rdfs:range medium:Author ;
+    rdfs:label "written by" .
+
+medium:bio a rdf:Property ;
+    rdfs:domain medium:Author ;
+    rdfs:range xsd:string ;
+    rdfs:label "bio" ;
+    rdfs:comment "Author's biographical description" .
+
+medium:followerCount a rdf:Property ;
+    rdfs:domain medium:Author ;
+    rdfs:range xsd:integer ;
+    rdfs:label "follower count" .
+
+### Article Metadata Properties
+medium:readTime a rdf:Property ;
+    rdfs:domain medium:Article ;
+    rdfs:range xsd:integer ;
+    rdfs:label "read time" ;
+    rdfs:comment "Estimated reading time in minutes" .
+
+medium:clapCount a rdf:Property ;
+    rdfs:domain medium:Article ;
+    rdfs:range xsd:integer ;
+    rdfs:label "clap count" ;
+    rdfs:comment "Total number of claps received" .
+
+medium:responseCount a rdf:Property ;
+    rdfs:domain medium:Article ;
+    rdfs:range xsd:integer ;
+    rdfs:label "response count" .
+
+medium:highlightCount a rdf:Property ;
+    rdfs:domain medium:Article ;
+    rdfs:range xsd:integer ;
+    rdfs:label "highlight count" .
+
+medium:wordCount a rdf:Property ;
+    rdfs:domain medium:Article ;
+    rdfs:range xsd:integer ;
+    rdfs:label "word count" .
+
+### Content Properties
+medium:subtitle a rdf:Property ;
+    rdfs:domain medium:Article ;
+    rdfs:range xsd:string ;
+    rdfs:label "subtitle" .
+
+medium:hasTag a rdf:Property ;
+    rdfs:domain medium:Article ;
+    rdfs:range medium:Tag ;
+    rdfs:label "has tag" .
+
+medium:hasResponse a rdf:Property ;
+    rdfs:domain medium:Article ;
+    rdfs:range medium:Response ;
+    rdfs:label "has response" .
+
+medium:responseTo a rdf:Property ;
+    rdfs:subPropertyOf regen:informsClaim ;
+    rdfs:domain medium:Response ;
+    rdfs:range medium:Article ;
+    rdfs:label "response to" .
+
+### Engagement Properties
+medium:clappedBy a rdf:Property ;
+    rdfs:domain medium:Clap ;
+    rdfs:range medium:Author ;
+    rdfs:label "clapped by" .
+
+medium:highlightedBy a rdf:Property ;
+    rdfs:domain medium:Highlight ;
+    rdfs:range medium:Author ;
+    rdfs:label "highlighted by" .
+
+medium:highlightText a rdf:Property ;
+    rdfs:domain medium:Highlight ;
+    rdfs:range xsd:string ;
+    rdfs:label "highlight text" .
+
+medium:highlightNote a rdf:Property ;
+    rdfs:domain medium:Highlight ;
+    rdfs:range xsd:string ;
+    rdfs:label "highlight note" .
+
+### Status Properties
+medium:isLocked a rdf:Property ;
+    rdfs:domain medium:Article ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is locked" ;
+    rdfs:comment "Requires Medium membership to read" .
+
+medium:isFeatured a rdf:Property ;
+    rdfs:domain medium:Article ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is featured" .
+
+medium:isTopResponse a rdf:Property ;
+    rdfs:domain medium:Response ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is top response" .
+
+medium:articleId a rdf:Property ;
+    rdfs:domain medium:Article ;
+    rdfs:range xsd:string ;
+    rdfs:label "article ID" .
+
+medium:articleUrl a rdf:Property ;
+    rdfs:domain medium:Article ;
+    rdfs:range xsd:anyURI ;
+    rdfs:label "article URL" .
+
+# ============================================
+# MAPPING TO UNIFIED ONTOLOGY
+# ============================================
+
+# Articles can contain claims and evidence
+medium:Article rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:informsClaim ;
+    owl:someValuesFrom regen:Claim
+] .
+
+# Responses can support or oppose claims
+medium:Response rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:supports ;
+    owl:someValuesFrom regen:Claim
+] .
+
+# Series can synthesize evidence
+medium:Series rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:synthesizes ;
+    owl:someValuesFrom regen:Evidence
+] .
+
+# ============================================
+# EXTRACTION TEMPLATES
+# ============================================
+
+# Template for extracting Medium metadata
+medium:MediumExtractionTemplate a regen:Note ;
+    rdfs:label "Medium Extraction Template" ;
+    rdfs:comment """
+    Extract from Medium articles:
+    - Author name and bio (medium:writtenBy, medium:bio)
+    - Publication name (medium:publishedIn)
+    - Article title and subtitle
+    - Reading time (medium:readTime)
+    - Clap count (medium:clapCount)
+    - Response count and highlights
+    - Tags and series information
+    - Publish date and URL
+    - Member-only status (medium:isLocked)
+    """ .
+
+# Template for identifying discourse patterns
+medium:MediumDiscourseTemplate a regen:Note ;
+    rdfs:label "Medium Discourse Template" ;
+    rdfs:comment """
+    Identify Medium patterns:
+    - Thought leadership articles → regen:Claim + high engagement
+    - Evidence-based stories → regen:Evidence + research citations
+    - Response debates → medium:Response chains with opposing views
+    - Viral content → High clap counts and response activity
+    - Series narratives → Related articles building arguments
+    """ .
+
+# Template for content analysis
+medium:ContentAnalysisTemplate a regen:Note ;
+    rdfs:label "Content Analysis Template" ;
+    rdfs:comment """
+    Analyze Medium content:
+    - Extract key claims from article body
+    - Identify supporting evidence and sources
+    - Map highlight patterns for key insights
+    - Track response sentiment and agreement
+    - Assess article credibility via author expertise
+    """ .

@@ -1,0 +1,422 @@
+@prefix telegram: <https://regen.network/ontology/telegram#> .
+@prefix regen:    <https://regen.network/ontology#> .
+@prefix rdfs:     <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:      <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:      <http://www.w3.org/2001/XMLSchema#> .
+@prefix prov:     <http://www.w3.org/ns/prov#> .
+@prefix rdf:      <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# ============================================
+# TELEGRAM SOURCE-SPECIFIC ONTOLOGY
+# Extends Regen Unified Ontology for Telegram Chat Data
+# ============================================
+
+<https://regen.network/ontology/telegram> a owl:Ontology ;
+    rdfs:label "Telegram Chat Ontology" ;
+    rdfs:comment "Source-specific ontology for Telegram messaging platform data extraction" ;
+    owl:imports <https://regen.network/ontology> .
+
+# ============================================
+# TELEGRAM-SPECIFIC CLASSES
+# ============================================
+
+### Chat Structure Classes
+telegram:Chat a rdfs:Class ;
+    rdfs:subClassOf regen:Source ;
+    rdfs:label "Chat" ;
+    rdfs:comment "A Telegram chat conversation" .
+
+telegram:Channel a rdfs:Class ;
+    rdfs:subClassOf telegram:Chat ;
+    rdfs:label "Channel" ;
+    rdfs:comment "Broadcast channel for one-to-many communication" .
+
+telegram:Group a rdfs:Class ;
+    rdfs:subClassOf telegram:Chat ;
+    rdfs:label "Group" ;
+    rdfs:comment "Group chat with multiple participants" .
+
+telegram:SuperGroup a rdfs:Class ;
+    rdfs:subClassOf telegram:Group ;
+    rdfs:label "SuperGroup" ;
+    rdfs:comment "Large group with advanced features" .
+
+telegram:PrivateChat a rdfs:Class ;
+    rdfs:subClassOf telegram:Chat ;
+    rdfs:label "Private Chat" ;
+    rdfs:comment "One-on-one private conversation" .
+
+### Message Classes
+telegram:Message a rdfs:Class ;
+    rdfs:subClassOf regen:DiscourseElement ;
+    rdfs:label "Message" ;
+    rdfs:comment "A Telegram message in a chat" .
+
+telegram:ForwardedMessage a rdfs:Class ;
+    rdfs:subClassOf telegram:Message ;
+    rdfs:label "Forwarded Message" ;
+    rdfs:comment "Message forwarded from another chat" .
+
+telegram:ReplyMessage a rdfs:Class ;
+    rdfs:subClassOf telegram:Message ;
+    rdfs:label "Reply Message" ;
+    rdfs:comment "Message replying to another message" .
+
+telegram:EditedMessage a rdfs:Class ;
+    rdfs:subClassOf telegram:Message ;
+    rdfs:label "Edited Message" ;
+    rdfs:comment "Message that has been edited after posting" .
+
+telegram:Poll a rdfs:Class ;
+    rdfs:subClassOf regen:Question ;
+    rdfs:label "Poll" ;
+    rdfs:comment "Voting poll in a chat" .
+
+telegram:PollOption a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Poll Option" ;
+    rdfs:comment "Option in a Telegram poll" .
+
+### Media Classes
+telegram:Media a rdfs:Class ;
+    rdfs:subClassOf regen:Evidence ;
+    rdfs:label "Media" ;
+    rdfs:comment "Media content in a message" .
+
+telegram:Photo a rdfs:Class ;
+    rdfs:subClassOf telegram:Media ;
+    rdfs:label "Photo" ;
+    rdfs:comment "Image/photo attachment" .
+
+telegram:Video a rdfs:Class ;
+    rdfs:subClassOf telegram:Media ;
+    rdfs:label "Video" ;
+    rdfs:comment "Video attachment" .
+
+telegram:Document a rdfs:Class ;
+    rdfs:subClassOf telegram:Media ;
+    rdfs:label "Document" ;
+    rdfs:comment "File/document attachment" .
+
+telegram:Voice a rdfs:Class ;
+    rdfs:subClassOf telegram:Media ;
+    rdfs:label "Voice" ;
+    rdfs:comment "Voice message" .
+
+telegram:Sticker a rdfs:Class ;
+    rdfs:subClassOf telegram:Media ;
+    rdfs:label "Sticker" ;
+    rdfs:comment "Sticker or emoji" .
+
+### User Classes
+telegram:User a rdfs:Class ;
+    rdfs:subClassOf regen:HumanActor ;
+    rdfs:label "User" ;
+    rdfs:comment "Telegram user account" .
+
+telegram:Bot a rdfs:Class ;
+    rdfs:subClassOf regen:AIAgent ;
+    rdfs:label "Bot" ;
+    rdfs:comment "Telegram bot account" .
+
+telegram:Admin a rdfs:Class ;
+    rdfs:subClassOf telegram:User ;
+    rdfs:label "Admin" ;
+    rdfs:comment "Chat administrator with special privileges" .
+
+telegram:Creator a rdfs:Class ;
+    rdfs:subClassOf telegram:Admin ;
+    rdfs:label "Creator" ;
+    rdfs:comment "Chat creator/owner" .
+
+### Interaction Classes
+telegram:Reaction a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Reaction" ;
+    rdfs:comment "Emoji reaction to a message" .
+
+telegram:Mention a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Mention" ;
+    rdfs:comment "User mention (@username)" .
+
+telegram:Hashtag a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Hashtag" ;
+    rdfs:comment "Topic hashtag (#topic)" .
+
+telegram:Link a rdfs:Class ;
+    rdfs:subClassOf regen:Note ;
+    rdfs:label "Link" ;
+    rdfs:comment "URL link in message" .
+
+# ============================================
+# TELEGRAM-SPECIFIC PROPERTIES
+# ============================================
+
+### Chat Properties
+telegram:chatId a rdf:Property ;
+    rdfs:domain telegram:Chat ;
+    rdfs:range xsd:string ;
+    rdfs:label "chat ID" .
+
+telegram:chatTitle a rdf:Property ;
+    rdfs:domain telegram:Chat ;
+    rdfs:range xsd:string ;
+    rdfs:label "chat title" .
+
+telegram:chatDescription a rdf:Property ;
+    rdfs:domain telegram:Chat ;
+    rdfs:range xsd:string ;
+    rdfs:label "chat description" .
+
+telegram:memberCount a rdf:Property ;
+    rdfs:domain telegram:Chat ;
+    rdfs:range xsd:integer ;
+    rdfs:label "member count" .
+
+telegram:isPublic a rdf:Property ;
+    rdfs:domain telegram:Chat ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is public" .
+
+telegram:username a rdf:Property ;
+    rdfs:domain telegram:Chat ;
+    rdfs:range xsd:string ;
+    rdfs:label "username" ;
+    rdfs:comment "Public username/handle" .
+
+### Message Properties
+telegram:messageId a rdf:Property ;
+    rdfs:domain telegram:Message ;
+    rdfs:range xsd:string ;
+    rdfs:label "message ID" .
+
+telegram:sentBy a rdf:Property ;
+    rdfs:subPropertyOf regen:wasAttestedBy ;
+    rdfs:domain telegram:Message ;
+    rdfs:range telegram:User ;
+    rdfs:label "sent by" .
+
+telegram:inChat a rdf:Property ;
+    rdfs:domain telegram:Message ;
+    rdfs:range telegram:Chat ;
+    rdfs:label "in chat" .
+
+telegram:replyTo a rdf:Property ;
+    rdfs:subPropertyOf regen:informsClaim ;
+    rdfs:domain telegram:ReplyMessage ;
+    rdfs:range telegram:Message ;
+    rdfs:label "reply to" .
+
+telegram:forwardedFrom a rdf:Property ;
+    rdfs:domain telegram:ForwardedMessage ;
+    rdfs:range telegram:Chat ;
+    rdfs:label "forwarded from" .
+
+telegram:originalSender a rdf:Property ;
+    rdfs:domain telegram:ForwardedMessage ;
+    rdfs:range telegram:User ;
+    rdfs:label "original sender" .
+
+### Content Properties
+telegram:messageText a rdf:Property ;
+    rdfs:domain telegram:Message ;
+    rdfs:range xsd:string ;
+    rdfs:label "message text" .
+
+telegram:hasMedia a rdf:Property ;
+    rdfs:domain telegram:Message ;
+    rdfs:range telegram:Media ;
+    rdfs:label "has media" .
+
+telegram:hasReaction a rdf:Property ;
+    rdfs:domain telegram:Message ;
+    rdfs:range telegram:Reaction ;
+    rdfs:label "has reaction" .
+
+telegram:mentions a rdf:Property ;
+    rdfs:domain telegram:Message ;
+    rdfs:range telegram:User ;
+    rdfs:label "mentions" .
+
+telegram:hasHashtag a rdf:Property ;
+    rdfs:domain telegram:Message ;
+    rdfs:range telegram:Hashtag ;
+    rdfs:label "has hashtag" .
+
+telegram:hasLink a rdf:Property ;
+    rdfs:domain telegram:Message ;
+    rdfs:range telegram:Link ;
+    rdfs:label "has link" .
+
+### User Properties
+telegram:userId a rdf:Property ;
+    rdfs:domain telegram:User ;
+    rdfs:range xsd:string ;
+    rdfs:label "user ID" .
+
+telegram:firstName a rdf:Property ;
+    rdfs:domain telegram:User ;
+    rdfs:range xsd:string ;
+    rdfs:label "first name" .
+
+telegram:lastName a rdf:Property ;
+    rdfs:domain telegram:User ;
+    rdfs:range xsd:string ;
+    rdfs:label "last name" .
+
+telegram:userUsername a rdf:Property ;
+    rdfs:domain telegram:User ;
+    rdfs:range xsd:string ;
+    rdfs:label "username" .
+
+telegram:isBot a rdf:Property ;
+    rdfs:domain telegram:User ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is bot" .
+
+telegram:languageCode a rdf:Property ;
+    rdfs:domain telegram:User ;
+    rdfs:range xsd:string ;
+    rdfs:label "language code" .
+
+### Engagement Properties
+telegram:viewCount a rdf:Property ;
+    rdfs:domain telegram:Message ;
+    rdfs:range xsd:integer ;
+    rdfs:label "view count" .
+
+telegram:reactionCount a rdf:Property ;
+    rdfs:domain telegram:Message ;
+    rdfs:range xsd:integer ;
+    rdfs:label "reaction count" .
+
+telegram:forwardCount a rdf:Property ;
+    rdfs:domain telegram:Message ;
+    rdfs:range xsd:integer ;
+    rdfs:label "forward count" .
+
+telegram:replyCount a rdf:Property ;
+    rdfs:domain telegram:Message ;
+    rdfs:range xsd:integer ;
+    rdfs:label "reply count" .
+
+### Poll Properties
+telegram:hasPollOption a rdf:Property ;
+    rdfs:domain telegram:Poll ;
+    rdfs:range telegram:PollOption ;
+    rdfs:label "has poll option" .
+
+telegram:optionText a rdf:Property ;
+    rdfs:domain telegram:PollOption ;
+    rdfs:range xsd:string ;
+    rdfs:label "option text" .
+
+telegram:voteCount a rdf:Property ;
+    rdfs:domain telegram:PollOption ;
+    rdfs:range xsd:integer ;
+    rdfs:label "vote count" .
+
+telegram:isAnonymous a rdf:Property ;
+    rdfs:domain telegram:Poll ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is anonymous" .
+
+telegram:allowsMultiple a rdf:Property ;
+    rdfs:domain telegram:Poll ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "allows multiple" .
+
+### Status Properties
+telegram:isDeleted a rdf:Property ;
+    rdfs:domain telegram:Message ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is deleted" .
+
+telegram:isPinned a rdf:Property ;
+    rdfs:domain telegram:Message ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is pinned" .
+
+telegram:editDate a rdf:Property ;
+    rdfs:domain telegram:EditedMessage ;
+    rdfs:range xsd:dateTime ;
+    rdfs:label "edit date" .
+
+# ============================================
+# MAPPING TO UNIFIED ONTOLOGY
+# ============================================
+
+# Messages can contain claims
+telegram:Message rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:informsClaim ;
+    owl:someValuesFrom regen:Claim
+] .
+
+# Replies can support or oppose claims
+telegram:ReplyMessage rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:supports ;
+    owl:someValuesFrom regen:Claim
+] .
+
+# Forwarded messages can spread evidence
+telegram:ForwardedMessage rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:supports ;
+    owl:someValuesFrom regen:Evidence
+] .
+
+# Media attachments serve as evidence
+telegram:Media rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty regen:supports ;
+    owl:someValuesFrom regen:Claim
+] .
+
+# ============================================
+# EXTRACTION TEMPLATES
+# ============================================
+
+# Template for extracting Telegram metadata
+telegram:TelegramExtractionTemplate a regen:Note ;
+    rdfs:label "Telegram Extraction Template" ;
+    rdfs:comment """
+    Extract from Telegram messages:
+    - Sender information (name, username, ID)
+    - Chat context (title, type, member count)
+    - Message content and media attachments
+    - Reply and forward relationships
+    - Reactions and engagement metrics
+    - Mentions, hashtags, and links
+    - Timestamps and edit history
+    - Poll questions and voting results
+    """ .
+
+# Template for identifying communication patterns
+telegram:CommunicationPatternTemplate a regen:Note ;
+    rdfs:label "Communication Pattern Template" ;
+    rdfs:comment """
+    Identify Telegram patterns:
+    - Viral content → High forward/reaction counts
+    - Information cascades → Forward chains across chats
+    - Coordinated messaging → Similar content from multiple users
+    - Bot activity → Automated posting patterns
+    - Community discussions → Reply thread analysis
+    - News dissemination → Channel to group flow
+    """ .
+
+# Template for content analysis
+telegram:ContentAnalysisTemplate a regen:Note ;
+    rdfs:label "Content Analysis Template" ;
+    rdfs:comment """
+    Analyze Telegram content:
+    - Extract key claims from messages
+    - Identify supporting media evidence
+    - Track information source credibility
+    - Map discussion sentiment and consensus
+    - Detect misinformation spread patterns
+    - Analyze cross-chat coordination
+    """ .
