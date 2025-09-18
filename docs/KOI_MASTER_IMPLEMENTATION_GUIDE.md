@@ -26,6 +26,22 @@ This master guide consolidates the complete KOI (Knowledge Organization Infrastr
 
 **📈 Progress**: 100% Complete - Full KOI sensor-to-agent pipeline operational and production-ready
 
+### 🆕 Recent Enhancements (September 18, 2025)
+
+**Sensor Improvements:**
+- **Discourse Sensor**: Now fetches ALL posts using pagination (not limited to first 20)
+  - Each post stored as individual document with its own `published_at` date
+  - Fixed source_type validation for RID compliance
+- **Website Sensor**: Enhanced with site-specific handlers
+  - Fixed regentokenomics.org date extraction for month-abbreviation URLs
+  - Improved publication date confidence scoring
+  - Smart content extraction per domain
+
+**Processing Pipeline:**
+- **Smart Chunking**: Improved document chunking for better semantic preservation
+- **Enhanced Delivery Tracking**: KOI Coordinator now tracks delivery confirmations
+- **Storage Architecture**: Optimized with better deduplication and versioning
+
 ---
 
 ## 📚 Table of Contents
@@ -102,6 +118,8 @@ This master guide consolidates the complete KOI (Knowledge Organization Infrastr
 │                              │  • GitLab           │                                          │
 │                              │  • Twitter          │                                          │
 │                              │  • Discord          │                                          │
+│                              │  • Discourse*       │                                          │
+│                              │  (*with pagination) │                                          │
 │                              └──────────┬──────────┘                                          │
 │                                         │                                                      │
 │                                         ▼                                                      │
@@ -110,6 +128,7 @@ This master guide consolidates the complete KOI (Knowledge Organization Infrastr
 │                              │    (Port 8005)      │                                          │
 │                              │  • Event Routing    │                                          │
 │                              │  • Sensor Registry  │                                          │
+│                              │  • Delivery Tracking│                                          │
 │                              └──────────┬──────────┘                                          │
 │                                         │                                                      │
 │                                         ▼                                                      │
@@ -126,6 +145,7 @@ This master guide consolidates the complete KOI (Knowledge Organization Infrastr
 │                    │                    ▼                    │                                │
 │                    │          ┌─────────────────┐            │                                │
 │                    │          │ Document Chunker│            │                                │
+│                    │          │ • Smart chunking│            │                                │
 │                    │          │ • 1000 chars    │            │                                │
 │                    │          │ • 200 overlap   │            │                                │
 │                    │          └────────┬────────┘            │                                │
@@ -264,7 +284,7 @@ This master guide consolidates the complete KOI (Knowledge Organization Infrastr
 │      ├── ✅ KOI Event Bridge v2 - Deduplication & versioning    │
 │      ├── ✅ BGE Pipeline Integration - 1024-dim embeddings    │
 │      ├── ✅ PostgreSQL Direct Storage - Agent-ready format    │
-│      ├── 18,824 Documents Successfully Indexed                │
+│      ├── 20,000+ Documents Successfully Indexed               │
 │      └── Docker Deployment with Monitoring                    │
 │                                                                │
 └────────────────────────────────────────────────────────────────┘
@@ -277,7 +297,7 @@ This master guide consolidates the complete KOI (Knowledge Organization Infrastr
 ┌─────────────────────────────────────────────────────────────┐
 │                   KOI SENSOR NETWORK                         │
 │  Twitter | Telegram | Discord | Blog | Podcast | Notion      │
-│         (18,824 documents successfully ingested)            │
+│         (20,000+ documents successfully ingested)           │
 └────────────────────────────────┬────────────────────────────┘
                                  ▼ (Real-time Events)
 ┌─────────────────────────────────────────────────────────────┐
@@ -1892,6 +1912,6 @@ This implementation represents a breakthrough in knowledge organization infrastr
 ---
 
 *Master Guide Version: 1.2*  
-*Last Updated: September 2025*  
+*Last Updated: September 18, 2025*  
 *Total Implementation: 100% Complete - Operational Pipeline*  
 *Status: Complete KOI Sensor-to-Agent Pipeline Deployed and Tested*
