@@ -19,12 +19,44 @@ This master guide consolidates the complete KOI (Knowledge Organization Infrastr
 - **Production Tested**: Full content processing verified with test content and transformations
 - **CAT Receipt Generation**: Complete transformation provenance tracking operational
 - **Real-time Agent Access**: Processed content immediately available for agent queries
-- **Apache Jena Fuseki integration** with SPARQL triplestore 
+- **Apache Jena Fuseki integration** with SPARQL triplestore
 - **1,100+ documents processed** with 3,041 entities extracted using unified ontology v1.0
 - **MCP-KOI architecture implemented**: Model Context Protocol fully integrated with KOI nodes
 - **TypeScript MCP Server**: Stable stdio implementation for ElizaOS integration
+- **🆕 Unified Knowledge Graph**: Infrastructure components now have RIDs and are part of the knowledge graph
+- **🆕 Pipeline Metadata API**: Dynamic pipeline structure queryable via RDF/SPARQL
 
 **📈 Progress**: 100% Complete - Full KOI sensor-to-agent pipeline operational and production-ready
+
+### 🆕 Recent Enhancements (September 26, 2025)
+
+**Unified Knowledge Graph Implementation:**
+- **KOI Ontology**: Complete RDF vocabulary for infrastructure components and relationships
+- **Pipeline Metadata**: All 11 sensors and 8 infrastructure components with RIDs
+- **Pipeline Metadata API**: Dynamic pipeline structure served via REST/RDF
+- **Visualization Integration**: Interactive Pipeline Flow now shows actual system structure
+
+**SPARQL Query Capabilities for Document Provenance:**
+- Query documents by their journey through the pipeline (sensor → processing → storage)
+- Track which sensor collected each document with full timestamps
+- Find all documents processed by specific infrastructure components
+- Trace transformation history via CAT receipts in RDF format
+- Example queries:
+  ```sparql
+  # Find all documents from GitHub sensor stored in Jena
+  SELECT ?doc ?title WHERE {
+    ?doc koi:sensedBy <koi.sensor:github-sensor> ;
+         koi:storedIn <koi.infrastructure:apache-jena> ;
+         rdfs:label ?title .
+  }
+
+  # Track document provenance through pipeline
+  SELECT ?doc ?sensor ?processor ?storage WHERE {
+    ?doc koi:sensedBy ?sensor ;
+         koi:processedBy ?processor ;
+         koi:storedIn ?storage .
+  }
+  ```
 
 ### 🆕 Recent Enhancements (September 18, 2025)
 
