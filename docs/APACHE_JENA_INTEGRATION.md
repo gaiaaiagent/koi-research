@@ -2,11 +2,59 @@
 
 ## Overview
 
-**UPDATE (September 2025)**: While Apache Jena integration remains valuable for semantic reasoning and RDF capabilities, the **primary operational KOI pipeline now uses the KOI Event Bridge with BGE embeddings** flowing directly to PostgreSQL for immediate agent access. This Apache Jena integration serves as the semantic reasoning layer alongside the production BGE pipeline.
+**UPDATE (September 26, 2025)**: Apache Jena Fuseki is **FULLY OPERATIONAL** and actively integrated with the complete KOI provenance tracking system. Jena serves as the semantic reasoning layer alongside the operational BGE pipeline, providing RDF/SPARQL capabilities for complex knowledge graph queries and provenance exploration.
 
-This guide provides comprehensive instructions for integrating KOI (Knowledge Organization Infrastructure) with Apache Jena + RDF/SPARQL/OWL, aligning with Regen Network's Registry Framework architecture.
+**Current Deployment Status**: ✅ **ACTIVE**
+- **Jena Fuseki**: Running on port 3030 with KOI dataset loaded
+- **SPARQL Endpoint**: Accessible at https://regen.gaiaai.xyz/sparql/
+- **RDF Data**: 326+ entities with complete provenance tracking loaded from koi-entities-production.ttl
+- **Pipeline Integration**: Real-time updates from Pipeline Metadata API (port 8002)
+- **Web UI Integration**: Interactive SPARQL queries via React frontend
+
+This guide provides comprehensive instructions for the fully operational KOI-Jena integration, including the dual-database architecture with PostgreSQL for operations and Jena for semantic reasoning.
 
 ## Architecture Alignment
+
+### Dual-Database Architecture ✅ **OPERATIONAL**
+
+The KOI system implements a sophisticated dual-database architecture that combines the strengths of both relational and semantic database technologies:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                           DUAL-DATABASE ARCHITECTURE                                    │
+├─────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                         │
+│  ┌─────────────────────────────────┐    ┌─────────────────────────────────────────┐   │
+│  │         POSTGRESQL              │    │         APACHE JENA FUSEKI             │   │
+│  │        (Operations)             │    │      (Semantic Reasoning)               │   │
+│  │         Port 5433               │    │           Port 3030                     │   │
+│  │                                 │    │                                         │   │
+│  │  ✅ Real-time Operations        │    │  ✅ Semantic Queries                   │   │
+│  │  • Agent memory storage         │◄──►│  • RDF triples and provenance         │   │
+│  │  • BGE embeddings (1024D)       │    │  • SPARQL complex reasoning           │   │
+│  │  • CAT receipts tracking        │    │  • Ontology-based inference           │   │
+│  │  • Fast vector similarity       │    │  • Cross-entity relationships         │   │
+│  │  • ElizaOS agent integration    │    │  • Transformation provenance          │   │
+│  │                                 │    │  • Pipeline component metadata        │   │
+│  │  Tables:                        │    │                                         │   │
+│  │  • koi_memories                 │    │  Datasets:                             │   │
+│  │  • koi_embeddings               │    │  • /koi (main knowledge graph)         │   │
+│  │  • koi_receipts                 │    │  • 326+ entities with RIDs             │   │
+│  │  • memories (agent access)      │    │  • Complete provenance chains          │   │
+│  │                                 │    │  • Infrastructure component RIDs       │   │
+│  └─────────────────────────────────┘    └─────────────────────────────────────────┘   │
+│                                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
+│  │                              SYNCHRONIZATION LAYER                              │   │
+│  │                                                                                 │   │
+│  │  • Pipeline Metadata API (port 8002) coordinates both databases               │   │
+│  │  • CAT receipts exported from PostgreSQL to RDF format                        │   │
+│  │  • Infrastructure components synchronized with real-time status               │   │
+│  │  • Provenance chains maintained in both operational and semantic formats      │   │
+│  └─────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                         │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+```
 
 ### Why Apache Jena for KOI?
 
@@ -15,12 +63,33 @@ This guide provides comprehensive instructions for integrating KOI (Knowledge Or
 - **Cross-Methodology Reasoning**: Automated validation and interoperability
 - **W3C Standards Compliance**: Native semantic web integration
 - **Ontology Federation**: Direct integration with ENVO and environmental knowledge bases
+- **Complex Provenance Queries**: SPARQL-based exploration of transformation chains
+- **Infrastructure Metadata**: RDF representation of pipeline components and their relationships
 
 ## Installation & Setup
 
-### 1. Apache Jena Installation
+### 1. Apache Jena Installation ✅ **COMPLETE AND OPERATIONAL**
 
-#### Using Docker (Recommended)
+**Current Status**: Apache Jena Fuseki is running in production with the complete KOI dataset loaded.
+
+#### Production Deployment (Current)
+```bash
+# Fuseki is currently running with:
+# - Port 3030 exposed via nginx proxy
+# - KOI dataset (/koi) loaded with 326+ entities
+# - Production RDF data from koi-entities-production.ttl
+# - Real-time integration with Pipeline Metadata API
+
+# Access endpoints:
+# Web UI: https://regen.gaiaai.xyz/sparql/
+# SPARQL endpoint: https://regen.gaiaai.xyz/api/koi/sparql/
+# Direct Fuseki: http://localhost:3030/ (internal)
+
+# Health check
+curl https://regen.gaiaai.xyz/api/koi/health/
+```
+
+#### Docker Setup (For Development)
 ```bash
 # Start Fuseki SPARQL server
 docker run -d \
@@ -624,19 +693,139 @@ tdb2.tdbloader --loc=/data/tdb2 --graph=default ontology.ttl
 
 **This integration enables KOI to leverage the full power of semantic web technologies while maintaining perfect alignment with Regen Network's Registry Framework architecture.** 🌐🌱
 
-## Current Status: Complementary to BGE Pipeline
+## Current Status: Integrated with BGE Pipeline ✅ **FULLY OPERATIONAL**
 
-**Production Architecture**: The operational KOI system uses:
-1. **Primary Pipeline**: KOI Event Bridge → BGE Embeddings → PostgreSQL → Agent RAG (OPERATIONAL)
-2. **Semantic Layer**: Apache Jena + RDF/SPARQL for reasoning and ontological queries (AVAILABLE)
+**Production Architecture**: The KOI system operates with complete dual-database integration:
+
+1. **Primary Pipeline**: KOI Event Bridge → BGE Embeddings → PostgreSQL → Agent RAG ✅ **OPERATIONAL**
+2. **Semantic Layer**: Apache Jena + RDF/SPARQL for reasoning and ontological queries ✅ **OPERATIONAL**
+3. **Provenance Integration**: CAT receipts synchronized between PostgreSQL and RDF ✅ **OPERATIONAL**
+4. **Pipeline Metadata**: Real-time component status via RDF/SPARQL ✅ **OPERATIONAL**
+
+### Ontology Files Integration ✅ **ACTIVE**
+
+#### koi-ontology.ttl
+The KOI ontology defines the complete infrastructure and provenance vocabulary:
+
+```turtle
+@prefix koi: <http://koi.network/ontology#> .
+@prefix regen: <http://regen.network/ontology#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+
+# Infrastructure Classes (Active in Production)
+koi:Sensor a rdfs:Class ;
+    rdfs:label "KOI Sensor Node" ;
+    rdfs:comment "Monitors external data sources and generates KOI events" .
+
+koi:Infrastructure a rdfs:Class ;
+    rdfs:label "KOI Infrastructure Component" ;
+    rdfs:comment "Core system components for processing and storage" .
+
+koi:Pipeline a rdfs:Class ;
+    rdfs:label "KOI Processing Pipeline" ;
+    rdfs:comment "Complete data flow from sensors to agents" .
+
+# Provenance Classes (Active in Production)
+koi:Transformation a rdfs:Class ;
+    rdfs:label "Content Transformation" ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:comment "Any processing step with complete CAT receipt tracking" .
+
+koi:CATReceipt a rdfs:Class ;
+    rdfs:label "Content Addressable Transformation Receipt" ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:comment "Complete audit trail for any transformation" .
+
+# Active Properties (In Production Use)
+koi:sensedBy rdfs:subPropertyOf prov:wasGeneratedBy .
+koi:processedBy rdfs:subPropertyOf prov:wasGeneratedBy .
+koi:storedIn rdfs:subPropertyOf prov:wasGeneratedBy .
+koi:hasTransformation rdfs:subPropertyOf prov:wasGeneratedBy .
+koi:hasComponent rdfs:range koi:Infrastructure .
+koi:monitors rdfs:domain koi:Sensor .
+koi:status rdfs:range ["active", "idle", "offline"] .
+```
+
+#### pipeline-metadata.ttl
+Real-time pipeline structure (dynamically generated by Pipeline Metadata API):
+
+```turtle
+# Current Production Pipeline (Live Data)
+<koi.pipeline:main> a koi:Pipeline ;
+    koi:hasComponent <koi.sensor:github-sensor>,
+                     <koi.sensor:website-sensor>,
+                     <koi.sensor:discord-sensor>,
+                     <koi.sensor:medium-sensor>,
+                     <koi.sensor:telegram-sensor>,
+                     <koi.sensor:twitter-sensor>,
+                     <koi.sensor:notion-sensor>,
+                     <koi.sensor:gitlab-sensor>,
+                     <koi.sensor:research-retreat-papers>,
+                     <koi.sensor:discourse-sensor>,
+                     <koi.sensor:youtube-sensor>,
+                     <koi.infrastructure:koi-coordinator>,
+                     <koi.infrastructure:event-bridge-v2>,
+                     <koi.infrastructure:bge-server>,
+                     <koi.infrastructure:postgresql>,
+                     <koi.infrastructure:apache-jena>,
+                     <koi.infrastructure:mcp-server>,
+                     <koi.infrastructure:pipeline-metadata-api>,
+                     <koi.infrastructure:content-api> ;
+    koi:status "operational" ;
+    koi:lastUpdated "2025-09-26T10:30:00Z" ;
+    rdfs:comment "Complete KOI pipeline with 11 sensors and 8 infrastructure components" .
+
+# Active Sensors (Real-time Status)
+<koi.sensor:github-sensor> a koi:Sensor ;
+    koi:monitors "github.com/RegenNetwork/*" ;
+    koi:status "active" ;
+    koi:endpoint "http://localhost:8010" ;
+    koi:lastSeen "2025-09-26T10:25:00Z" .
+
+<koi.sensor:website-sensor> a koi:Sensor ;
+    koi:monitors "regen.network, registry.regen.network, forum.regen.network" ;
+    koi:status "active" ;
+    koi:endpoint "http://localhost:8020" ;
+    koi:lastSeen "2025-09-26T10:24:00Z" .
+
+# Infrastructure Components (Live Status)
+<koi.infrastructure:pipeline-metadata-api> a koi:Infrastructure ;
+    koi:type "api" ;
+    koi:endpoint "http://localhost:8002" ;
+    koi:provides "Dynamic pipeline structure and provenance data" ;
+    koi:status "active" .
+
+<koi.infrastructure:apache-jena> a koi:Infrastructure ;
+    koi:type "triplestore" ;
+    koi:endpoint "http://localhost:3030/koi" ;
+    koi:provides "RDF storage and SPARQL queries" ;
+    koi:status "active" ;
+    koi:datasetSize "326+ entities with provenance" .
+```
 
 ## Next Steps
 
-1. **Deploy Fuseki server** with KOI dataset (complementary to BGE pipeline)
-2. **Load unified ontology** with OWL reasoning enabled  
-3. **Process production entities** through RDF pipeline (parallel to BGE processing)
-4. **Enable SPARQL endpoints** for Registry Framework integration
-5. **Implement reasoning rules** for credit validation and methodology comparison
-6. **Integrate with operational BGE pipeline** for hybrid semantic + vector search
+✅ **COMPLETED**: All core integration steps are now operational in production
 
-*Available for semantic web deployment alongside the operational BGE-based KOI pipeline!* 🚀
+**Current Status**:
+1. ✅ **Fuseki server deployed** with complete KOI dataset
+2. ✅ **Unified ontology loaded** with koi-ontology.ttl and pipeline-metadata.ttl
+3. ✅ **Production entities processed** with 326+ entities in RDF format
+4. ✅ **SPARQL endpoints enabled** via https://regen.gaiaai.xyz/sparql/
+5. ✅ **Pipeline Metadata API** providing real-time component status
+6. ✅ **Integrated with BGE pipeline** for hybrid semantic + vector search
+
+**Future Enhancements**:
+1. **Advanced Reasoning Rules**: Implement OWL reasoning for credit validation
+2. **Registry Framework Federation**: Connect to external Regen Network infrastructure
+3. **Real-time Synchronization**: Enhance PostgreSQL→RDF data flow automation
+4. **SPARQL Query Optimization**: Implement query caching and indexing
+5. **Ontology Versioning**: Track ontology evolution with complete provenance
+
+**Access Points** ✅ **ACTIVE**:
+- **SPARQL Web UI**: https://regen.gaiaai.xyz/sparql/
+- **SPARQL API**: https://regen.gaiaai.xyz/api/koi/sparql/
+- **Pipeline Metadata**: https://regen.gaiaai.xyz/api/koi/graph/pipeline
+- **Provenance Queries**: https://regen.gaiaai.xyz/api/koi/graph/provenance/{rid}
+
+*Fully operational semantic web deployment running alongside the BGE-based KOI pipeline!* 🚀✅
