@@ -28,11 +28,19 @@ This master guide consolidates the complete KOI (Knowledge Organization Infrastr
 
 **📈 Progress**: 100% Complete - Full KOI sensor-to-agent pipeline operational and production-ready
 
-### 🆕 Recent Enhancements (September 26, 2025)
+### 🆕 Recent Enhancements (September 28, 2025)
+
+**Content Deduplication & Event Filtering:**
+- **Content-Based Deduplication**: SHA-256 hashes prevent reprocessing unchanged web pages
+- **Event Filtering**: Heartbeats and test data filtered at Event Bridge entry point
+- **URL-Based Versioning**: Web pages tracked by URL with `superseded_at` timestamps
+- **GitHub Activity Sensor**: Added comprehensive GitHub tracking for daily/weekly curation
+- **UI Improvements**: Fixed text visibility, removed redundant tabs, proper loading states
+- **Database Cleanup**: Removed 1,794 heartbeat memories and 1,683 test entries
 
 **Unified Knowledge Graph Implementation:**
 - **KOI Ontology**: Complete RDF vocabulary for infrastructure components and relationships
-- **Pipeline Metadata**: All 11 sensors and 8 infrastructure components with RIDs
+- **Pipeline Metadata**: All 12 sensors and 8 infrastructure components with RIDs
 - **Pipeline Metadata API**: Dynamic pipeline structure served via REST/RDF
 - **Visualization Integration**: Interactive Pipeline Flow now shows actual system structure
 
@@ -580,7 +588,7 @@ React Frontend (5173) → Django API (8000) → Apache Jena Fuseki (3030) → Po
 │  │                                                                                         │  │
 │  │  • RDF-based pipeline structure description                                            │  │
 │  │  • Dynamic component discovery and status                                              │  │
-│  │  • 11 sensors with RIDs: github-sensor, website-sensor, discord-sensor, etc.         │  │
+│  │  • 12 sensors with RIDs: github-sensor, github-activity-sensor, website-sensor, etc.  │  │
 │  │  • 8 infrastructure components: koi-coordinator, event-bridge-v2, bge-server, etc.    │  │
 │  │  • Real-time endpoint: /api/koi/graph/pipeline                                         │  │
 │  │  • Nginx routing: https://regen.gaiaai.xyz/api/koi/graph/                             │  │
@@ -945,7 +953,7 @@ Every agent response can be traced back through complete transformation history:
 
 **Key Metrics**:
 - **326+ entities** with complete provenance tracking in production TTL file
-- **11 sensors** actively monitored with RID-based identification
+- **12 sensors** actively monitored with RID-based identification
 - **8 infrastructure components** with real-time status reporting
 - **Pipeline Metadata API** serving dynamic structure data
 - **Interactive web UI** for provenance exploration
