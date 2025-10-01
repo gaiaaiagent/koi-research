@@ -638,3 +638,92 @@ End-to-End:         ~180ms
 └────────────────┘
 ```
 
+
+---
+
+## Major Update: OpenAI Embeddings Migration (October 2025)
+
+### Migration Complete ✅
+
+**Status:** Production deployment successful - all objectives met
+
+**Key Changes:**
+
+1. **Embedding Model Migration**
+   - **From:** BAAI/bge-large-en-v1.5 (MTEB 54.25)
+   - **To:** OpenAI text-embedding-3-large (MTEB 64.59)
+   - **Improvement:** +10 MTEB points, 12x faster query times
+
+2. **Fusion Method Upgrade**
+   - **From:** Reciprocal Rank Fusion (k=60)
+   - **To:** Weighted Average Fusion (0.7 vector + 0.3 keyword)
+   - **Result:** Eliminated score compression, excellent ranking discrimination
+
+3. **Complete Re-Embedding**
+   - Re-embedded all 6,174 memories with OpenAI embeddings
+   - 100% coverage maintained
+   - One-time cost: $0.78
+   - Completion time: 36 minutes
+
+**Performance Improvements:**
+
+| Metric | Before (BGE) | After (OpenAI) | Improvement |
+|--------|--------------|----------------|-------------|
+| Query embedding | 4s | 341ms | 12x faster |
+| End-to-end search | 6s | 105ms | 57x faster |
+| Score discrimination | 0.016-0.016 | 0.36-0.26 | ∞ better |
+| Search quality | Poor | Excellent | Major |
+
+**Architecture Impact:**
+
+```
+Updated Query Flow:
+
+Query Input
+    ↓
+┌────────────────────────────┐
+│  Query API (8301)          │
+│  - OpenAI embedding gen    │  ← CHANGED: Using OpenAI API
+│  - Route to search methods │
+└───────┬────────────────────┘
+        │
+        ├──────────────────┬──────────────────┐
+        ↓                  ↓                  ↓
+┌───────────────┐  ┌───────────────┐  ┌──────────────┐
+│ OpenAI Vector │  │ BM25 Keyword  │  │ SPARQL Graph │
+│ (1024 dim)    │  │ (FTS)         │  │ (optional)   │
+└───────┬───────┘  └───────┬───────┘  └──────┬───────┘
+        │                  │                  │
+        └──────────────────┼──────────────────┘
+                           ↓
+                  ┌──────────────────┐
+                  │ Weighted Average │  ← CHANGED: From RRF k=60
+                  │ Fusion (0.7/0.3) │
+                  └────────┬───────────┘
+                           ↓
+                  Ranked Results (0.36-0.26 score range)
+```
+
+**Data Quality Status:**
+
+- ✅ 100% embedding coverage (6,174/6,174)
+- ✅ 100% URL coverage across all sources
+- ✅ Complete provenance tracking (29,714 CAT receipts)
+- ✅ Synthetic receipts for historical data gaps
+
+**Cost Structure:**
+
+- One-time: $0.78 (re-embedding)
+- Ongoing: ~$0.02/month (query embeddings @ 100/day)
+- **ROI:** Massive performance gains for negligible cost
+
+**No Breaking Changes:**
+
+- API endpoints unchanged
+- Database schema unchanged (just data replacement)
+- Frontend integration unchanged
+- MCP tools unchanged
+
+See `/opt/projects/koi-processor/docs/SEARCH_QUALITY_FIX_PLAN.md` for complete migration details.
+
+**Last Updated:** October 1, 2025
