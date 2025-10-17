@@ -203,7 +203,7 @@ koi-sensors/
 
 **Purpose**: Content processing, embedding generation, and agent integration
 
-**Location**: `/opt/projects/koi-processor`
+**Location**: [https://github.com/gaiaaiagent/koi-processor](https://github.com/gaiaaiagent/koi-processor)
 
 **Structure**:
 ```
@@ -255,7 +255,7 @@ koi-processor/
 
 **Purpose**: Documentation, ontologies, and research artifacts
 
-**Location**: `/opt/projects/koi-research`
+**Location**: [https://github.com/gaiaaiagent/koi-research](https://github.com/gaiaaiagent/koi-research)
 
 **Structure**:
 ```
@@ -272,7 +272,7 @@ koi-research/
 
 Purpose: MCP server exposing hybrid knowledge access (adaptive NL→SPARQL over Apache Jena + vector search) with result fusion and tools.
 
-Location: `/opt/projects/regen-koi-mcp`
+Location: [https://github.com/gaiaaiagent/regen-koi-mcp/tree/main](https://github.com/gaiaaiagent/regen-koi-mcp/tree/main)
 
 Key Features:
 - Adaptive dual‑branch NL→SPARQL (focused + broad) with canonical‑aware filtering and smart fallback
@@ -770,7 +770,7 @@ def filter_koi_event(event: Dict) -> bool:
 
 This section has moved to a dedicated document to keep the Master Guide high‑level.
 
-- See: `KOI_STORAGE_ARCHITECTURE.md`
+- See: [KOI_STORAGE_ARCHITECTURE.md](KOI_STORAGE_ARCHITECTURE.md)
 
 ## 7. Agent Integration
 
@@ -1131,7 +1131,7 @@ curl -X POST http://localhost:8090/encode \
 
 This section has moved to a dedicated document.
 
-- See: `KOI_DEVELOPMENT_GUIDE.md`
+- See: [KOI_DEVELOPMENT_GUIDE.md](KOI_DEVELOPMENT_GUIDE.md)
 
 ## 11. Production Considerations
 
