@@ -10,19 +10,22 @@ The Knowledge Organization Infrastructure (KOI) is a production-ready distribute
 
 ### Current Status (October 2025)
 
-**Production Deployment**: Complete sensor-to-agent pipeline operational with 12 active sensors monitoring multiple platforms in real-time.
+**Production Deployment**: Complete sensor‑to‑agent pipeline operational; hybrid graph search live via MCP with canonical‑aware NL→SPARQL and smart fallback.
 
 **Key Achievements**:
 - 12 active sensors monitoring diverse platforms (GitHub, GitLab, Medium, Discourse, Telegram, Twitter, Discord, Podcast, Notion, Ledger, Websites)
-- Real-time event processing with RID-based deduplication and content versioning
-- BGE embeddings (1024-dimensional vectors) generated and stored in PostgreSQL with pgvector
-- Complete provenance tracking via CAT (Content Addressable Transformation) receipts
-- Immediate agent RAG access to processed content (<3-5 second latency)
+- Real‑time event processing with RID‑based deduplication and content versioning
+- BGE embeddings (1024‑dim vectors) stored in PostgreSQL with pgvector
+- Refined RDF graph (~101,903 triples; 20,325 statements) with canonical categories (`regx:canonicalPredicate`)
+- Predicate consolidation at t=0.25 (7,037 → 4,009 consolidated forms) and predicate communities computed
+- Canonical‑aware NL→SPARQL with smart fallback; hybrid (SPARQL + vector) RRF fusion in MCP
+- Complete provenance via CAT receipts
 - Dashboard monitoring at https://regen.gaiaai.xyz/koi and https://regen.gaiaai.xyz/digests
-- Content curation system generating daily social media posts and weekly digests
-- Podcast generation pipeline with automated audio creation
 
-**Architecture Progress**: 95% Complete - Core pipeline operational, semantic extraction and advanced querying under active development
+**Hybrid Search Quality**:
+- Evaluation harness (20 queries): 100% answered, 0% noise (Lingui/i18n eliminated), ~1.5 s avg latency (cold start ~19 s)
+
+**Architecture Progress**: Core pipeline + hybrid graph search operational; ongoing tuning (multi‑category gating, warm‑up, provenance filters)
 
 ---
 
@@ -76,13 +79,31 @@ The KOI system follows a distributed microservices architecture with clear data 
 │ POSTGRESQL  │ ─── koi_memories + pgvector
 │ (pgvector)  │
 └──────┬──────┘
-       │ Query via MCP
+       │ Query via MCP (Vectors)
        ▼
 ┌─────────────┐
 │   AGENTS    │ ─── RAG access to knowledge
 │  (ElizaOS)  │
 └─────────────┘
 ```
+
+### 1.3 Hybrid Graph + Vector Architecture
+
+In addition to vector search, the system maintains a refined RDF knowledge graph and exposes an adaptive NL→SPARQL path via the MCP server. Queries run in parallel on both paths and results are fused with Reciprocal Rank Fusion (RRF):
+
+```
+User Query → MCP → [Focused SPARQL] + [Broad SPARQL] + [Vector]
+                        │                 │              │
+            Canonical‑aware filter     Canonical‑aware   KOI API
+            + predicate retrieval      fallback if zero  semantic
+                        │                 │              │
+                        └─────── RRF Fusion over merged results ───────┘
+```
+
+Key behaviors:
+- Canonical‑aware filtering: maps keywords → canonical categories; prunes noise structurally
+- Smart fallback: if canonical returns zero results, retry broad branch without canonical to recover recall
+- Predicate retrieval: embeddings + usage + community expansion build focused predicate sets
 
 ### 1.2 Component Responsibilities
 
@@ -246,6 +267,22 @@ koi-research/
 └── ontologies/
     └── regen-unified-ontology.ttl
 ```
+
+### 2.4 regen-koi-mcp
+
+Purpose: MCP server exposing hybrid knowledge access (adaptive NL→SPARQL over Apache Jena + vector search) with result fusion and tools.
+
+Location: `/opt/projects/regen-koi-mcp`
+
+Key Features:
+- Adaptive dual‑branch NL→SPARQL (focused + broad) with canonical‑aware filtering and smart fallback
+- Parallel SPARQL + vector execution with Reciprocal Rank Fusion (RRF)
+- Tools: `query_graph`, `search_knowledge`, `get_system_health`, `predicate_community_summary`, `canonical_summary`
+- Evaluation harness persisting JSON metrics (`scripts/eval-nl2sparql.js`)
+
+Configuration (env):
+- `JENA_ENDPOINT`, `CONSOLIDATION_PATH`, `PATTERNS_PATH`, `COMMUNITY_PATH`, `EMBEDDING_SERVICE_URL`, optional `OPENAI_API_KEY`
+
 
 ---
 
@@ -731,166 +768,9 @@ def filter_koi_event(event: Dict) -> bool:
 
 ## 6. Storage Architecture
 
-### 6.1 PostgreSQL Schema
+This section has moved to a dedicated document to keep the Master Guide high‑level.
 
-**Database**: `eliza` (port 5433)
-
-**Extensions**:
-- `pgvector`: Vector similarity search
-- `pg_trgm`: Trigram matching for fuzzy search
-- `uuid-ossp`: UUID generation
-
-### 6.2 KOI Pipeline Tables
-
-**koi_memories**: Source documents from sensors
-
-```sql
-CREATE TABLE koi_memories (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    rid VARCHAR(500) NOT NULL,
-    cid VARCHAR(500),
-    version INTEGER DEFAULT 1,
-    previous_version_id UUID REFERENCES koi_memories(id),
-    event_type VARCHAR(20),                -- NEW, UPDATE, FORGET
-    source_sensor VARCHAR(200),
-    content JSONB,                         -- Full document content
-    metadata JSONB,                        -- Platform-specific metadata
-    published_at TIMESTAMP,                -- Publication date (if available)
-    published_confidence FLOAT,            -- Confidence in publication date
-    superseded_at TIMESTAMP,               -- When this version was replaced
-    created_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(rid, version)
-);
-
-CREATE INDEX idx_koi_memories_rid ON koi_memories(rid);
-CREATE INDEX idx_koi_memories_source ON koi_memories(source_sensor);
-CREATE INDEX idx_koi_memories_published ON koi_memories(published_at);
-CREATE INDEX idx_koi_memories_current ON koi_memories(rid)
-    WHERE superseded_at IS NULL;
-```
-
-**koi_embeddings**: Vector embeddings with pgvector
-
-```sql
-CREATE TABLE koi_embeddings (
-    id SERIAL PRIMARY KEY,
-    memory_id UUID REFERENCES koi_memories(id) ON DELETE CASCADE,
-    chunk_index INTEGER DEFAULT 0,         -- Chunk number within document
-    chunk_text TEXT,                       -- The actual chunk text
-    dim_1024 vector(1024),                 -- BGE embeddings
-    created_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(memory_id, chunk_index)
-);
-
-CREATE INDEX idx_koi_embeddings_vector ON koi_embeddings
-    USING ivfflat (dim_1024 vector_cosine_ops)
-    WITH (lists = 100);
-```
-
-**transformation_receipts**: CAT receipt provenance
-
-```sql
-CREATE TABLE transformation_receipts (
-    transformation_id UUID PRIMARY KEY,
-    rid VARCHAR(500) NOT NULL,
-    cid VARCHAR(500),
-    transformation_type VARCHAR(100),      -- sensor_collection, chunking, embedding
-    input_manifest JSONB,
-    output_manifest JSONB,
-    transformation_metadata JSONB,
-    timestamp TIMESTAMP DEFAULT NOW(),
-    agent_id VARCHAR(200),
-    previous_receipt_hash VARCHAR(64)      -- Chain to previous receipt
-);
-
-CREATE INDEX idx_receipts_rid ON transformation_receipts(rid);
-CREATE INDEX idx_receipts_type ON transformation_receipts(transformation_type);
-```
-
-### 6.3 Agent State Tables
-
-**memories**: Agent-accessible chunks for RAG
-
-```sql
-CREATE TABLE memories (
-    id UUID PRIMARY KEY,
-    type VARCHAR(50),                      -- message_embedding, document_chunk
-    content JSONB,                         -- Chunk content
-    embedding vector(1024),                -- For semantic search
-    user_id UUID,
-    room_id UUID,
-    agent_id UUID,
-    unique BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE INDEX idx_memories_embedding ON memories
-    USING ivfflat (embedding vector_cosine_ops)
-    WITH (lists = 100);
-```
-
-**conversations**: Agent chat history
-
-```sql
-CREATE TABLE conversations (
-    id UUID PRIMARY KEY,
-    room_id UUID NOT NULL,
-    agent_id UUID NOT NULL,
-    user_id UUID,
-    content JSONB,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-```
-
-### 6.4 Database Queries
-
-**Get Latest Version of Document**:
-```sql
-SELECT * FROM koi_memories
-WHERE rid = 'orn:web.page:example.com/abc123'
-  AND superseded_at IS NULL;
-```
-
-**Get Version History**:
-```sql
-WITH RECURSIVE version_chain AS (
-  SELECT * FROM koi_memories
-  WHERE rid = 'orn:web.page:example.com/abc123'
-    AND superseded_at IS NULL
-  UNION ALL
-  SELECT m.* FROM koi_memories m
-  INNER JOIN version_chain v ON m.id = v.previous_version_id
-)
-SELECT * FROM version_chain ORDER BY version DESC;
-```
-
-**Semantic Search**:
-```sql
-SELECT
-    m.id,
-    m.content->>'title' AS title,
-    m.content->>'url' AS url,
-    1 - (e.dim_1024 <=> $1::vector) AS similarity
-FROM koi_memories m
-JOIN koi_embeddings e ON e.memory_id = m.id
-WHERE m.superseded_at IS NULL
-ORDER BY e.dim_1024 <=> $1::vector
-LIMIT 10;
-```
-
-**Pipeline Statistics**:
-```sql
-SELECT
-    source_sensor,
-    COUNT(*) as total_docs,
-    COUNT(*) FILTER (WHERE superseded_at IS NULL) as current_docs,
-    COUNT(*) FILTER (WHERE event_type = 'UPDATE') as updates,
-    MAX(created_at) as last_update
-FROM koi_memories
-GROUP BY source_sensor;
-```
-
----
+- See: `KOI_STORAGE_ARCHITECTURE.md`
 
 ## 7. Agent Integration
 
@@ -931,7 +811,27 @@ const results = await runtime.callTool("bge_search", {
 });
 ```
 
-### 7.3 RAG Workflow
+### 7.3 Hybrid Graph Access via MCP (regen-koi-mcp)
+
+The MCP server (`/opt/projects/regen-koi-mcp`) provides adaptive NL→SPARQL and hybrid RRF fusion:
+
+Environment:
+- `JENA_ENDPOINT` (default `http://localhost:3030/koi/sparql`)
+- `CONSOLIDATION_PATH` (`/opt/projects/koi-processor/src/core/final_consolidation_all_t0.25.json`)
+- `PATTERNS_PATH` (`/opt/projects/koi-processor/src/core/predicate_patterns.json`)
+- `COMMUNITY_PATH` (`/opt/projects/koi-processor/src/core/predicate_communities.json`)
+- `EMBEDDING_SERVICE_URL` (`http://localhost:8095`)
+- `OPENAI_API_KEY` (optional; template path used when absent)
+
+Behavior:
+- Focused + broad SPARQL branches run in parallel
+- Canonical‑aware category filter by default; smart fallback drops canonical only when zero results
+- Vector branch runs in parallel; RRF fuses results
+- Tools: `query_graph`, `search_knowledge`, `predicate_community_summary`, `canonical_summary`
+
+Evaluation (20 queries): 100% answered, 0% noise, ~1.5 s avg; cold start ~19 s
+
+### 7.4 RAG Workflow
 
 1. **User Query**: Agent receives question
 2. **Query Embedding**: Generate vector for query text
@@ -1229,145 +1129,19 @@ curl -X POST http://localhost:8090/encode \
 
 ## 10. Development Guide
 
-### 10.1 Adding a New Sensor
+This section has moved to a dedicated document.
 
-1. **Create Sensor Directory**:
-```bash
-cd /opt/projects/koi-sensors/sensors
-mkdir my_sensor
-cd my_sensor
-```
-
-2. **Implement Sensor Class**:
-```python
-# my_sensor.py
-from shared.handlers.base_sensor import BaseSensor
-from koi_protocol.core.rid_system import GenericRID
-from shared.config.base import BaseSensorConfig
-
-class MySensor(BaseSensor):
-    async def collect_data(self) -> List[Dict]:
-        # Fetch data from platform API
-        response = await self.http_client.get("https://api.platform.com/data")
-        return response.json()
-
-    def create_rid(self, item: Dict) -> RID:
-        # Create unique RID for item
-        return GenericRID("my.platform", item["id"])
-
-    def extract_content(self, item: Dict) -> Dict:
-        # Extract normalized content
-        return {
-            "text": item["body"],
-            "title": item["title"],
-            "author": item["author"],
-            "created_at": item["timestamp"]
-        }
-```
-
-3. **Create Configuration**:
-```yaml
-# config.yaml
-sensor:
-  name: my_sensor
-  platform: my_platform
-  poll_interval: 1800
-
-api:
-  base_url: https://api.platform.com
-  api_key_env: MY_PLATFORM_API_KEY
-
-koi_net:
-  coordinator_url: http://localhost:8005
-  cache_directory: ./cache
-```
-
-4. **Create Setup Script**:
-```bash
-# setup.sh
-#!/bin/bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-5. **Create Start Script**:
-```bash
-# start.sh
-#!/bin/bash
-source ../../.env
-source venv/bin/activate
-python my_sensor.py
-```
-
-6. **Test Sensor**:
-```bash
-./setup.sh
-./start.sh
-```
-
-### 10.2 Custom RID Types
-
-```python
-# shared/rid_types/my_platform.py
-from koi_protocol.core.rid_system import ORN
-import hashlib
-
-class MyPlatformRID(ORN):
-    """My Platform RID: orn:my.platform:user_id/item_id"""
-    namespace = "my.platform"
-
-    def __init__(self, user_id: str, item_id: str):
-        self.user_id = user_id
-        self.item_id = item_id
-        super().__init__()
-
-    @property
-    def reference(self) -> str:
-        return f"{self.user_id}/{self.item_id}"
-
-# Register with RID registry
-from koi_protocol.core.rid_system import rid_registry
-rid_registry.register("my.platform", MyPlatformRID)
-```
-
-### 10.3 Testing
-
-**Unit Tests**:
-```python
-# tests/test_my_sensor.py
-import pytest
-from sensors.my_sensor.my_sensor import MySensor
-
-@pytest.mark.asyncio
-async def test_collect_data():
-    config = load_test_config()
-    sensor = MySensor(config)
-
-    data = await sensor.collect_data()
-    assert len(data) > 0
-    assert "id" in data[0]
-
-def test_create_rid():
-    sensor = MySensor(load_test_config())
-    item = {"id": "123", "user": "456"}
-
-    rid = sensor.create_rid(item)
-    assert rid.to_string() == "orn:my.platform:456/123"
-```
-
-**Integration Tests**:
-```bash
-# Start test environment
-docker-compose -f docker-compose.test.yml up -d
-
-# Run tests
-pytest tests/integration/
-```
-
----
+- See: `KOI_DEVELOPMENT_GUIDE.md`
 
 ## 11. Production Considerations
+
+### 11.1 Quality & Performance Tuning (Hybrid Graph)
+
+- Multi‑category gating: keep primary canonical and require secondary token evidence (e.g., eco_credit + finance) to avoid fallback in mixed‑domain queries
+- Warm‑up: issue lightweight Jena + embedding probes on MCP start to remove cold‑start latency
+- Provenance filters: enrich each statement with `regx:sourceDomain` / `regx:sourceType` and prefer/deny by source to structurally suppress non‑domain noise
+- Jena Text index: enable `text:query` on `regx:subject` / `regx:object` for faster topical queries
+- Evaluation gates: persist eval JSON and enforce thresholds (overlap, union size, noise rate)
 
 ### 11.1 Performance Optimization
 

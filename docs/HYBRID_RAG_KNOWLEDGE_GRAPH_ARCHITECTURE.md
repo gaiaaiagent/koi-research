@@ -1,5 +1,32 @@
 # Hybrid RAG & Knowledge Graph Architecture
 
+## Current Status (Oct 2025)
+
+- Graph: 20,325 refined statements stored as reified `regx:Statement` with `regx:subject`, `regx:predicate`, `regx:object`, and `regx:canonicalPredicate` (≈101,903 total triples). Canonical categories include: `eco_credit`, `finance`, `funding`, `governance`, `water`, `creation`, `leadership`, `collaboration`, `location`, `general`.
+- Predicate consolidation: threshold t=0.25 in use (final_consolidation_all_t0.25.json). 7,037 → 4,009 consolidated forms (preserves diversity; avoids over‑merge at t=0.30).
+- Predicate communities: computed (19 communities) and loaded for community‑aware expansion.
+- Hybrid search: true parallel SPARQL + vector with Reciprocal Rank Fusion (RRF). Implemented in MCP (`hybrid-client.ts`).
+- NL→SPARQL: adaptive dual‑branch in MCP with canonical‑aware filtering and smart fallback. Canonical first for precision; automatic non‑canonical fallback for recall.
+- Embeddings: 7,037 predicate embeddings pre‑computed (82.5 MB) with lightweight similarity API.
+- Evaluation: 20‑query harness shows 100% query success, 0% noise (Lingui/i18n eliminated), ~1.5 s avg latency; cold start ~19 s.
+
+## Recent Improvements
+
+- Canonical‑aware NL→SPARQL filtering: maps keywords → canonical categories, prunes noise structurally.
+- Smart fallback: if canonical filters return 0 results, automatically retry broad branch without category filter (maintains recall while keeping default precision high).
+- Expanded canonical lexicon: better coverage for eco‑credit, finance, water, funding, governance, leadership.
+- Consolidation cleanup: standardized t=0.25 “all” mapping and aligned client paths; reduced over‑merge risk spotted at t=0.30.
+- Eval harness: now persists JSON metrics (focused/broad/union/overlap, latency, noise rate, thresholds) for regression tracking.
+
+## Next Steps
+
+- Multi‑category gating (precision without fallback): require primary canonical match and secondary token evidence (e.g., eco_credit + finance for “stablecoin retirements”).
+- Provenance filters: inject `regx:sourceDomain` / `regx:sourceType` per statement in refiner and prefer/deny by source to structurally suppress library/dev noise.
+- Warm‑up on MCP start: prime Jena and embedding service to remove cold‑start 19 s spike.
+- Jena Text index: enable text:query over `regx:subject` / `regx:object` for faster topical broad branch.
+- Canonical enrichment: expand `canonical_predicates.json` and heuristics to boost category recall (especially water/finance).
+- Evaluation gates: set pass/fail thresholds and baseline comparisons (t=0.25 vs t=0.30, canonical on/off).
+
 ## Executive Summary
 
 Our system implements a sophisticated hybrid approach to Retrieval-Augmented Generation (RAG) that combines traditional vector similarity search with structured knowledge graph queries. This dual-path architecture enables both semantic understanding through embeddings and precise ontological reasoning through RDF triples, providing AI agents with comprehensive knowledge access capabilities.
