@@ -1,0 +1,99 @@
+# Weekly KOI Eval Digest
+#
+# Rolls up the last 7 days of full-stack eval reports (persisted to the
+# `eval-reports` branch by full-stack-tests.yml) into a single digest and
+# publishes it to the team-visible surfaces:
+#   1. a comment on the long-lived "KOI Eval Dashboard" issue (same issue the
+#      eval workflow already writes to), and
+#   2. a committed markdown file under reports/weekly-digest/ (browsable history).
+#
+# Runs Sunday 08:00 UTC — 2h after full-stack-tests.yml's weekly full run
+# (06:00 UTC) finishes persisting reports. Also runnable on demand.
+#
+# NOTE: a Notion publish hop is intentionally omitted — the workspace
+# NOTION_API_KEY has been invalid since ~Mar 2026. Re-enable the gated hop at
+# the bottom once a working key lands as a repo secret.
+name: Weekly KOI Eval Digest
+
+on:
+  schedule:
+    - cron: '0 8 * * 0'   # Sunday 08:00 UTC
+  workflow_dispatch:       # allow manual run for testing
+
+permissions:
+  contents: write   # commit the digest markdown
+  issues: write     # post the dashboard issue comment
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout default branch (for the script)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need history + other branches for git ls-tree/show
+
+      - name: Fetch eval-reports branch
+        run: git fetch origin eval-reports:eval-reports || echo "no eval-reports branch yet"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Aggregate last 7 days of eval reports
+        id: agg
+        run: |
+          mkdir -p reports/weekly-digest
+          STAMP=$(date -u +%Y-%m-%d)
+          python3 scripts/aggregate_weekly_evals.py \
+            --repo-dir . --branch eval-reports --days 7 \
+            --out-md "reports/weekly-digest/koi-weekly-eval-${STAMP}.md" \
+            --out-json "reports/weekly-digest/koi-weekly-eval-${STAMP}.json"
+          echo "stamp=${STAMP}" >> "$GITHUB_OUTPUT"
+          echo "md=reports/weekly-digest/koi-weekly-eval-${STAMP}.md" >> "$GITHUB_OUTPUT"
+
+      - name: Post digest to the long-lived dashboard issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('${{ steps.agg.outputs.md }}', 'utf8');
+            const title = 'KOI Eval Dashboard';   // same issue full-stack-tests.yml uses
+            const list = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo, state: 'open', per_page: 100 });
+            let issue = list.data.find(i => i.title === title);
+            if (!issue) {
+              const c = await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo, title,
+                body: 'Automated eval regressions + weekly digests post here. This issue is intentionally long-lived.' });
+              issue = c.data;
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: issue.number, body });
+            core.info(`Posted weekly digest to issue #${issue.number}`);
+
+      - name: Commit the digest markdown (history of weekly reports)
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add reports/weekly-digest/
+          git commit -m "chore: weekly KOI eval digest ${{ steps.agg.outputs.stamp }}" || { echo "nothing to commit"; exit 0; }
+          git push origin "HEAD:${GITHUB_REF_NAME}" || echo "push skipped"
+
+      # ── OPTIONAL publish hops (gated; enable when the secret exists) ─────────
+      # - name: Ingest digest as a KOI document (team-searchable in the graph)
+      #   if: ${{ secrets.KOI_INGEST_TOKEN != '' }}
+      #   env:
+      #     KOI_INGEST_URL: ${{ secrets.KOI_INGEST_URL }}
+      #     KOI_INGEST_TOKEN: ${{ secrets.KOI_INGEST_TOKEN }}
+      #   run: |
+      #     curl -sf -X POST "$KOI_INGEST_URL" \
+      #       -H "Authorization: Bearer $KOI_INGEST_TOKEN" \
+      #       -H 'Content-Type: text/markdown' \
+      #       --data-binary @${{ steps.agg.outputs.md }}
+      #
+      # - name: Push to Notion  ← BLOCKED: NOTION_API_KEY invalid since ~Mar 2026
+      #   if: ${{ secrets.NOTION_API_KEY != '' }}
+      #   run: python3 scripts/post_notion_digest.py --md ${{ steps.agg.outputs.md }}

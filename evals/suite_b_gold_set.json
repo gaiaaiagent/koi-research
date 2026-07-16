@@ -1,0 +1,127 @@
+{
+  "suite": "suite_b",
+  "k_default": 10,
+  "tests": [
+    {
+      "id": "search_registry_agent_001",
+      "tool": "query",
+      "critical": true,
+      "input": { "query": "Registry Agent", "limit": 10 },
+      "assert": {
+        "min_results": 3,
+        "required_matches": [
+          {
+            "type": "url_contains",
+            "values": [
+              "handbook.regen.network/regen-registry-overview/users",
+              "github.com/regen-network/regen-registry-handbook/blob/main/regen-registry-overview/users.md"
+            ]
+          }
+        ]
+      },
+      "notes": "Public Registry Agent sources should be discoverable."
+    },
+    {
+      "id": "search_ecocredit_messages_001",
+      "tool": "query",
+      "critical": true,
+      "input": { "query": "ecocredit spec 03_messages.md MsgCreateBatch", "limit": 10 },
+      "assert": {
+        "min_results": 3,
+        "required_matches": [
+          {
+            "type": "url_contains",
+            "values": [
+              "docs.regen.network/modules/ecocredit/03_messages",
+              "github.com/regen-network/regen-ledger/blob/main/x/ecocredit/spec/03_messages.md"
+            ]
+          }
+        ]
+      },
+      "notes": "Should surface canonical ecocredit messages documentation."
+    },
+    {
+      "id": "search_basket_rfc_001",
+      "tool": "query",
+      "critical": false,
+      "input": { "query": "basket token basket functionality RFC 002", "limit": 10 },
+      "assert": {
+        "min_results": 3,
+        "required_matches": [
+          {
+            "type": "url_contains",
+            "values": [
+              "github.com/regen-network/regen-ledger/blob/main/specs/rfcs/002-basket-functionality/README.md"
+            ]
+          }
+        ]
+      },
+      "notes": "Basket functionality RFC should be retrievable."
+    },
+    {
+      "id": "search_validators_upgrades_001",
+      "tool": "query",
+      "critical": true,
+      "input": { "query": "docs/validators/upgrades README", "limit": 10 },
+      "assert": {
+        "min_results": 3,
+        "required_matches": [
+          {
+            "type": "url_contains",
+            "values": [
+              "github.com/regen-network/regen-ledger/blob/main/docs/validators/upgrades/README.md"
+            ]
+          }
+        ]
+      },
+      "notes": "Validator upgrade docs are a core operational workflow."
+    },
+    {
+      "id": "search_msg_create_batch_001",
+      "tool": "query",
+      "critical": false,
+      "input": { "query": "MsgCreateBatch tx.proto", "limit": 10 },
+      "assert": {
+        "min_results": 3,
+        "required_matches": [
+          {
+            "type": "url_contains",
+            "values": [
+              "docs.regen.network/modules/ecocredit/features/types/msg_create_batch"
+            ]
+          }
+        ]
+      },
+      "notes": "GOLD HYGIENE 2026-07-07: re-pointed from the .proto/.pb.go source files to the canonical docs.regen.network message-type doc. On 2026-05-05 all code rows (.go/.proto/.ts/.pb.go) were intentionally pruned from RAG (koi_memories) — code now feeds the tree-sitter/AGE graph, not the document index — so proto/generated-types files are correctly no longer retrievable via /query. The canonical RAG hit for MsgCreateBatch is the docs.regen.network message-type doc (verified rank 1 live 2026-07-07). To ground the proto/generated-types symbol itself, use the graph tool (see graph_search_entities_msg_create_batch_001)."
+    },
+    {
+      "id": "graph_search_entities_msg_create_batch_001",
+      "tool": "graph",
+      "critical": true,
+      "input": { "query_type": "search_entities", "entity_name": "MsgCreateBatch", "limit": 10 },
+      "assert": {
+        "min_results": 1,
+        "required_matches": [
+          { "type": "entity_name_equals", "values": ["MsgCreateBatch"] },
+          { "type": "file_path_contains", "values": ["x/ecocredit", "proto/regen/ecocredit"] }
+        ]
+      },
+      "notes": "Code graph should find the MsgCreateBatch symbol in ecocredit."
+    },
+    {
+      "id": "graph_search_entities_basket_001",
+      "tool": "graph",
+      "critical": false,
+      "input": { "query_type": "search_entities", "entity_name": "Basket", "repo_name": "regen-ledger", "limit": 10 },
+      "assert": {
+        "min_results": 1,
+        "required_matches": [
+          { "type": "entity_name_contains", "values": ["Basket"] },
+          { "type": "file_path_contains", "values": ["x/ecocredit/basket"] }
+        ]
+      },
+      "notes": "GOLD HYGIENE 2026-07-07: added repo_name=regen-ledger scoping. TRACK B (the real underlying retrieval fix, out of scope for gold hygiene): search_entities has NO authority/repo ranking, so after the 2026-03-09 16-repo backfill the peripheral regen-python-mcp Basket* DTOs (src/mcp_server/models/*.py) outrank the canonical Go x/ecocredit/basket module for a bare unfiltered name search — the module is not even in the unfiltered top 50 (verified live 2026-07-07). Note the runner truncates to k=10 regardless of input.limit, so raising the limit cannot fix this. Hygiene workaround: scope to repo_name=regen-ledger, which resurfaces the canonical module (x/ecocredit/basket first appears at rank 3 of 10; all 10 results contain 'Basket'). Remove this repo scoping once search_entities gains repo/authority ranking."
+    }
+  ]
+}
+

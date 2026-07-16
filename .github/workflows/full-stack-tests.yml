@@ -1,0 +1,787 @@
+# Full-Stack Code Generation Tests
+#
+# Runs the test protocol from docs/test-protocol-full-stack.md
+# in a devcontainer with all required tooling.
+#
+# Triggers:
+# - Nightly at 2am UTC
+# - Manual dispatch
+# - On changes to MCP-related files (optional)
+
+name: Full-Stack Tests
+
+on:
+  schedule:
+    # Run nightly at 2am UTC
+    - cron: '0 2 * * *'
+    # Run weekly summary on Sundays at 6am UTC
+    - cron: '0 6 * * 0'
+
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Which tests to run'
+        required: true
+        default: 'tier1'
+        type: choice
+        options:
+          - tier1
+          - tier2
+          - delta
+          - all
+          - preflight-only
+
+      model:
+        description: 'Model to use'
+        required: true
+        default: 'sonnet'
+        type: choice
+        options:
+          - sonnet
+          - opus
+
+      save_artifacts:
+        description: 'Save test artifacts (scratch files)'
+        required: false
+        default: true
+        type: boolean
+
+      hallucination_threshold:
+        description: 'Max allowed hallucination rate (0.0-1.0)'
+        required: false
+        default: '0.20'
+        type: string
+
+  # Uncomment to run on MCP changes
+  # push:
+  #   paths:
+  #     - 'docs/test-protocol-full-stack.md'
+  #     - '.devcontainer/**'
+
+env:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  KOI_AUTH_TOKEN: ${{ secrets.KOI_AUTH_TOKEN }}
+  KOI_API_ENDPOINT: https://regen.gaiaai.xyz/api/koi
+
+permissions:
+  contents: write  # Needed to push to eval-reports branch
+  issues: write
+
+jobs:
+  run-tests:
+    name: Run Full-Stack Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout koi-research
+        uses: actions/checkout@v4
+
+      - name: Checkout regen-ledger
+        uses: actions/checkout@v4
+        with:
+          repository: regen-network/regen-ledger
+          path: regen-ledger
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Verify environment
+        run: |
+          echo "=== Environment Verification ==="
+          echo "Go: $(go version)"
+          echo "Rust: $(rustc --version)"
+          echo "Cargo: $(cargo --version)"
+          echo "Python: $(python --version)"
+          echo "Node: $(node --version)"
+          echo "Claude Code: $(claude --version || echo 'not installed')"
+          echo "================================"
+
+      - name: Create scratch directory
+        run: mkdir -p scratch
+
+      - name: Determine test suite
+        id: suite
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "suite=${{ inputs.test_suite }}" >> $GITHUB_OUTPUT
+            echo "model=${{ inputs.model }}" >> $GITHUB_OUTPUT
+          else
+            # Nightly runs use preflight-only (HTTP-based, no LLM cost)
+            # Suite D (LLM-based) runs weekly on Sundays to save costs
+            if [ "${{ github.event.schedule }}" == "0 6 * * 0" ]; then
+              # Sunday 6am UTC: run full suite including Suite D
+              echo "suite=all" >> $GITHUB_OUTPUT
+              echo "model=sonnet" >> $GITHUB_OUTPUT
+            else
+              # Daily 2am UTC: run only HTTP-based tests (free)
+              echo "suite=preflight-only" >> $GITHUB_OUTPUT
+              echo "model=sonnet" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Run Backend Preflight Check (KOI API)
+        id: preflight
+        run: |
+          set -euo pipefail
+
+          echo "Running KOI API preflight..."
+          KOI_API="${KOI_API_ENDPOINT%/}"
+
+          QUERY_JSON=$(curl -sS -X POST "$KOI_API/query" \
+            -H 'Content-Type: application/json' \
+            -d '{"query":"Registry Agent","limit":3}')
+
+          GRAPH_JSON=$(curl -sS -X POST "$KOI_API/graph" \
+            -H 'Content-Type: application/json' \
+            -d '{"query_type":"list_repos","limit":50}')
+
+          SEARCH_OK=$(echo "$QUERY_JSON" | jq -e '.data.results | length >= 1' >/dev/null && echo true || echo false)
+          GRAPH_OK=$(echo "$GRAPH_JSON" | jq -e '.data.results | length >= 1' >/dev/null && echo true || echo false)
+
+          CORPUS_VERSION=$(echo "$QUERY_JSON" | jq -r '.as_of.koi.corpus_version // ""')
+          INDEXED_AT=$(echo "$QUERY_JSON" | jq -r '.as_of.koi.indexed_at // ""')
+
+          PREFLIGHT="pass"
+          if [ "$SEARCH_OK" != "true" ] || [ "$GRAPH_OK" != "true" ]; then
+            PREFLIGHT="fail"
+          fi
+
+          jq -n \
+            --arg preflight "$PREFLIGHT" \
+            --argjson search_ok "$SEARCH_OK" \
+            --argjson graph_ok "$GRAPH_OK" \
+            --arg koi_api_endpoint "$KOI_API_ENDPOINT" \
+            --arg corpus_version "$CORPUS_VERSION" \
+            --arg indexed_at "$INDEXED_AT" \
+            '{preflight:$preflight,search_ok:$search_ok,graph_ok:$graph_ok,koi_api_endpoint:$koi_api_endpoint,corpus_version:$corpus_version,indexed_at:$indexed_at}' \
+            > preflight_result.json
+
+          cat preflight_result.json
+
+      - name: Run Contract Test (query_code_graph query_type enum ↔ backend)
+        id: contract_query_types
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/gaiaaiagent/regen-koi-mcp.git regen-koi-mcp
+          cd regen-koi-mcp
+          npm ci
+
+          HAS_CONTRACT_TEST=$(node -e "const fs=require('fs'); const pkg=JSON.parse(fs.readFileSync('package.json','utf8')); process.stdout.write(String(Boolean(pkg.scripts && pkg.scripts['test:contract'])));")
+          if [ "$HAS_CONTRACT_TEST" != "true" ]; then
+            echo "Skipping: regen-koi-mcp does not expose npm script test:contract yet."
+            exit 0
+          fi
+
+          KOI_API_ENDPOINT="${KOI_API_ENDPOINT}" npm run test:contract
+
+      - name: Suite B (Retrieval) — run + baseline diff
+        id: suite_b
+        if: steps.suite.outputs.suite != 'preflight-only'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          TIMESTAMP=$(date +%Y-%m-%d-%H%M)
+          OUT_JSON="reports/evals/prod/${TIMESTAMP}_suite_b.json"
+          OUT_MD="reports/evals/prod/${TIMESTAMP}_suite_b.md"
+
+          echo "suite_b_json=${OUT_JSON}" >> $GITHUB_OUTPUT
+          echo "suite_b_md=${OUT_MD}" >> $GITHUB_OUTPUT
+
+          set +e
+          python3 scripts/run_suite_b.py \
+            --env prod \
+            --koi-api-endpoint "${KOI_API_ENDPOINT}" \
+            --gold evals/suite_b_gold_set.json \
+            --baseline reports/baselines/prod/suite_b.json \
+            --out-json "${OUT_JSON}" \
+            --out-md "${OUT_MD}" \
+            --fail-on red
+          EXIT_CODE=$?
+          set -e
+
+          # If the runner failed before writing its output JSON, synthesize a red status
+          # so downstream alerting and gating can still work.
+          if [ ! -f "${OUT_JSON}" ]; then
+            echo "Suite B runner did not produce ${OUT_JSON}; synthesizing red status."
+            jq -n \
+              --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --arg exit_code "${EXIT_CODE}" \
+              --arg reason "suite_b_runner_failed (exit_code=${EXIT_CODE})" \
+              '{suite:"suite_b",generated_at:$generated_at,runner_exit_code:($exit_code|tonumber),baseline_diff:{status:"red",reason:$reason}}' \
+              > "${OUT_JSON}"
+          fi
+
+          STATUS=$(jq -r '.baseline_diff.status // "unknown"' "${OUT_JSON}" 2>/dev/null || echo "unknown")
+          echo "status=${STATUS}" >> $GITHUB_OUTPUT
+
+          exit $EXIT_CODE
+
+      - name: Install Claude Agent SDK (Suite D)
+        if: steps.suite.outputs.suite == 'tier1' || steps.suite.outputs.suite == 'delta' || steps.suite.outputs.suite == 'all'
+        continue-on-error: true
+        run: |
+          python3 -m pip install --quiet claude-agent-sdk==0.1.19
+
+      - name: Suite D (Agent SDK) — run scenarios
+        id: suite_d
+        if: steps.suite.outputs.suite == 'tier1' || steps.suite.outputs.suite == 'all'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          TIMESTAMP=$(date +%Y-%m-%d-%H%M)
+          OUT_MD="docs/test-results/${TIMESTAMP}-suite-d.md"
+          OUT_JSON="reports/evals/prod/${TIMESTAMP}_suite_d.json"
+
+          echo "results_file=${OUT_MD}" >> $GITHUB_OUTPUT
+          echo "suite_d_json=${OUT_JSON}" >> $GITHUB_OUTPUT
+
+          set +e
+          python3 scripts/run_suite_d.py \
+            --env prod \
+            --model "${{ steps.suite.outputs.model }}" \
+            --koi-api-endpoint "${KOI_API_ENDPOINT}" \
+            --scenarios evals/suite_d_scenarios.json \
+            --out-md "${OUT_MD}" \
+            --out-json "${OUT_JSON}"
+          EXIT_CODE=$?
+          set -e
+
+          exit $EXIT_CODE
+
+      - name: Suite D Delta (Agent SDK) — KOI value-add A/B
+        id: suite_d_delta
+        if: steps.suite.outputs.suite == 'tier1' || steps.suite.outputs.suite == 'delta' || steps.suite.outputs.suite == 'all'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          TIMESTAMP=$(date +%Y-%m-%d-%H%M)
+          OUT_MD="docs/test-results/${TIMESTAMP}-suite-d-delta.md"
+          OUT_JSON="reports/evals/prod/${TIMESTAMP}_suite_d_delta.json"
+
+          echo "suite_d_delta_md=${OUT_MD}" >> $GITHUB_OUTPUT
+          echo "suite_d_delta_json=${OUT_JSON}" >> $GITHUB_OUTPUT
+
+          set +e
+          python3 scripts/run_suite_d.py \
+            --env prod \
+            --model "${{ steps.suite.outputs.model }}" \
+            --koi-api-endpoint "${KOI_API_ENDPOINT}" \
+            --scenarios evals/suite_d_delta_scenarios.json \
+            --out-md "${OUT_MD}" \
+            --out-json "${OUT_JSON}"
+          EXIT_CODE=$?
+          set -e
+
+          # If the runner failed before writing its output JSON, synthesize a red status
+          # so downstream alerting can still work.
+          if [ ! -f "${OUT_JSON}" ]; then
+            echo "Suite D delta runner did not produce ${OUT_JSON}; synthesizing red status."
+            jq -n \
+              --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --arg exit_code "${EXIT_CODE}" \
+              --arg reason "suite_d_delta_runner_failed (exit_code=${EXIT_CODE})" \
+              '{suite:"suite_d_delta",generated_at:$generated_at,runner_exit_code:($exit_code|tonumber),koi_value_add_delta:{summary:{status:"red",reason:$reason}}}' \
+              > "${OUT_JSON}"
+          fi
+
+          STATUS=$(jq -r '.koi_value_add_delta.summary.status // "unknown"' "${OUT_JSON}" 2>/dev/null || echo "unknown")
+          echo "status=${STATUS}" >> $GITHUB_OUTPUT
+
+          exit $EXIT_CODE
+
+      - name: Run Selected Tests (placeholder until Claude Code batch mode)
+        id: run_tests
+        if: steps.suite.outputs.suite != 'preflight-only'
+        run: |
+          echo "Preparing results scaffold..."
+          TIMESTAMP=$(date +%Y-%m-%d-%H%M)
+          RESULTS_FILE="docs/test-results/${TIMESTAMP}-ci.md"
+          mkdir -p docs/test-results
+
+          # Create results header
+          {
+            echo "# CI Test Results - ${TIMESTAMP}"
+            echo ""
+            echo "**Trigger:** ${{ github.event_name }}"
+            echo "**Model:** ${{ steps.suite.outputs.model }}"
+            echo "**Suite:** ${{ steps.suite.outputs.suite }}"
+            echo "**Runner:** GitHub Actions"
+            echo ""
+            echo "---"
+            echo ""
+            echo "## Preflight"
+            echo ""
+            echo '```json'
+            cat preflight_result.json
+            echo '```'
+            echo ""
+            echo "---"
+            echo ""
+            echo "## Test Results"
+            echo ""
+            echo "| Test | Status | Score | Notes |"
+            echo "|------|--------|-------|-------|"
+          } > $RESULTS_FILE
+
+          # Placeholder for actual test execution
+          # Each test would be run via Claude Code CLI with the exact prompts from the protocol
+          SUITE="${{ steps.suite.outputs.suite }}"
+          if [ "$SUITE" == "tier1" ] || [ "$SUITE" == "all" ]; then
+            echo "| VC-01 | Pending | -/2 | Awaiting Claude Code CLI integration |" >> $RESULTS_FILE
+            echo "| VC-02 | Pending | -/2 | Awaiting Claude Code CLI integration |" >> $RESULTS_FILE
+            echo "| NU-02 | Pending | -/2 | Awaiting Claude Code CLI integration |" >> $RESULTS_FILE
+            echo "| CA-01 | Pending | -/2 | Awaiting Claude Code CLI integration |" >> $RESULTS_FILE
+            echo "| CA-02 | Pending | -/2 | Awaiting Claude Code CLI integration |" >> $RESULTS_FILE
+          fi
+          if [ "$SUITE" == "tier2" ] || [ "$SUITE" == "all" ]; then
+            echo "| NU-01 | Pending | -/2 | Awaiting Claude Code CLI integration |" >> $RESULTS_FILE
+            echo "| SC-01 | Pending | -/2 | Awaiting Claude Code CLI integration |" >> $RESULTS_FILE
+            echo "| SC-02 | Pending | -/2 | Awaiting Claude Code CLI integration |" >> $RESULTS_FILE
+          fi
+          if [ "$SUITE" == "delta" ] || [ "$SUITE" == "all" ]; then
+            echo "| KV-01 | Pending | -/2 | Awaiting Claude Code CLI integration |" >> $RESULTS_FILE
+            echo "| KV-02 | Pending | -/2 | Awaiting Claude Code CLI integration |" >> $RESULTS_FILE
+            echo "| KV-03 | Pending | -/2 | Awaiting Claude Code CLI integration |" >> $RESULTS_FILE
+          fi
+
+          echo "results_file=$RESULTS_FILE" >> $GITHUB_OUTPUT
+
+      - name: Verify citations (hallucination detection)
+        id: verify_citations
+        if: steps.suite.outputs.suite != 'preflight-only'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          RESULTS_FILE="${{ steps.suite_d.outputs.results_file }}"
+          if [ -z "$RESULTS_FILE" ]; then
+            RESULTS_FILE="${{ steps.run_tests.outputs.results_file }}"
+          fi
+
+          if [ -z "$RESULTS_FILE" ] || [ ! -f "$RESULTS_FILE" ]; then
+            echo "No results file found for citation verification; skipping."
+            echo "total_citations=0" >> $GITHUB_OUTPUT
+            echo "hallucination_rate=0" >> $GITHUB_OUTPUT
+            echo "threshold_exceeded=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          THRESHOLD="${{ inputs.hallucination_threshold || '0.20' }}"
+
+          echo "Running citation verification on $RESULTS_FILE"
+          echo "Hallucination threshold: $THRESHOLD"
+
+          # Set up repo paths for verification
+          REPOS="$(pwd)/regen-ledger,$(pwd),$(pwd)/regen-koi-mcp"
+
+          # Run verification (stdout=JSON, stderr=status messages)
+          python3 scripts/verify-citations.py "$RESULTS_FILE" \
+            --repos "$REPOS" \
+            --scratch "scratch" \
+            --fail-threshold "$THRESHOLD" \
+            --format json > citation_verification.json || true
+
+          # Parse results
+          if [ -f citation_verification.json ]; then
+            TOTAL=$(jq -r '.total_citations // 0' citation_verification.json)
+            VERIFIED=$(jq -r '.verified_count // 0' citation_verification.json)
+            FAILED=$(jq -r '.failed_count // 0' citation_verification.json)
+            RATE=$(jq -r '.hallucination_rate // 0' citation_verification.json)
+
+            echo "total_citations=$TOTAL" >> $GITHUB_OUTPUT
+            echo "verified_count=$VERIFIED" >> $GITHUB_OUTPUT
+            echo "failed_count=$FAILED" >> $GITHUB_OUTPUT
+            echo "hallucination_rate=$RATE" >> $GITHUB_OUTPUT
+
+            # Check if rate exceeds threshold
+            EXCEEDED=$(python3 -c "print('true' if $RATE > $THRESHOLD else 'false')")
+            echo "threshold_exceeded=$EXCEEDED" >> $GITHUB_OUTPUT
+
+            echo "Citation verification complete:"
+            echo "  Total: $TOTAL"
+            echo "  Verified: $VERIFIED"
+            echo "  Failed: $FAILED"
+            echo "  Hallucination rate: $RATE"
+
+            if [ "$EXCEEDED" == "true" ]; then
+              echo "::warning::Hallucination rate ($RATE) exceeds threshold ($THRESHOLD)"
+            fi
+          else
+            echo "No citation results generated"
+            echo "total_citations=0" >> $GITHUB_OUTPUT
+            echo "hallucination_rate=0" >> $GITHUB_OUTPUT
+            echo "threshold_exceeded=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Hallucination baseline diff (non-blocking)
+        id: hallucination_diff
+        if: steps.verify_citations.outputs.total_citations != ''
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+
+          if [ ! -f citation_verification.json ]; then
+            echo "No citation_verification.json found; skipping baseline diff."
+            echo "status=no_signal" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          TIMESTAMP=$(date +%Y-%m-%d-%H%M)
+          OUT_JSON="reports/evals/prod/${TIMESTAMP}_hallucination_diff.json"
+          OUT_MD="reports/evals/prod/${TIMESTAMP}_hallucination_diff.md"
+
+          set +e
+          python3 scripts/compare_hallucination_baseline.py \
+            --current citation_verification.json \
+            --baseline reports/baselines/prod/hallucination.json \
+            --min-citations 10 \
+            --threshold "${{ inputs.hallucination_threshold || '0.20' }}" \
+            --out-json "${OUT_JSON}" \
+            --out-md "${OUT_MD}" \
+            --fail-on red
+          EXIT_CODE=$?
+          set -e
+
+          # If the runner failed before writing its output JSON, synthesize a yellow status
+          # so downstream alerting can flag eval pipeline breakage.
+          if [ ! -f "${OUT_JSON}" ]; then
+            echo "Hallucination diff runner did not produce ${OUT_JSON}; synthesizing yellow status."
+            jq -n \
+              --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --arg exit_code "${EXIT_CODE}" \
+              --arg reason "hallucination_diff_runner_failed (exit_code=${EXIT_CODE})" \
+              '{suite:"hallucination",generated_at:$generated_at,runner_exit_code:($exit_code|tonumber),status:"yellow",reason:$reason}' \
+              > "${OUT_JSON}"
+            {
+              echo "# Hallucination Baseline Diff"
+              echo ""
+              echo "Status: yellow"
+              echo "Reason: hallucination_diff_runner_failed (exit_code=${EXIT_CODE})"
+            } > "${OUT_MD}"
+          fi
+
+          STATUS=$(jq -r '.status // "unknown"' "${OUT_JSON}" 2>/dev/null || echo "unknown")
+          DELTA=$(jq -r '.delta // ""' "${OUT_JSON}" 2>/dev/null || echo "")
+          echo "status=${STATUS}" >> $GITHUB_OUTPUT
+          echo "delta=${DELTA}" >> $GITHUB_OUTPUT
+          echo "report_json=${OUT_JSON}" >> $GITHUB_OUTPUT
+          echo "report_md=${OUT_MD}" >> $GITHUB_OUTPUT
+
+      - name: Compare to baseline
+        id: compare
+        run: |
+          echo "Comparing to baseline..."
+          # Find most recent baseline
+          BASELINE=$(ls -t docs/test-results/*.md 2>/dev/null | grep -v "$(date +%Y-%m-%d)" | head -1 || echo "")
+
+          if [ -n "$BASELINE" ]; then
+            echo "Baseline found: $BASELINE"
+            echo "baseline=$BASELINE" >> $GITHUB_OUTPUT
+            echo "has_baseline=true" >> $GITHUB_OUTPUT
+          else
+            echo "No baseline found - this run will become the baseline"
+            echo "has_baseline=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload test artifacts
+        if: always() && inputs.save_artifacts != false
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts-${{ github.run_id }}
+          path: |
+            scratch/
+            docs/test-results/
+            reports/evals/
+            citation_verification.json
+            preflight_result.json
+          retention-days: 30
+
+      - name: Persist eval reports to dedicated branch
+        if: always()
+        run: |
+          set -euo pipefail
+
+          # Check if we have any reports to commit
+          if [ ! -d "reports/evals/prod" ] || [ -z "$(ls -A reports/evals/prod/*.json 2>/dev/null)" ]; then
+            echo "No eval reports to persist"
+            exit 0
+          fi
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Save reports to a temp location
+          TEMP_REPORTS=$(mktemp -d)
+          cp -r reports/evals/prod/*.json "$TEMP_REPORTS/" 2>/dev/null || true
+
+          # Try to fetch the eval-reports branch, or create orphan if it doesn't exist
+          if git fetch origin eval-reports:eval-reports 2>/dev/null; then
+            git checkout eval-reports
+          else
+            echo "Creating new eval-reports branch"
+            git checkout --orphan eval-reports
+            git rm -rf . 2>/dev/null || true
+            echo "# Eval Reports" > README.md
+            echo "" >> README.md
+            echo "This branch stores automated eval results from CI runs." >> README.md
+            echo "Reports are organized by date in the prod/ directory." >> README.md
+            mkdir -p prod
+          fi
+
+          # Copy reports and commit
+          mkdir -p prod
+          cp "$TEMP_REPORTS"/*.json prod/ 2>/dev/null || true
+          rm -rf "$TEMP_REPORTS"
+
+          git add prod/*.json README.md 2>/dev/null || true
+
+          if git diff --staged --quiet; then
+            echo "No new reports to commit"
+          else
+            TIMESTAMP=$(date +%Y-%m-%d-%H%M)
+            git commit -m "Eval run ${TIMESTAMP} (run #${{ github.run_number }})"
+            git push origin eval-reports
+            echo "✅ Persisted eval reports to eval-reports branch"
+          fi
+
+      - name: Post summary
+        if: always()
+        run: |
+          echo "## Full-Stack Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "**Model:** ${{ steps.suite.outputs.model }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Suite:** ${{ steps.suite.outputs.suite }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f preflight_result.json ]; then
+            echo "### Preflight" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+            cat preflight_result.json >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Suite B retrieval eval summary
+          if [ -n "${{ steps.suite_b.outputs.suite_b_md || '' }}" ] && [ -f "${{ steps.suite_b.outputs.suite_b_md }}" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Suite B (Retrieval)" >> $GITHUB_STEP_SUMMARY
+            cat "${{ steps.suite_b.outputs.suite_b_md }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Suite D Delta (KOI value-add) summary
+          if [ -n "${{ steps.suite_d_delta.outputs.suite_d_delta_md || '' }}" ] && [ -f "${{ steps.suite_d_delta.outputs.suite_d_delta_md }}" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Suite D Delta (KOI Value-Add)" >> $GITHUB_STEP_SUMMARY
+            cat "${{ steps.suite_d_delta.outputs.suite_d_delta_md }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Add hallucination detection results
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Citation Verification (Hallucination Detection)" >> $GITHUB_STEP_SUMMARY
+          if [ -f citation_verification.json ]; then
+            TOTAL="${{ steps.verify_citations.outputs.total_citations || '0' }}"
+            VERIFIED="${{ steps.verify_citations.outputs.verified_count || '0' }}"
+            FAILED="${{ steps.verify_citations.outputs.failed_count || '0' }}"
+            RATE="${{ steps.verify_citations.outputs.hallucination_rate || '0' }}"
+            EXCEEDED="${{ steps.verify_citations.outputs.threshold_exceeded || 'false' }}"
+            THRESHOLD="${{ inputs.hallucination_threshold || '0.20' }}"
+
+            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Total Citations | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+            echo "| Verified | $VERIFIED |" >> $GITHUB_STEP_SUMMARY
+            echo "| Failed | $FAILED |" >> $GITHUB_STEP_SUMMARY
+            echo "| Hallucination Rate | $RATE |" >> $GITHUB_STEP_SUMMARY
+            echo "| Threshold | $THRESHOLD |" >> $GITHUB_STEP_SUMMARY
+
+            if [ "$EXCEEDED" == "true" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "> ⚠️ **Warning:** Hallucination rate exceeds threshold" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "> ✅ Hallucination rate within threshold" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "No citation verification results available" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Baseline diff summary
+          if [ -n "${{ steps.hallucination_diff.outputs.report_md || '' }}" ] && [ -f "${{ steps.hallucination_diff.outputs.report_md }}" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Hallucination Baseline Diff" >> $GITHUB_STEP_SUMMARY
+            cat "${{ steps.hallucination_diff.outputs.report_md }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Alert on red/yellow regressions (issue comment)
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            function readJson(path) {
+              try { return JSON.parse(fs.readFileSync(path, 'utf8')); } catch { return null; }
+            }
+
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const preflight = readJson('preflight_result.json');
+
+            // Suite B status (if available)
+            const suiteBPath = `${{ steps.suite_b.outputs.suite_b_json || '' }}`;
+            const suiteB = suiteBPath ? readJson(suiteBPath) : null;
+            const suiteBStatus = suiteB?.baseline_diff?.status || (suiteB ? 'unknown' : 'not_run');
+
+            // Hallucination diff status (if available)
+            const hallucPath = `${{ steps.hallucination_diff.outputs.report_json || '' }}`;
+            const halluc = hallucPath ? readJson(hallucPath) : null;
+            const hallucStatus = halluc?.status || (halluc ? 'unknown' : 'not_run');
+
+            // Suite D Delta (KOI value-add) status (if available)
+            const deltaPath = `${{ steps.suite_d_delta.outputs.suite_d_delta_json || '' }}`;
+            const delta = deltaPath ? readJson(deltaPath) : null;
+            const deltaStatus = delta?.koi_value_add_delta?.summary?.status || (delta ? 'unknown' : 'not_run');
+
+            const contractOutcome = `${{ steps.contract_query_types.outcome }}`;
+            const preflightStatus = preflight?.preflight || 'unknown';
+            const preflightIsRed = preflightStatus !== 'pass';
+
+            const signals = [
+              { name: 'preflight', status: preflightIsRed ? 'red' : 'green' },
+              { name: 'contract_query_types', status: contractOutcome === 'failure' ? 'red' : 'green' },
+              { name: 'suite_b', status: suiteBStatus },
+              { name: 'koi_value_add_delta', status: deltaStatus },
+              { name: 'hallucination', status: hallucStatus },
+            ];
+
+            const isBad = (s) => s === 'red' || s === 'yellow';
+            const hasBad = signals.some(x => isBad(x.status));
+            if (!hasBad) {
+              core.info('No red/yellow signals; skipping alert.');
+              return;
+            }
+
+            const title = 'KOI Eval Dashboard';
+            const { owner, repo } = context.repo;
+
+            // Find or create a single dashboard issue to comment on
+            const existing = await github.rest.issues.listForRepo({
+              owner, repo, state: 'open', per_page: 100
+            });
+            let dashboard = existing.data.find(i => i.title === title);
+            if (!dashboard) {
+              const created = await github.rest.issues.create({
+                owner, repo, title,
+                body: 'Automated evals post red/yellow regressions here. This issue is intentionally long-lived.'
+              });
+              dashboard = created.data;
+            }
+
+            const lines = [];
+            lines.push('## KOI Eval Regression Signal');
+            lines.push('');
+            lines.push(`Run: ${runUrl}`);
+            lines.push('');
+            lines.push('| Signal | Status |');
+            lines.push('|--------|--------|');
+            for (const s of signals) {
+              lines.push(`| ${s.name} | ${s.status} |`);
+            }
+            lines.push('');
+            if (suiteB?.baseline_diff) {
+              lines.push('### Suite B (Retrieval)');
+              lines.push(`- status: ${suiteBStatus}`);
+              if (suiteB.baseline_diff?.reason) lines.push(`- reason: ${suiteB.baseline_diff.reason}`);
+              lines.push(`- pass_rate: ${(suiteB.summary?.pass_rate ?? 0).toFixed(2)}`);
+              lines.push(`- baseline_pass_rate: ${(suiteB.baseline_diff?.baseline_pass_rate ?? 0).toFixed(2)}`);
+              lines.push(`- pass_rate_drop: ${(suiteB.baseline_diff?.pass_rate_drop ?? 0).toFixed(2)}`);
+            }
+            if (delta?.koi_value_add_delta?.summary) {
+              const s = delta.koi_value_add_delta.summary;
+              lines.push('');
+              lines.push('### Suite D Delta (KOI Value-Add)');
+              lines.push(`- status: ${deltaStatus}`);
+              if (s.reason) lines.push(`- reason: ${s.reason}`);
+              if (s.total_pairs !== undefined) lines.push(`- pairs: ${s.total_pairs} (green=${s.green ?? 0}, yellow=${s.yellow ?? 0}, red=${s.red ?? 0})`);
+              if (s.avg_verified_rate_delta !== undefined && s.avg_verified_rate_delta !== null) lines.push(`- avg_verified_rate_delta: ${s.avg_verified_rate_delta}`);
+              if (s.avg_citations_delta !== undefined && s.avg_citations_delta !== null) lines.push(`- avg_citations_delta: ${s.avg_citations_delta}`);
+            }
+            if (halluc?.status) {
+              lines.push('');
+              lines.push('### Hallucination');
+              lines.push(`- status: ${hallucStatus}`);
+              if (halluc.reason) lines.push(`- reason: ${halluc.reason}`);
+              if (halluc.current?.hallucination_rate !== undefined) lines.push(`- current_rate: ${halluc.current.hallucination_rate}`);
+              if (halluc.baseline?.hallucination_rate !== undefined) lines.push(`- baseline_rate: ${halluc.baseline.hallucination_rate}`);
+              if (halluc.delta !== undefined) lines.push(`- delta: ${halluc.delta}`);
+            }
+
+            await github.rest.issues.createComment({
+              owner, repo,
+              issue_number: dashboard.number,
+              body: lines.join('\n')
+            });
+
+      - name: Fail job on red regressions
+        if: always()
+        run: |
+          set -euo pipefail
+
+          PREFLIGHT=$(jq -r '.preflight // "unknown"' preflight_result.json 2>/dev/null || echo "unknown")
+          if [ "$PREFLIGHT" != "pass" ]; then
+            echo "Preflight failed: $PREFLIGHT"
+            exit 1
+          fi
+
+          if [ "${{ steps.contract_query_types.outcome }}" = "failure" ]; then
+            echo "Contract test failed."
+            exit 1
+          fi
+
+          SUITE_B_STATUS="${{ steps.suite_b.outputs.status || '' }}"
+          if [ "$SUITE_B_STATUS" = "red" ]; then
+            echo "Suite B regression: red"
+            exit 1
+          fi
+
+          echo "No red regressions detected."
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Integrate Claude Code CLI for actual test execution" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Add KOI authentication for private doc access" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Expand Suite B gold set + tune thresholds" >> $GITHUB_STEP_SUMMARY
+
+      # Uncomment to create issues on regression
+      # - name: Create issue on regression
+      #   if: steps.compare.outputs.has_baseline == 'true' && failure()
+      #   uses: actions/github-script@v7
+      #   with:
+      #     script: |
+      #       github.rest.issues.create({
+      #         owner: context.repo.owner,
+      #         repo: context.repo.repo,
+      #         title: `Test Regression Detected - ${new Date().toISOString().split('T')[0]}`,
+      #         body: `Automated tests detected a regression.\n\nSee workflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+      #         labels: ['regression', 'automated']
+      #       })
