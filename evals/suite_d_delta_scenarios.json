@@ -1,0 +1,173 @@
+{
+  "suite": "suite_d_delta",
+  "notes": "Delta A/B scenarios run the same prompt twice: baseline (MCP disabled) vs KOI-grounded (KOI MCP enabled). The runner computes per-pair deltas for citations, verified citation rate, tool calls, and duration.",
+  "thresholds": {
+    "max_koi_hallucination_rate": 0.2,
+    "min_koi_verifiable_citations": 5,
+    "min_verified_rate_delta_yellow": -0.05,
+    "min_verified_rate_delta_red": -0.15
+  },
+  "pairs": [
+    {
+      "id": "delta_kv_01",
+      "name": "KV-01 (Delta): Basket tokens — baseline vs KOI-grounded",
+      "prompt": "Write an engineer-facing explainer about Regen ecocredit basket tokens.\n\nOutput:\n- Create a new folder `scratch/suite-d/{{RUN_ID}}/delta-kv-01/`.\n- Write your deliverable to `scratch/suite-d/{{RUN_ID}}/delta-kv-01/report.md`.\n\nUse EXACTLY these section headings in report.md:\n- Summary\n- How it works\n- Code pointers\n- Sources\n- Tools used\n- Uncertainties\n\nContent requirements:\n1) Summary: 2–4 sentences.\n2) How it works: plain English.\n3) Code pointers: list at least 3 concrete pointers (symbol → file path) for relevant code under regen-ledger (e.g., `x/ecocredit/basket/...`).\n4) Sources: include 3+ citations. Prefer local file paths; GitHub URLs are optional.\n5) Tools used: if tools are available, list the tool calls you ran; if not, explicitly say \"No tools available\".\n6) Uncertainties: anything you could not verify.\n\nImportant:\n- If KOI MCP tools are available, use them to ground the report (at minimum run `search` and `query_code_graph`).\n- If KOI MCP tools are not available, proceed anyway but be explicit about uncertainty and do not invent citations.\n",
+      "artifact_paths": [
+        "scratch/suite-d/{{RUN_ID}}/delta-kv-01/report.md"
+      ],
+      "baseline": {
+        "enable_mcp": false,
+        "checks": {
+          "path_exists": [
+            "scratch/suite-d/{{RUN_ID}}/delta-kv-01/report.md"
+          ],
+          "file_contains": [
+            {
+              "path": "scratch/suite-d/{{RUN_ID}}/delta-kv-01/report.md",
+              "contains": [
+                "Summary",
+                "Code pointers",
+                "Sources",
+                "Tools used",
+                "Uncertainties"
+              ]
+            }
+          ]
+        }
+      },
+      "koi": {
+        "enable_mcp": true,
+        "checks": {
+          "path_exists": [
+            "scratch/suite-d/{{RUN_ID}}/delta-kv-01/report.md"
+          ],
+          "file_contains": [
+            {
+              "path": "scratch/suite-d/{{RUN_ID}}/delta-kv-01/report.md",
+              "contains": [
+                "Summary",
+                "Code pointers",
+                "Sources",
+                "Tools used",
+                "Uncertainties"
+              ]
+            }
+          ],
+          "tool_name_contains": [
+            "search",
+            "query_code_graph"
+          ]
+        }
+      }
+    },
+    {
+      "id": "delta_kv_02",
+      "name": "KV-02 (Delta): Regen Ledger upgrades — baseline vs KOI-grounded",
+      "prompt": "Create an upgrade planning runbook summary for regen-ledger.\n\nOutput:\n- Create a new folder `scratch/suite-d/{{RUN_ID}}/delta-kv-02/`.\n- Write your deliverable to `scratch/suite-d/{{RUN_ID}}/delta-kv-02/upgrade_runbook.md`.\n\nUse EXACTLY these section headings in upgrade_runbook.md:\n- Upgrade scope & risks\n- Code pointers\n- Validator instructions\n- Sources\n- Tools used\n- Uncertainties\n\nContent requirements:\n1) Upgrade scope & risks: plain English.\n2) Code pointers: list at least 3 concrete pointers (symbol → file path) for upgrade handlers/migrations (e.g., `app/upgrades/...`, `x/upgrade/...`).\n3) Validator instructions: step-by-step checklist.\n4) Sources: include 3+ citations. Prefer local file paths; GitHub URLs are optional.\n5) Tools used: if tools are available, list the tool calls you ran; if not, explicitly say \"No tools available\".\n6) Uncertainties: anything you could not verify.\n\nImportant:\n- If KOI MCP tools are available, use them to ground the runbook (at minimum run `search` and `query_code_graph`).\n- If KOI MCP tools are not available, proceed anyway but be explicit about uncertainty and do not invent citations.\n",
+      "artifact_paths": [
+        "scratch/suite-d/{{RUN_ID}}/delta-kv-02/upgrade_runbook.md"
+      ],
+      "baseline": {
+        "enable_mcp": false,
+        "checks": {
+          "path_exists": [
+            "scratch/suite-d/{{RUN_ID}}/delta-kv-02/upgrade_runbook.md"
+          ],
+          "file_contains": [
+            {
+              "path": "scratch/suite-d/{{RUN_ID}}/delta-kv-02/upgrade_runbook.md",
+              "contains": [
+                "Upgrade",
+                "Code pointers",
+                "Validator",
+                "Sources",
+                "Tools used",
+                "Uncertainties"
+              ]
+            }
+          ]
+        }
+      },
+      "koi": {
+        "enable_mcp": true,
+        "checks": {
+          "path_exists": [
+            "scratch/suite-d/{{RUN_ID}}/delta-kv-02/upgrade_runbook.md"
+          ],
+          "file_contains": [
+            {
+              "path": "scratch/suite-d/{{RUN_ID}}/delta-kv-02/upgrade_runbook.md",
+              "contains": [
+                "Upgrade",
+                "Code pointers",
+                "Validator",
+                "Sources",
+                "Tools used",
+                "Uncertainties"
+              ]
+            }
+          ],
+          "tool_name_contains": [
+            "search",
+            "query_code_graph"
+          ]
+        }
+      }
+    },
+    {
+      "id": "delta_kv_03",
+      "name": "KV-03 (Delta): Registry Agent — baseline vs KOI-grounded",
+      "notes": "This test benefits from authentication for private Notion docs. If not authenticated, the KOI run will use public sources only, which may reduce the delta signal.",
+      "prompt": "Describe what the \"Registry Agent\" does at Regen Network and produce a \"Registry Review Report\" markdown template.\n\nOutput:\n- Create a new folder `scratch/suite-d/{{RUN_ID}}/delta-kv-03/`.\n- Write your deliverable to `scratch/suite-d/{{RUN_ID}}/delta-kv-03/report.md`.\n\nUse EXACTLY these section headings in report.md:\n- Registry Agent Overview\n- Report Template\n  - Required Sections\n  - Checklist\n  - Evidence Fields\n  - Scoring\n- Sources\n- Tools used\n- Uncertainties\n\nContent requirements:\n1) Registry Agent Overview: 2–4 sentences describing the role.\n2) Report Template: A structured markdown template with required sections, checklists, evidence fields, and a scoring section.\n3) Sources: include 3+ citations if tools are available. If not, explain uncertainty.\n4) Tools used: if tools are available, list the tool calls you ran; if not, explicitly say \"No tools available\".\n5) Uncertainties: anything you could not verify.\n\nImportant:\n- If KOI MCP tools are available, use them to ground the report (at minimum run `search` with query=\"Registry Agent\").\n- If KOI MCP tools are not available, proceed anyway but be explicit about uncertainty and do not invent citations.\n",
+      "artifact_paths": [
+        "scratch/suite-d/{{RUN_ID}}/delta-kv-03/report.md"
+      ],
+      "baseline": {
+        "enable_mcp": false,
+        "checks": {
+          "path_exists": [
+            "scratch/suite-d/{{RUN_ID}}/delta-kv-03/report.md"
+          ],
+          "file_contains": [
+            {
+              "path": "scratch/suite-d/{{RUN_ID}}/delta-kv-03/report.md",
+              "contains": [
+                "Registry Agent",
+                "Checklist",
+                "Evidence",
+                "Scoring",
+                "Tools used",
+                "Uncertainties"
+              ]
+            }
+          ]
+        }
+      },
+      "koi": {
+        "enable_mcp": true,
+        "checks": {
+          "path_exists": [
+            "scratch/suite-d/{{RUN_ID}}/delta-kv-03/report.md"
+          ],
+          "file_contains": [
+            {
+              "path": "scratch/suite-d/{{RUN_ID}}/delta-kv-03/report.md",
+              "contains": [
+                "Registry Agent",
+                "Checklist",
+                "Evidence",
+                "Scoring",
+                "Sources",
+                "Tools used",
+                "Uncertainties"
+              ]
+            }
+          ],
+          "tool_name_contains": [
+            "search"
+          ]
+        }
+      }
+    }
+  ]
+}

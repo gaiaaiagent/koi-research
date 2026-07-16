@@ -1,0 +1,61 @@
+{
+  "generated_at": "2026-07-12T09:50:48.096655+00:00",
+  "window_days": 7,
+  "report_counts": {
+    "suite_b": 1,
+    "suite_d": 1,
+    "suite_d_delta": 1,
+    "hallucination_diff": 1
+  },
+  "suite_b": {
+    "runs": 1,
+    "avg_pass_rate": 1.0,
+    "best": {
+      "date": "2026-07-12",
+      "pass_rate": 1.0
+    },
+    "worst": {
+      "date": "2026-07-12",
+      "pass_rate": 1.0
+    },
+    "worst_status": "green",
+    "red_dates": [],
+    "yellow_dates": []
+  },
+  "suite_d_delta": {
+    "runs": 1,
+    "numeric_deltas": [
+      [
+        "2026-07-12",
+        0.0
+      ]
+    ],
+    "avg_numeric_delta": 0.0,
+    "harness_error_dates": [
+      "2026-07-12"
+    ],
+    "worst_status": "red",
+    "red_dates": [
+      "2026-07-12"
+    ],
+    "yellow_dates": []
+  },
+  "hallucination": {
+    "runs": 1,
+    "avg_rate": null,
+    "trend": null,
+    "insufficient_data_dates": [
+      "2026-07-12"
+    ],
+    "worst_status": "green",
+    "red_dates": [],
+    "yellow_dates": []
+  },
+  "headline_status": "red",
+  "alerts": {
+    "red_dates": [
+      "2026-07-12"
+    ],
+    "yellow_dates": []
+  }
+}

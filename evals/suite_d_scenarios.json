@@ -1,0 +1,125 @@
+{
+  "suite": "suite_d",
+  "notes": "Agent scenarios run via Claude Agent SDK (programmatic Claude Code). Prompts use {{RUN_ID}} so each run writes to a unique scratch folder.",
+  "scenarios": [
+    {
+      "id": "sd_vc_01",
+      "name": "VC-01 (Suite D): Python CLI + unittest",
+      "prompt": "Create a small, self-contained Python CLI tool in a new folder `scratch/suite-d/{{RUN_ID}}/vc-01/`.\n\nRequirements:\n1) Create `batch_analyzer.py` that reads a JSON file containing a list of ecocredit “batches” with fields:\n   - batch_denom (string)\n   - project_id (string)\n   - tradable_amount (number)\n   - retired_amount (number)\n2) It prints:\n   - total_tradable_amount\n   - total_retired_amount\n   - top 3 projects by total retired_amount\n3) Create `test_batch_analyzer.py` using ONLY Python’s built-in `unittest` (no external deps).\n4) Create `sample_batches.json` with a small example dataset.\n5) Run the tests and paste the terminal output.\n\nConstraints:\n- Do not use any external Python libraries.\n- Keep it minimal and correct.\n\nDeliverable: code + tests + terminal output from running tests.",
+      "checks": {
+        "path_exists": [
+          "scratch/suite-d/{{RUN_ID}}/vc-01/"
+        ],
+        "glob_exists": [
+          "scratch/suite-d/{{RUN_ID}}/vc-01/*.py",
+          "scratch/suite-d/{{RUN_ID}}/vc-01/test_*.py"
+        ],
+        "bash_command_contains": [
+          "python -m unittest",
+          "python3 -m unittest"
+        ]
+      }
+    },
+    {
+      "id": "sd_ca_01",
+      "name": "CA-01 (Suite D): Basket token helper (KOI-grounded)",
+      "prompt": "Build a small “basket token helper” in `scratch/suite-d/{{RUN_ID}}/ca-01/` with:\n- `basket_helper.py`\n- `README.md`\n\nRequirements:\n1) Use KOI MCP tools to ground your answer. Do not rely on guesswork.\n2) Call KOI `search` (limit 5) to find authoritative docs about Regen ecocredit baskets / basket tokens.\n3) Call KOI `query_code_graph` to find relevant symbols and file paths under `x/ecocredit/basket`.\n4) In `README.md`, include:\n   - A plain-English explanation of basket tokens\n   - A Sources section with 3+ citations (URLs or RIDs)\n   - A Code pointers section (symbol → file path)\n   - A Tools used section listing which tool calls you ran\n\nDeliverable: the script + a grounded README.\n\nImportant:\n- Every claim about a message/symbol should be supported by a tool result.\n- If you can’t find something, say so explicitly.",
+      "checks": {
+        "path_exists": [
+          "scratch/suite-d/{{RUN_ID}}/ca-01/README.md",
+          "scratch/suite-d/{{RUN_ID}}/ca-01/basket_helper.py"
+        ],
+        "file_contains": [
+          {
+            "path": "scratch/suite-d/{{RUN_ID}}/ca-01/README.md",
+            "contains": [
+              "Sources",
+              "Code pointers",
+              "Tools used"
+            ]
+          }
+        ],
+        "tool_name_contains": [
+          "search",
+          "query_code_graph"
+        ]
+      }
+    },
+    {
+      "id": "sd_nu_02",
+      "name": "NU-02 (Suite D): Upgrade Planning from Docs",
+      "prompt": "Research and create an upgrade plan document in `scratch/suite-d/{{RUN_ID}}/nu-02/`.\n\nRequirements:\n1) Use KOI `search` to find regen-ledger upgrade documentation, including:\n   - Past upgrade procedures\n   - Migration guides\n   - Validator upgrade instructions\n2) Use KOI `query_code_graph` to find upgrade handler patterns in the codebase:\n   - Search for upgrade handler implementations\n   - Find migration-related code patterns\n   - Identify relevant modules (e.g., x/upgrade, app/upgrades)\n3) Create `upgrade_plan.md` with the following sections:\n   - **Upgrade Name**: A descriptive name for the upgrade\n   - **Height**: Recommended block height considerations\n   - **Handler Location**: File paths to relevant upgrade handlers found via query_code_graph\n   - **Migration Steps**: Ordered list of migration steps based on documentation\n   - **Validator Instructions**: Clear instructions for validators based on found docs\n   - **Sources**: List of KOI search results and code graph queries used\n\nConstraints:\n- Do not invent information; ground all claims in KOI tool results\n- If information is not found, explicitly state what is missing\n- Include tool call summaries in the Sources section\n\nDeliverable: A grounded upgrade_plan.md ready for team review.",
+      "checks": {
+        "path_exists": [
+          "scratch/suite-d/{{RUN_ID}}/nu-02/upgrade_plan.md"
+        ],
+        "file_contains": [
+          {
+            "path": "scratch/suite-d/{{RUN_ID}}/nu-02/upgrade_plan.md",
+            "contains": [
+              "Upgrade Name",
+              "Height",
+              "Migration",
+              "Validator",
+              "Handler",
+              "Sources"
+            ]
+          }
+        ],
+        "tool_name_contains": [
+          "search",
+          "query_code_graph"
+        ]
+      }
+    },
+    {
+      "id": "sd_vc_02",
+      "name": "VC-02 (Suite D): query_code_graph contract sanity",
+      "prompt": "This is a contract sanity check for query_code_graph to detect schema drift between the MCP tool schema and the backend API.\n\nTask:\n1) Call query_code_graph with query_type=\"list_repos\" (should succeed) and paste the result.\n2) Call query_code_graph with query_type=\"find_call_graph\" and entity_name=\"CreateBatch\" (it may return 0 results, but should not error as an invalid query_type). Paste the result or error.\n3) Try calling query_code_graph with query_type=\"list_keepers\" (expected: tool rejects it as an invalid query_type since it's not in the enum). Paste the error.\n4) Create a file `scratch/suite-d/{{RUN_ID}}/vc-02/contract_sanity_report.md` with:\n   - Results from each test\n   - Schema drift analysis: are there query_types accepted that shouldn't be, or rejected that should be?\n   - A concrete automated contract test suggestion to prevent future drift\n\nDeliverable: The contract sanity report documenting your findings.",
+      "checks": {
+        "path_exists": [
+          "scratch/suite-d/{{RUN_ID}}/vc-02/contract_sanity_report.md"
+        ],
+        "file_contains": [
+          {
+            "path": "scratch/suite-d/{{RUN_ID}}/vc-02/contract_sanity_report.md",
+            "contains": [
+              "list_repos",
+              "find_call_graph",
+              "list_keepers",
+              "drift"
+            ]
+          }
+        ],
+        "tool_name_contains": [
+          "query_code_graph"
+        ]
+      }
+    },
+    {
+      "id": "sd_ca_02",
+      "name": "CA-02 (Suite D): Registry Agent report template",
+      "prompt": "Using KOI search, find the most relevant internal/public documentation about:\n- Registry Agent responsibilities\n- Project review / monitoring documentation for Regen Registry\n\nThen generate a \"Registry Review Report\" markdown template in `scratch/suite-d/{{RUN_ID}}/ca-02/registry_review_template.md` with:\n- Required sections for a registry review\n- Checklists for reviewers\n- Evidence fields (what documentation/proof is needed)\n- A scoring section with criteria\n- A Sources section citing the documents you found (URLs or doc titles)\n- A Tools used section listing the KOI tool calls you ran\n\nThe template must be grounded in what you retrieved from KOI search. If you cannot find specific information, explicitly state what is missing.\n\nDeliverable: A structured, auditable registry review template grounded in retrieved sources.",
+      "checks": {
+        "path_exists": [
+          "scratch/suite-d/{{RUN_ID}}/ca-02/registry_review_template.md"
+        ],
+        "file_contains": [
+          {
+            "path": "scratch/suite-d/{{RUN_ID}}/ca-02/registry_review_template.md",
+            "contains": [
+              "Checklist",
+              "Evidence",
+              "Scoring",
+              "Sources",
+              "Tools used"
+            ]
+          }
+        ],
+        "tool_name_contains": [
+          "search"
+        ]
+      }
+    }
+  ]
+}
