@@ -1,0 +1,37 @@
+profile:
+  rdf_canonicalization: RDFC-1.0 (pyoxigraph CanonicalizationAlgorithm.RDFC_1_0 0.5.9)
+  claim_iri_policy: deterministic; derived from claim SUBSTANCE only (assertor + subject + statement +
+    claim_type + asserted_at)
+  digest_suite: SHA-256 over canonical N-Quads UTF-8 bytes, lowercase hex
+  canonicalization_label: "RDFC-1.0 canonicalization (pyoxigraph 0.5.9) + SHA-256 over canonical N-Quads.\
+    \ Verified: 64/64 W3C rdf-canon eval vectors pass. NOT fully spec-conformant: fails \xA74.4.3 DoS-defense\
+    \ MUST (poison graphs do not terminate); 21 MapTests unverified. Synthetic/trusted input only \u2014\
+    \ not safe for untrusted claim graphs without an external timeout."
+admission_rule: reviewer-confirmed (verification_state == "peer_reviewed")
+fixture_id: jc-koi-claim-001
+claim_iri: urn:regen:claim:sha256:e69fb077232b3776620122897ccb649576378ea7f4feecdbb487bda1fc006b6f
+claim_fingerprint: e69fb077232b3776620122897ccb649576378ea7f4feecdbb487bda1fc006b6f
+canonical_nquads: '_:c14n0 <https://example.org/ns/claim#assertedAt> "2026-07-14T00:00:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>
+  .
+
+  _:c14n0 <https://example.org/ns/claim#claimType> "ecological" .
+
+  _:c14n0 <https://example.org/ns/claim#hasClaimant> <https://example.org/entities/assertor-001> .
+
+  _:c14n0 <https://example.org/ns/claim#hasSubject> <https://example.org/entities/subject-001> .
+
+  _:c14n0 <https://example.org/ns/claim#statement> "Fixture assertion for cross-engine canonicalization
+  testing." .
+
+  '
+canonical_bytes: 490
+legacy_koi_anchor_hash_blake2b_256: 8c37f07707cccb9855b610f28ad00e30d61596f718609da53d86d519b6471efb
+checks:
+  determinism: pass
+  semantic_sensitivity: pass
+  audit_isolation: pass
+  admission_boundary: pass
+notes:
+- Synthetic fixture. No production DB, ledger, or claims-API access.
+- Legacy BLAKE2b-256 anchor hash retained as a SEPARATE value; never conflated with the semantic fingerprint.
+- See test_spike.py for all 7 acceptance criteria.

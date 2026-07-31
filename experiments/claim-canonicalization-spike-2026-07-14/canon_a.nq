@@ -1,0 +1,2 @@
+<http://example.org/claim/1> <http://www.w3.org/ns/prov#wasAttributedTo> _:c14n0 .
+_:c14n0 <http://xmlns.com/foaf/0.1/name> "JC" .

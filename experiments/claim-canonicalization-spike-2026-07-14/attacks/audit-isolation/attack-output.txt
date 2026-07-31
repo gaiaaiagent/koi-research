@@ -1,0 +1,87 @@
+BASELINE fingerprint : e69fb077232b3776620122897ccb649576378ea7f4feecdbb487bda1fc006b6f
+BASELINE claim_iri   : urn:regen:claim:sha256:e69fb077232b3776620122897ccb649576378ea7f4feecdbb487bda1fc006b6f
+BASELINE legacy hash : 8c37f07707cccb9855b610f28ad00e30d61596f718609da53d86d519b6471efb
+
+==============================================================================
+DIRECTION 1 — try to make an AUDIT field leak into the fingerprint
+==============================================================================
+  source.evidence_uris -> [999,998]                    fp_moved=False  legacy_moved=False
+  source.output_record_rid -> CHANGED                  fp_moved=False  legacy_moved=False
+  source.source_document -> CHANGED                    fp_moved=False  legacy_moved=False
+  claim_candidate.reviewer_uri -> reviewer-999         fp_moved=False  legacy_moved=True
+  top.claim_rid -> CHANGED                             fp_moved=False  legacy_moved=False
+  top.data_iri -> CHANGED                              fp_moved=False  legacy_moved=False
+  top.db_created_at -> 2099                            fp_moved=False  legacy_moved=False
+  top.api_request_at -> 2099                           fp_moved=False  legacy_moved=False
+  evidence_uris contains the SUBJECT iri (guard trick) -> RAISED SubstanceLeakError: audit field 'evidence_uris' value 'https://example.org/entities/subject-001' leaked into the canonical graph
+  source.statement = 'HACK' (wrong container)          fp_moved=False  legacy_moved=False
+  claim_candidate.verification_notes = '...' (extra audit) fp_moved=False  legacy_moved=True
+
+  DIRECTION 1: no audit field moved the fingerprint (allowlist holds structurally).
+
+==============================================================================
+DIRECTION 2 — INVERSE TRAP: is a genuinely SEMANTIC field being dropped?
+==============================================================================
+Grounded against koi-processor ClaimCreateRequest (real model):
+  metadata: Dict  # 'Extensible fields: quantity, unit, dates, SDGs, methodology'
+  credit_class_id: Optional[str]  # 'Regen credit class ID (e.g., C04, C05)'
+  ai_confidence: Optional[float]
+None of these are in adapter.SUBSTANCE_FIELDS. The adapter reads ONLY:
+  ['claimant_uri', 'about_uri', 'statement', 'claim_type', 'asserted_at']
+So it silently ignores them. Below: two MATERIALLY DIFFERENT real claims
+that collide onto ONE fingerprint / ONE Claim IRI.
+
+  2a. metadata.quantity (ecological magnitude): 100 tonnes vs 5 tonnes
+    A (      {'quantity': 100, 'unit': 'tCO2e'})  fp=e69fb077232b3776620122897ccb649576378ea7f4feecdbb487bda1fc006b6f
+    B (        {'quantity': 5, 'unit': 'tCO2e'})  fp=e69fb077232b3776620122897ccb649576378ea7f4feecdbb487bda1fc006b6f
+    same_fingerprint=True  same_claim_iri=True  legacy_hash_DIFFERS=True
+    >>> COLLISION: two different claims, one canonical identity.
+    >>> and KOI's OWN legacy anchor hash treats them as DISTINCT.
+
+  2b. credit_class_id: C04 vs C05 (different Regen credit methodology)
+    A (                                   'C04')  fp=e69fb077232b3776620122897ccb649576378ea7f4feecdbb487bda1fc006b6f
+    B (                                   'C05')  fp=e69fb077232b3776620122897ccb649576378ea7f4feecdbb487bda1fc006b6f
+    same_fingerprint=True  same_claim_iri=True  legacy_hash_DIFFERS=True
+    >>> COLLISION: two different claims, one canonical identity.
+    >>> and KOI's OWN legacy anchor hash treats them as DISTINCT.
+
+  2c. metadata.unit: tonnes vs kilograms (1000x real-world difference)
+    A (     {'quantity': 100, 'unit': 'tonnes'})  fp=e69fb077232b3776620122897ccb649576378ea7f4feecdbb487bda1fc006b6f
+    B (  {'quantity': 100, 'unit': 'kilograms'})  fp=e69fb077232b3776620122897ccb649576378ea7f4feecdbb487bda1fc006b6f
+    same_fingerprint=True  same_claim_iri=True  legacy_hash_DIFFERS=True
+    >>> COLLISION: two different claims, one canonical identity.
+    >>> and KOI's OWN legacy anchor hash treats them as DISTINCT.
+
+  2d. metadata.negated: false vs true (claim vs its negation)
+    A (                      {'negated': False})  fp=e69fb077232b3776620122897ccb649576378ea7f4feecdbb487bda1fc006b6f
+    B (                       {'negated': True})  fp=e69fb077232b3776620122897ccb649576378ea7f4feecdbb487bda1fc006b6f
+    same_fingerprint=True  same_claim_iri=True  legacy_hash_DIFFERS=True
+    >>> COLLISION: two different claims, one canonical identity.
+    >>> and KOI's OWN legacy anchor hash treats them as DISTINCT.
+
+
+==============================================================================
+DIRECTION 3 — does the legacy BLAKE2b (KOI's own claim hash) disagree?
+==============================================================================
+If metadata rides inside claim_candidate, KOI's legacy anchor hash (over the
+WHOLE candidate) MOVES while the JC semantic fingerprint does NOT. That means
+the two engines would DISAGREE on whether two claims are the same claim.
+
+  JC semantic fingerprint  A==B : True
+  KOI legacy anchor hash   A==B : False
+    JC:  A=e69fb077232b3776620122897ccb649576378ea7f4feecdbb487bda1fc006b6f
+    JC:  B=e69fb077232b3776620122897ccb649576378ea7f4feecdbb487bda1fc006b6f
+    KOI: A=8aad1a6c9fae9345cf29f0379e2b559417e04b6cae3db41f74af7d396bdf4785
+    KOI: B=3446f652cfba58ca99360e5d71bc59e631df0ff0335f61e3413eea6e3de804a3
+
+  !! The engines DISAGREE on claim identity.
+
+==============================================================================
+VERDICT
+==============================================================================
+audit_isolation is a FALSE PASS (inverse-trap sense). Findings:
+  - INVERSE TRAP 2a: claims differing only in metadata.quantity (100 vs 5 tCO2e) collide onto one fingerprint/IRI; KOI's legacy anchor hash treats them as distinct
+  - INVERSE TRAP 2b: claims differing only in credit_class_id (C04 vs C05) collide onto one fingerprint/IRI; KOI legacy hash distinct
+  - INVERSE TRAP 2c: quantity 100 tonnes vs 100 kilograms collide onto one identity
+  - INVERSE TRAP 2d: a claim and its structural negation collide onto one identity
+  - CROSS-ENGINE DISAGREEMENT: JC fingerprint says two claims are identical; KOI legacy anchor hash says they are distinct. 'without losing existing semantics' is falsified for any claim carrying metadata.

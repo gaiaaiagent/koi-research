@@ -1,0 +1,5 @@
+_:c14n0 <https://example.org/ns/claim#assertedAt> "2026-07-14T00:00:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> .
+_:c14n0 <https://example.org/ns/claim#claimType> "ecological" .
+_:c14n0 <https://example.org/ns/claim#hasClaimant> <https://example.org/entities/assertor-001> .
+_:c14n0 <https://example.org/ns/claim#hasSubject> <https://example.org/entities/subject-001> .
+_:c14n0 <https://example.org/ns/claim#statement> "Fixture assertion for cross-engine canonicalization testing." .

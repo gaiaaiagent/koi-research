@@ -1,0 +1,20 @@
+# jc-koi-claim-001 — SYNTHETIC fixture, copied VERBATIM from
+# scratch/jc-claims-compatibility-spike-2026-07-14.md (L39-54).
+#
+# Non-production. No live claim identifier, no private evidence, no funded
+# anchor path. Do not point this at a real DB, the Regen ledger, or the live
+# claims API.
+fixture_id: jc-koi-claim-001
+source:
+  output_record_rid: "urn:koi:fixture:output-record-001"
+  source_document: "urn:koi:fixture:document-001"
+  evidence_uris:
+    - "urn:koi:fixture:evidence-001"
+claim_candidate:
+  claimant_uri: "https://example.org/entities/assertor-001"
+  about_uri: "https://example.org/entities/subject-001"
+  statement: "Fixture assertion for cross-engine canonicalization testing."
+  claim_type: ecological
+  asserted_at: "2026-07-14T00:00:00Z"
+  reviewer_uri: "https://example.org/entities/reviewer-001"
+  verification_state: peer_reviewed
